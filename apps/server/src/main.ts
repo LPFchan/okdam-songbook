@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { serve } from "@hono/node-server";
+import { createTjAdapter } from "@songbook/server-core";
 import { createConfiguredServer } from "./api.js";
 
 function required(name: string): string {
@@ -37,6 +38,7 @@ export async function startFromEnvironment() {
   const server = await createConfiguredServer({
     database,
     origin,
+    tj: createTjAdapter(),
     assetsRoot: process.env.ASSETS_ROOT?.trim() || resolve(process.cwd(), "apps/web/dist"),
     auth: {
       database,
