@@ -206,7 +206,7 @@
           onclick={() => void deleteDraft()}
         >
           <Trash2 size={17} />
-          {deletePending ? "삭제 중…" : deleteConfirm ? "한 번 더 누륩면 삭제" : "삭제"}
+          {deletePending ? "삭제 중…" : deleteConfirm ? "한 번 더 누르면 삭제" : "삭제"}
         </button>
       {/if}
     </div>
