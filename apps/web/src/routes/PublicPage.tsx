@@ -2,10 +2,11 @@ import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState }
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Filter, LogIn, Moon, Monitor, RefreshCw, RotateCcw, Search, SlidersHorizontal, Sun } from "lucide-react";
 import type { PerformerId, Song, SongFilters, SortKey } from "@songbook/shared";
-import { can, filterSongs, performerOrder, performers, searchSongs, sortSongs } from "@songbook/shared";
+import { filterSongs, performerOrder, performers, searchSongs, sortSongs } from "@songbook/shared";
 import { BottomSheet } from "../components/BottomSheet";
 import { SongCard } from "../components/SongCard";
 import { SongDetail } from "../components/SongDetail";
+import { TjOmnibarResults } from "../components/TjOmnibarResults";
 import { cancelPerformance, createPerformance, fetchPublicData } from "../lib/api";
 import { db, readCachedPublicData, saveCachedPublicData } from "../lib/db";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
@@ -392,7 +393,7 @@ export function PublicPage() {
         </div>
         <label className="search-box">
           <Search size={18} />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="곡명, 아티스트, 독음, TJ 번호, 부를 사람" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Songbook과 TJ에서 곡명, 가수, 번호 검색" />
         </label>
         <div className="toolbar">
           <button type="button" onClick={() => setFilterOpen(true)}>
@@ -410,6 +411,10 @@ export function PublicPage() {
               <option value="performanceCount">많이 부른 순</option>
             </select>
           </label>
+          {auth.user ? <>
+            <button type="button" onClick={() => openManagement("songs")}>곡 관리</button>
+            <button type="button" onClick={() => openManagement("history")}>이력</button>
+          </> : null}
         </div>
         {!filterOpen ? <div className="quick-chip-row" role="group" aria-label="빠른 필터">
           {quickFilters.map((filter) => {
@@ -475,6 +480,20 @@ export function PublicPage() {
           <div className="empty-state">{songs.length ? "검색 결과가 없어." : "아직 캐시된 곡이 없어. 한 번 온라인으로 동기화해줘."}</div>
         )}
       </section>
+
+      <TjOmnibarResults
+        query={query}
+        enabled={Boolean(auth.user && online)}
+        songs={songs}
+        requireCredential={auth.requireValidCredential}
+        onManualAdd={() => openManagement("add")}
+        onOpenExisting={setSelected}
+        onSongSaved={(saved) => setSongs((previous) => {
+          const existing = previous.some((song) => song.id === saved.id);
+          return existing ? previous.map((song) => song.id === saved.id ? saved : song) : [saved, ...previous];
+        })}
+        onMessage={setMessage}
+      />
 
       {physicsMode ? (
         <button type="button" className="physics-restore" onClick={exitPhysics}>
@@ -573,16 +592,6 @@ export function PublicPage() {
             <p className="hint">{online ? "온라인" : "오프라인"} · 마지막 동기화 {lastSync ? new Date(lastSync).toLocaleString() : "없음"}</p>
             <button type="button" className="secondary-button" onClick={() => void refreshCatalog()}><RefreshCw size={17} /> 목록 새로고침</button>
           </section>
-          {auth.user ? (
-            <section className="account-section" aria-labelledby="management-heading">
-              <h3 id="management-heading">관리</h3>
-              <div className="account-management-links">
-                <button type="button" className="secondary-button" disabled={!can(auth.user.role, "song:create")} onClick={() => openManagement("add")}>곡 추가</button>
-                <button type="button" className="secondary-button" disabled={!can(auth.user.role, "song:update")} onClick={() => openManagement("songs")}>곡 관리</button>
-                <button type="button" className="secondary-button" disabled={!can(auth.user.role, "changeLog:read")} onClick={() => openManagement("history")}>변경 이력</button>
-              </div>
-            </section>
-          ) : null}
         </div>
       </BottomSheet>
 

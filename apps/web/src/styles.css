@@ -214,6 +214,85 @@ button:disabled {
   padding: 8px 0 80px;
 }
 
+.omnibar-tj {
+  display: grid;
+  gap: 10px;
+  padding: 14px 0 80px;
+  border-top: 1px solid var(--line);
+}
+
+.omnibar-tj-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.omnibar-tj-heading h2,
+.omnibar-tj-heading p {
+  margin: 0;
+}
+
+.omnibar-tj-heading h2 {
+  font-size: 1rem;
+}
+
+.omnibar-tj-heading p,
+.omnibar-tj-status {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.omnibar-tj-results {
+  display: grid;
+  gap: 8px;
+}
+
+.omnibar-tj-row {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.omnibar-tj-number {
+  color: var(--primary-strong);
+  font-size: 1.08rem;
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+}
+
+.omnibar-tj-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.omnibar-tj-copy strong,
+.omnibar-tj-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.omnibar-tj-copy small {
+  color: var(--muted);
+}
+
+@media (max-width: 430px) {
+  .omnibar-tj-row {
+    grid-template-columns: 60px minmax(0, 1fr);
+  }
+
+  .omnibar-tj-row button {
+    grid-column: 1 / -1;
+  }
+}
+
 .song-card {
   width: 100%;
   display: grid;

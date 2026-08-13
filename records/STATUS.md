@@ -9,8 +9,9 @@ Recorded by agent: codex-orchestrator
 - Overall posture: `source-integrated; production rollout pending`.
 - Integrated source baseline: commits through `5be715a` (`Integrate auth TJ
   and unified UI`).
-- Current product shape: one catalog-first main surface with contextual
-  account, add, manage, and history tools; `/admin` is a compatibility alias.
+- Current product shape: one catalog-first main surface whose search input
+  returns saved songs first and debounced TJ candidates second. Manage/history
+  remain contextual utilities; `/admin` is a compatibility alias.
 - Current production reality: the previously deployed GIS/direct Apps Script
   path and separate ChatGPT OAuth Worker remain the live external components.
   The new Better Auth browser path and TJ Apps Script actions are not live.
@@ -21,9 +22,11 @@ Recorded by agent: codex-orchestrator
 
 ### Unified web surface
 
-- `apps/web/src/routes/PublicPage.tsx` owns the catalog, quick filters, account
-  surface, role-aware management entry points, and contextual management
-  sheets.
+- `apps/web/src/routes/PublicPage.tsx` owns the catalog omnibar, quick filters,
+  account preferences, role-aware management entry points, and contextual
+  management sheets.
+- `apps/web/src/components/TjOmnibarResults.tsx` owns the debounced TJ
+  continuation, local duplicate resolution, and inline immediate add state.
 - `apps/web/src/routes/AdminPage.tsx` supplies add/manage/history content to
   the main surface. It is no longer a separate page composition.
 - `/admin?tab=settings` is normalized away because the former Settings tab had

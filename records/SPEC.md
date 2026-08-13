@@ -22,7 +22,10 @@ history.
 - Public GitHub Pages PWA under `/okdam-songbook/`.
 - The catalog is the primary surface for search, filters, account/session
   state, theme, sync status, and role-aware management entry points.
-- Add, manage, and history tools open contextually from the main surface.
+- The main search is an omnibar: saved-song matches appear immediately, then
+  authenticated debounced TJ matches continue below with inline add actions.
+- Manage and history tools open contextually from the catalog toolbar; manual
+  add remains a TJ-search fallback.
 - `/okdam-songbook/admin/` remains a compatibility deep link to the same
   composition; it is not a separate security boundary.
 - Google Apps Script Web App API backed by a private Google Sheets workbook
@@ -40,8 +43,8 @@ history.
 - Bottom-sheet song details with performance history and
   `오늘 불렀습니다!`.
 - Offline-first public read cache and queued performance writes.
-- Exact TJ-number lookup, bounded TJ accompaniment search, editable candidate
-  autofill, and authenticated one-action candidate add with manual fallback.
+- Local-first omnibar search, bounded debounced TJ accompaniment search, and
+  authenticated one-action candidate add with manual fallback.
 - Server-authoritative duplicate checks, replay-safe writes, TJ provenance, and
   owner-only restore for deleted matches.
 - Better Auth browser-session foundation on the Cloudflare Worker: Google

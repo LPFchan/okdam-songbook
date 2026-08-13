@@ -8,10 +8,11 @@ Recorded by agent: codex-orchestrator
 ### Unified catalog-first surface
 
 - Status: `implemented in source; production verification pending`.
-- Main catalog owns account, filters, theme, sync, and role-aware contextual
-  entry to add/manage/history tools.
+- Main catalog owns account, filters, theme, sync, and the local-first search
+  omnibar. TJ candidates follow saved matches after a 450 ms debounce and can
+  be added inline. Manage/history remain contextual toolbar utilities.
 - `/admin` remains a compatibility alias rather than a separate composition.
-- Related ids: DEC-20260813-002.
+- Related ids: DEC-20260813-002, DEC-20260813-004.
 
 ### TJ-assisted discovery and entry
 

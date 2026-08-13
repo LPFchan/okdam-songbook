@@ -69,6 +69,7 @@ function renderPublic(path = "/") {
 
 describe("PublicPage", () => {
   beforeEach(() => {
+    window.localStorage.clear();
     // PublicPage unit tests run against the local mock data so we don't have
     // to mock the Apps Script fetch surface here.
     vi.stubEnv("VITE_ENABLE_MOCK_API", "true");
@@ -94,7 +95,7 @@ describe("PublicPage", () => {
 
   it("renders the search interface", async () => {
     renderPublic();
-    expect(screen.getByPlaceholderText("곡명, 아티스트, 독음, TJ 번호, 부를 사람")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Songbook과 TJ에서 곡명, 가수, 번호 검색")).toBeInTheDocument();
     expect(await screen.findByText("レーゾンデートル")).toBeInTheDocument();
   });
 
