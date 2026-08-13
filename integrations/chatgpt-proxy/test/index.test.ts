@@ -158,6 +158,18 @@ describe("routing", () => {
     expect(denied.headers.get("Access-Control-Allow-Origin")).toBeNull();
   });
 
+  it("keeps TJ browser actions behind the Better Auth gateway allowlist", async () => {
+    const authEnv = { ...env, BETTER_AUTH_ENABLED: "true", AUTH_DB: fakeD1, BETTER_AUTH_URL: "https://chatgpt-proxy.example.com", BETTER_AUTH_SECRET: "test-better-auth-secret", AUTH_TRUSTED_ORIGINS: "https://devuterian.github.io" };
+    for (const action of ["lookupTjSong", "searchTjSongs", "addTjSong", "restoreSong"]) {
+      const response = await worker.fetch(new Request(`https://chatgpt-proxy.example.com/api/browser/${action}`, {
+        method: "POST",
+        headers: { Origin: "https://devuterian.github.io", "Content-Type": "application/json" },
+        body: "{}"
+      }), authEnv);
+      expect(response.status).toBe(401);
+    }
+  });
+
   it("derives the browser actor from the Better Auth session user", () => {
     expect(__internals.browserActor({
       user: { id: "ba-user", email: "MARIE@example.com", name: "Marie", emailVerified: true },

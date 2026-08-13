@@ -27,7 +27,6 @@ export function PublicPage() {
   const [message, setMessage] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [tokenInput, setTokenInput] = useState("");
   const [physicsMode, setPhysicsMode] = useState(false);
   const [physicsResetId, setPhysicsResetId] = useState(0);
   const [theme, setTheme] = useTheme();
@@ -314,12 +313,9 @@ export function PublicPage() {
       ? `${auth.displayInfo.displayName} · 다시 로그인 필요`
       : "비로그인";
 
-  async function loginWithToken() {
-    const token = tokenInput.trim();
+  async function loginWithGoogle() {
     try {
-      if (!token) await auth.loginWithGoogleButton();
-      else await auth.loginWithCredential(token);
-      setTokenInput("");
+      await auth.loginWithGoogleButton();
       setMessage("로그인됐어.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "로그인하지 못했어.");
@@ -559,10 +555,7 @@ export function PublicPage() {
             <h3 id="account-status-heading">로그인</h3>
             <p className="hint">{auth.user ? `${auth.user.displayName} · ${auth.user.role}` : auth.status === "reauthRequired" ? "다시 로그인이 필요해." : "카탈로그는 로그인 없이 사용할 수 있어."}</p>
             {!auth.user ? (
-              <div className="inline-form">
-                <input value={tokenInput} onChange={(event) => setTokenInput(event.target.value)} placeholder="ID token 또는 Google 버튼" aria-label="Google ID token" />
-                <button type="button" className="primary-button" onClick={() => void loginWithToken()}><LogIn size={17} /> 로그인</button>
-              </div>
+              <button type="button" className="primary-button" onClick={() => void loginWithGoogle()}><LogIn size={17} /> Google로 로그인</button>
             ) : (
               <button type="button" className="secondary-button" onClick={() => { auth.signOut(); setMessage("로그아웃했어."); }}>로그아웃</button>
             )}

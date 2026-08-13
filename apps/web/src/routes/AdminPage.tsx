@@ -239,6 +239,7 @@ export function AdminPage({ embedded = false, surfaceTab, onSongSaved }: AdminPa
       if (result.outcome === "created" && result.song) {
         const saved = result.song as Song;
         setSongs((previous) => [...previous.filter((song) => song.id !== saved.id), saved]);
+        onSongSaved?.(saved);
         setDraft(saved);
         setMessage("곡을 바로 추가했어. 필요하면 아래 폼에서 이어서 편집해줘.");
       } else if (result.existing) {
@@ -262,6 +263,7 @@ export function AdminPage({ embedded = false, surfaceTab, onSongSaved }: AdminPa
     try {
       const restored = await restoreSong(tjRestoreCandidate.id, idToken, crypto.randomUUID());
       setSongs((previous) => [...previous.filter((song) => song.id !== restored.id), restored]);
+      onSongSaved?.(restored);
       setDraft(restored);
       setTjRestoreCandidate(null);
       setMessage("기존 곡을 복구했어.");
@@ -422,6 +424,7 @@ export function AdminPage({ embedded = false, surfaceTab, onSongSaved }: AdminPa
               </select>
               <button type="button" className="secondary-button" disabled={!auth.user || tjSearchLoading} onClick={() => void runTjSearch()}><Search size={17} />{tjSearchLoading ? "검색 중…" : "TJ 검색"}</button>
             </div>
+            {tjSearchMessage ? <p className="hint">{tjSearchMessage}</p> : null}
             {tjRestoreCandidate ? <div className="tj-restore-action"><span>삭제된 곡: {tjRestoreCandidate.title}</span>{auth.user?.role === "owner" ? <button type="button" className="secondary-button" disabled={tjRestorePending} onClick={() => void restoreTjCandidate()}>{tjRestorePending ? "복구 중…" : "기존 곡 복구"}</button> : <span className="hint">기존 곡을 열었어. 복구는 소유자만 할 수 있어.</span>}</div> : null}
             {tjCandidates.length ? <div className="tj-results" aria-label="TJ 검색 결과">{tjCandidates.map((candidate) => {
               const duplicate = songs.find((song) => song.tjNumber === candidate.tjNumber || (song.title.trim().toLocaleLowerCase() === candidate.title.trim().toLocaleLowerCase() && song.artist.trim().toLocaleLowerCase() === candidate.artist.trim().toLocaleLowerCase()));

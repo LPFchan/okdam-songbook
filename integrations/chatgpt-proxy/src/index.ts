@@ -423,7 +423,17 @@ async function handleBrowserSession(request: Request, env: Env): Promise<Respons
   }), request, env);
 }
 
-const BROWSER_ACTIONS = new Set(["upsertSong", "createPerformance", "cancelPerformance", "generateReading", "analyzeYouTube"]);
+const BROWSER_ACTIONS = new Set([
+  "upsertSong",
+  "createPerformance",
+  "cancelPerformance",
+  "generateReading",
+  "analyzeYouTube",
+  "lookupTjSong",
+  "searchTjSongs",
+  "addTjSong",
+  "restoreSong"
+]);
 
 async function handleBrowserGateway(request: Request, env: Env, url: URL): Promise<Response> {
   const action = url.pathname.slice("/api/browser/".length);
