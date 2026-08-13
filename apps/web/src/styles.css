@@ -464,6 +464,70 @@ mark.hit {
   cursor: pointer;
 }
 
+.offline-queue-panel {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.offline-queue-heading,
+.offline-queue-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.offline-queue-heading span,
+.offline-queue-list small {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.offline-queue-panel p {
+  margin: 0;
+}
+
+.offline-queue-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.offline-queue-list li {
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  font-size: 0.86rem;
+}
+
+.offline-queue-list li > span:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.offline-queue-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.offline-queue-actions button {
+  min-height: 30px;
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface-strong);
+  color: var(--ink);
+  font-size: 0.76rem;
+}
+
 .update-toast button {
   margin-left: 8px;
   color: var(--bg);

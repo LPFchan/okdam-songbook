@@ -29,7 +29,7 @@ export function mockMode(): boolean {
   return (import.meta.env.VITE_ENABLE_MOCK_API ?? "false") === "true";
 }
 
-interface ParsedApiError {
+export interface ParsedApiError {
   code: string;
   message: string;
   status: number;
@@ -98,11 +98,11 @@ export async function fetchCurrentUser(): Promise<CurrentUser> {
   return request("/api/me", { method: "GET" }, (data) => currentUserSchema.parse(data));
 }
 
-export async function createPerformance(songId: string, clientRequestId: string): Promise<{ id: string; duplicate?: boolean }> {
+export async function createPerformance(songId: string, clientRequestId: string, performedAt = nowIso()): Promise<{ id: string; duplicate?: boolean }> {
   if (mockMode()) return { id: `mock-${clientRequestId}` };
   return request("/api/performances", {
     method: "POST",
-    body: JSON.stringify({ songId, performedAt: nowIso(), clientRequestId })
+    body: JSON.stringify({ songId, performedAt, clientRequestId })
   }, (data) => data as { id: string; duplicate?: boolean });
 }
 

@@ -8,12 +8,105 @@ import { SongCard } from "../components/SongCard";
 import { SongDetail } from "../components/SongDetail";
 import { TjOmnibarResults } from "../components/TjOmnibarResults";
 import { cancelPerformance, createPerformance, fetchPublicData } from "../lib/api";
-import { db, readCachedPublicData, saveCachedPublicData } from "../lib/db";
+import { readCachedPublicData, saveCachedPublicData } from "../lib/db";
+import {
+  drainOfflineQueue,
+  enqueuePerformanceCancel,
+  enqueuePerformanceCreate,
+  classifyQueueError,
+  queueCounts,
+  queueItems,
+  markQueueItemFailed,
+  discardQueueItem,
+  retryQueueItem,
+  subscribeQueue,
+  type QueueCounts
+} from "../lib/offlineQueue";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { usePhysicsMode } from "../hooks/usePhysicsMode";
 import { useTheme } from "../hooks/useTheme";
 import { AuthRequiredError, useAuth } from "../lib/auth/AuthContext";
 import { AdminPage, type AdminTab } from "./AdminPage";
+
+function OfflineQueueSurface({ online, auth, onMessage }: { online: boolean; auth: ReturnType<typeof useAuth>; onMessage: (message: string) => void }) {
+  const [offlineQueue, setOfflineQueue] = useState<Awaited<ReturnType<typeof queueItems>>>([]);
+  const [offlineQueueCounts, setOfflineQueueCounts] = useState<QueueCounts>({ pending: 0, inFlight: 0, failed: 0, deadLetter: 0, authPaused: false });
+
+  const refreshOfflineQueue = useCallback(async () => {
+    const [items, counts] = await Promise.all([queueItems(), queueCounts()]);
+    setOfflineQueue(items);
+    setOfflineQueueCounts(counts);
+  }, []);
+
+  const drainQueue = useCallback(async () => {
+    await drainOfflineQueue(auth.user ? { auth, onChange: () => void refreshOfflineQueue() } : { onChange: () => void refreshOfflineQueue() });
+    await refreshOfflineQueue();
+  }, [auth, refreshOfflineQueue]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeQueue(() => void refreshOfflineQueue());
+    const onOnline = () => void drainQueue();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void drainQueue();
+    };
+    window.addEventListener("online", onOnline);
+    document.addEventListener("visibilitychange", onVisibility);
+    void refreshOfflineQueue();
+    if (online) void drainQueue();
+    return () => {
+      unsubscribe();
+      window.removeEventListener("online", onOnline);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [drainQueue, online, refreshOfflineQueue]);
+
+  useEffect(() => {
+    if (auth.status === "authenticated" || auth.forceUpdateToken > 0) void drainQueue();
+  }, [auth.forceUpdateToken, auth.status, drainQueue]);
+
+  async function retryQueuedItem(id: string) {
+    await retryQueueItem(id);
+    await drainQueue();
+    onMessage("동기화를 다시 시도할게.");
+  }
+
+  async function discardQueuedItem(id: string) {
+    await discardQueueItem(id);
+    await refreshOfflineQueue();
+    onMessage("실패한 기록을 버렸어.");
+  }
+
+  const queueTotal = offlineQueueCounts.pending + offlineQueueCounts.inFlight + offlineQueueCounts.failed + offlineQueueCounts.deadLetter;
+  if (!queueTotal) return null;
+  return (
+    <section className="offline-queue-panel" aria-label="오프라인 동기화">
+      <div className="offline-queue-heading">
+        <strong>오프라인 동기화</strong>
+        <span>
+          {offlineQueueCounts.pending + offlineQueueCounts.inFlight > 0 ? `대기 ${offlineQueueCounts.pending + offlineQueueCounts.inFlight}개` : ""}
+          {offlineQueueCounts.failed + offlineQueueCounts.deadLetter > 0 ? ` · 확인 필요 ${offlineQueueCounts.failed + offlineQueueCounts.deadLetter}개` : ""}
+        </span>
+      </div>
+      {offlineQueueCounts.authPaused ? <p className="hint">로그인하면 대기 중인 기록을 다시 동기화할 수 있어.</p> : null}
+      <ul className="offline-queue-list">
+        {offlineQueue.map((item) => (
+          <li key={item.id}>
+            <span>
+              {item.action === "performance:create" ? "부른 기록" : "취소 기록"} · {item.status === "dead-letter" ? "동기화 실패" : item.status === "failed" ? "재시도 대기" : item.status === "in_flight" ? "동기화 중" : "대기 중"}
+              {item.errorMessage ? <small>{item.errorMessage}</small> : null}
+            </span>
+            {item.status === "failed" || item.status === "dead-letter" ? (
+              <span className="offline-queue-actions">
+                <button type="button" aria-label="동기화 다시 시도" onClick={() => void retryQueuedItem(item.id)}>다시 시도</button>
+                <button type="button" aria-label="실패한 기록 버리기" onClick={() => void discardQueuedItem(item.id)}>버리기</button>
+              </span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 export function PublicPage() {
   const auth = useAuth();
@@ -35,7 +128,6 @@ export function PublicPage() {
   const titleKeyRef = useRef(0);
   const titleToggleRef = useRef(0);
   const online = useOnlineStatus();
-  const pendingPerformanceRef = useRef<{ songId: string; clientRequestId: string } | null>(null);
   const requestedTab = searchParams.get("tab");
   const managementTab: AdminTab | null = requestedTab === "add" || requestedTab === "songs" || requestedTab === "history" ? requestedTab : null;
 
@@ -96,9 +188,8 @@ export function PublicPage() {
     window.setTimeout(() => navigate("/admin"), 800);
   }, [navigate]);
 
-  async function performSong(song: Song) {
-    const clientRequestId = crypto.randomUUID();
-    const result = await createPerformance(song.id, clientRequestId);
+  async function performSong(song: Song, clientRequestId: string, performedAt: string) {
+    const result = await createPerformance(song.id, clientRequestId, performedAt);
     const performanceId = result && typeof result === "object" && "id" in result ? String((result as { id: string }).id) : "";
     setLastPerformed(performanceId ? { performanceId, clientRequestId, songId: song.id } : null);
     setMessage(performanceId ? "오늘 부른 곡으로 기록했어. 8초 안에 취소할 수 있어." : "오늘 부른 곡으로 기록했어.");
@@ -106,27 +197,21 @@ export function PublicPage() {
 
   async function markPerformed(song: Song) {
     const clientRequestId = crypto.randomUUID();
+    const performedAt = new Date().toISOString();
     const optimistic = songs.map((item) =>
       item.id === song.id ? { ...item, performanceCount: item.performanceCount + 1, lastPerformedAt: new Date().toISOString() } : item
     );
     setSongs(optimistic);
 
     if (!online) {
-      await db.queue.put({
-        id: clientRequestId,
-        action: "performance:create",
-        songId: song.id,
-        payload: { performedAt: new Date().toISOString() },
-        createdAt: new Date().toISOString(),
-        status: "pending"
-      });
+      await enqueuePerformanceCreate(song.id, clientRequestId, performedAt);
       setMessage("오프라인이라 큐에 저장했어. 온라인 복귀 후 자동 동기화돼.");
       return;
     }
 
     try {
       await auth.requireValidCredential();
-      await performSong(song);
+      await performSong(song, clientRequestId, performedAt);
     } catch (error) {
       // Roll back the optimistic count if the write was never sent (auth fail).
       if (error instanceof AuthRequiredError) {
@@ -135,20 +220,13 @@ export function PublicPage() {
             ? { ...item, performanceCount: Math.max(0, (item.performanceCount ?? 0) - 1), lastPerformedAt: item.lastPerformedAt }
             : item
         ));
-        pendingPerformanceRef.current = { songId: song.id, clientRequestId };
+        await enqueuePerformanceCreate(song.id, clientRequestId, performedAt);
         loginHint();
         return;
       }
       // Network/server error: queue offline so the user does not lose the record.
-      await db.queue.put({
-        id: clientRequestId,
-        action: "performance:create",
-        songId: song.id,
-        payload: { performedAt: new Date().toISOString() },
-        createdAt: new Date().toISOString(),
-        status: "failed",
-        errorMessage: error instanceof Error ? error.message : "기록 실패"
-      });
+      await enqueuePerformanceCreate(song.id, clientRequestId, performedAt);
+      await markQueueItemFailed(clientRequestId, error, classifyQueueError(error));
       setMessage("기록에 실패해서 큐에 저장했어.");
     }
   }
@@ -175,61 +253,30 @@ export function PublicPage() {
     setSongs((prev) => prev.map((item) =>
       item.id === target.songId
         ? { ...item, performanceCount: Math.max(0, (item.performanceCount ?? 0) - 1), lastPerformedAt: "" }
-        : item
+      : item
     ));
+    const cancellationRequestId = crypto.randomUUID();
     if (!online) {
-      await db.queue.put({
-        id: crypto.randomUUID(),
-        action: "performance:cancel",
-        songId: target.songId,
-        performanceId: target.performanceId,
-        payload: { performanceId: target.performanceId },
-        createdAt: new Date().toISOString(),
-        status: "pending"
-      });
+      await enqueuePerformanceCancel(target.songId, target.performanceId, cancellationRequestId);
       setMessage("오프라인이라 취소는 큐에 저장했어.");
       return;
     }
     try {
       await auth.requireValidCredential();
-      await cancelPerformance(target.performanceId, target.clientRequestId);
+      await cancelPerformance(target.performanceId, cancellationRequestId);
       setMessage("방금 기록한 곡을 취소했어.");
     } catch (error) {
       if (error instanceof AuthRequiredError) {
+        const queued = await enqueuePerformanceCancel(target.songId, target.performanceId, cancellationRequestId);
+        await markQueueItemFailed(queued.id, new Error("로그인 후 다시 시도할 수 있어."), "auth");
         setMessage("취소하려면 Google 로그인이 필요해.");
         return;
       }
-      await db.queue.put({
-        id: crypto.randomUUID(),
-        action: "performance:cancel",
-        songId: target.songId,
-        performanceId: target.performanceId,
-        payload: { performanceId: target.performanceId },
-        createdAt: new Date().toISOString(),
-        status: "failed",
-        errorMessage: error instanceof Error ? error.message : "취소 실패"
-      });
+      const queued = await enqueuePerformanceCancel(target.songId, target.performanceId);
+      await markQueueItemFailed(queued.id, error, classifyQueueError(error));
       setMessage("취소에 실패해서 큐에 저장했어.");
     }
   }
-
-  // Resume a pending performance record after the user finishes signing in.
-  useEffect(() => {
-    if (auth.status !== "authenticated") return;
-    const pending = pendingPerformanceRef.current;
-    if (!pending) return;
-    pendingPerformanceRef.current = null;
-    const song = songs.find((entry) => entry.id === pending.songId);
-    if (!song) return;
-    void (async () => {
-      try {
-        await auth.requireValidCredential();
-        await performSong(song);
-      } catch (error) {
-        setMessage(error instanceof Error ? error.message : "기록에 실패했어.");
-      }
-    })();
-  }, [auth, auth.status, auth.forceUpdateToken, songs]);
 
   const countries = [...new Set(songs.map((song) => song.country).filter(Boolean))];
   const genres = [...new Set(songs.flatMap((song) => song.genres))];
@@ -462,6 +509,7 @@ export function PublicPage() {
           ) : null}
         </div>
       ) : null}
+      <OfflineQueueSurface online={online} auth={auth} onMessage={setMessage} />
       <section className="song-list" aria-label="곡 목록">
         {visibleSongs.length > 0 ? (
           visibleSongs.map((song) => (
