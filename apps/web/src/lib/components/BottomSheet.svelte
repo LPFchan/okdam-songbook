@@ -17,7 +17,7 @@
   function onKeydown(event: KeyboardEvent) {
     if (event.key === "Escape") {
       event.preventDefault();
-      onClose();
+      requestClose();
       return;
     }
     if (event.key !== "Tab" || !panel) return;
@@ -58,20 +58,29 @@
   onDestroy(() => {
     document.body.classList.remove("scroll-locked");
   });
+
+  // Play the closing animation, then notify the parent.
+  let closing = $state(false);
+  function requestClose() {
+    if (closing) return;
+    closing = true;
+    window.setTimeout(onClose, 190);
+  }
 </script>
 
 <div
   class="sheet-backdrop"
+  class:sheet-closing={closing}
   role="presentation"
   onmousedown={(event) => {
-    if (event.target === event.currentTarget) onClose();
+    if (event.target === event.currentTarget) requestClose();
   }}
 >
   <div aria-modal="true" aria-label={title} class="bottom-sheet" bind:this={panel} role="dialog" tabindex="-1">
     <div class="sheet-handle" aria-hidden="true"></div>
     <header class="sheet-header">
       <h2>{title}</h2>
-      <button bind:this={closeButton} type="button" class="icon-button" aria-label="닫기" onclick={onClose}>
+      <button bind:this={closeButton} type="button" class="icon-button" aria-label="닫기" onclick={requestClose}>
         <X size={20} />
       </button>
     </header>
