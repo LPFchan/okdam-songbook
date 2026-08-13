@@ -66,6 +66,46 @@
     closing = true;
     window.setTimeout(onClose, 190);
   }
+
+  // Vertical drag: pull down past a threshold (or fling) to dismiss,
+  // otherwise the sheet springs back. Dragging up just stretches slightly.
+  let dragOffset = $state(0);
+  let dragging = $state(false);
+  let dragStartY = 0;
+  let dragStartAt = 0;
+  let dragPointerId: number | null = null;
+
+  function onDragStart(event: PointerEvent) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    if ((event.target as HTMLElement).closest("button, a, input, select, textarea")) return;
+    dragging = true;
+    dragPointerId = event.pointerId;
+    dragStartY = event.clientY;
+    dragStartAt = performance.now();
+    dragOffset = 0;
+    panel?.setPointerCapture(event.pointerId);
+  }
+
+  function onDragMove(event: PointerEvent) {
+    if (!dragging || event.pointerId !== dragPointerId) return;
+    const raw = event.clientY - dragStartY;
+    dragOffset = raw >= 0 ? raw : raw * 0.25;
+  }
+
+  function onDragEnd(event: PointerEvent) {
+    if (!dragging || event.pointerId !== dragPointerId) return;
+    dragging = false;
+    dragPointerId = null;
+    const elapsed = performance.now() - dragStartAt;
+    const velocity = elapsed > 0 ? dragOffset / elapsed : 0;
+    const shouldDismiss = dragOffset > 110 || (dragOffset > 48 && velocity > 0.45);
+    if (shouldDismiss) {
+      dragOffset = 0;
+      requestClose();
+      return;
+    }
+    dragOffset = 0;
+  }
 </script>
 
 <div
@@ -76,7 +116,20 @@
     if (event.target === event.currentTarget) requestClose();
   }}
 >
-  <div aria-modal="true" aria-label={title} class="bottom-sheet" bind:this={panel} role="dialog" tabindex="-1">
+  <div
+    aria-modal="true"
+    aria-label={title}
+    class="bottom-sheet"
+    class:sheet-dragging={dragging}
+    style:transform={dragging ? `translateY(${dragOffset}px)` : undefined}
+    bind:this={panel}
+    role="dialog"
+    tabindex="-1"
+    onpointerdown={onDragStart}
+    onpointermove={onDragMove}
+    onpointerup={onDragEnd}
+    onpointercancel={onDragEnd}
+  >
     <div class="sheet-handle" aria-hidden="true"></div>
     <header class="sheet-header">
       <h2>{title}</h2>
