@@ -1,0 +1,48 @@
+services:
+  songbook:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: songbook:local
+    init: true
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    ports:
+      # cloudflared on the OCI host is the public ingress. Do not publish this
+      # port on all host interfaces.
+      - "127.0.0.1:3000:3000"
+    env_file:
+      - path: ./deploy/container/songbook.env
+        required: false
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+      SONGBOOK_DB: /var/lib/songbook/songbook.sqlite
+      SONGBOOK_BACKUP_DIR: /var/backups/songbook
+    volumes:
+      - type: bind
+        source: ${SONGBOOK_DATA_DIR:-/var/lib/songbook}
+        target: /var/lib/songbook
+      - type: bind
+        source: ${SONGBOOK_BACKUP_DIR:-/var/backups/songbook}
+        target: /var/backups/songbook
+    mem_limit: 768m
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:' + (process.env.PORT || 3000) + '/healthz').then((r) => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
