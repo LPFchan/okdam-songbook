@@ -1,2 +1,4 @@
-/** Shared server-domain boundary; implementation is assigned to the database wave. */
+export * from "./db/index.js";
+export * from "./domain/index.js";
+
 export const serverCorePackage = "@songbook/server-core" as const;
