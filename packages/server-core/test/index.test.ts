@@ -90,15 +90,14 @@ describe("SQLite storage foundation", () => {
     expect(songs.findDuplicate({ tjNumber: "20202", title: "New", artist: "New Artist" }, "song-1")?.id).toBe("song-2");
   });
 
-  it("keeps a soft-deleted TJ number reserved and supports optimistic versions", () => {
+  it("hard-deletes a song and frees its TJ number while keeping optimistic versions", () => {
     const songs = createSongRepository(database.sqlite);
     songs.insert(song());
-    expect(songs.remove("song-1", 1, "2026-08-13T01:00:00.000Z", "owner@example.com")).toBe(true);
-    expect(songs.get("song-1")?.deletedAt).toBe("2026-08-13T01:00:00.000Z");
-    expect(() => songs.insert(song({ id: "song-2" }))).toThrow();
-    expect(songs.restore("song-1", 2, "2026-08-13T02:00:00.000Z", "owner@example.com")).toBe(true);
-    expect(songs.update(song({ title: "Updated", version: 3, updatedAt: "2026-08-13T03:00:00.000Z" }), 2)).toBe(false);
-    expect(songs.update(song({ title: "Updated", version: 3, updatedAt: "2026-08-13T03:00:00.000Z" }), 3)).toBe(true);
+    expect(songs.remove("song-1", 1)).toBe(true);
+    expect(songs.get("song-1")).toBeNull();
+    expect(() => songs.insert(song({ id: "song-2" }))).not.toThrow();
+    expect(songs.update(song({ id: "song-2", title: "Updated", version: 2, updatedAt: "2026-08-13T03:00:00.000Z" }), 2)).toBe(false);
+    expect(songs.update(song({ id: "song-2", title: "Updated", version: 2, updatedAt: "2026-08-13T03:00:00.000Z" }), 1)).toBe(true);
   });
 
   it("claims idempotency keys, returns same-request replays, rejects mismatches, and prunes expiry", () => {

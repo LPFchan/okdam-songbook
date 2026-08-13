@@ -35,7 +35,7 @@ describe("single-server contracts", () => {
 
   it("keeps route authentication explicit", () => {
     expect(apiRouteContractSchema.parse({ method: "GET", path: "/api/catalog", authentication: "anonymous" }).authentication).toBe("anonymous");
-    expect(apiRouteContractSchema.parse({ method: "POST", path: "/api/songs/:id/restore", authentication: "owner-session" }).authentication).toBe("owner-session");
+    expect(apiRouteContractSchema.parse({ method: "DELETE", path: "/api/songs/:id/delete", authentication: "owner-session" }).authentication).toBe("owner-session");
   });
 
   it("requires UUID request keys and expected versions for updates", () => {

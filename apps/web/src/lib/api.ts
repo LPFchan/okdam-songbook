@@ -207,7 +207,7 @@ export async function addTjSong(candidate: TjSongCandidate, clientRequestId: str
     ));
     if (duplicate) {
       const result = tjAddResultSchema.parse({
-        outcome: duplicate.status === "deleted" ? "deleted" : "duplicate",
+        outcome: "duplicate",
         song: null,
         existing: duplicate,
         duplicateKind: duplicate.tjNumber === candidate.tjNumber ? "tjNumber" : "titleArtist",
@@ -237,23 +237,12 @@ export async function addTjSong(candidate: TjSongCandidate, clientRequestId: str
   }, (data) => tjAddResultSchema.parse(data));
 }
 
-export async function restoreSong(songId: string, clientRequestId: string): Promise<Song> {
-  if (mockMode()) {
-    const existing = sampleSongs.find((song) => song.id === songId);
-    if (!existing) throw new Error("복구할 곡을 찾지 못했어요.");
-    return songSchema.parse({ ...existing, status: "active" });
-  }
-  return request(`/api/songs/${encodeURIComponent(songId)}/restore`, {
-    method: "POST",
-    body: JSON.stringify({ songId, clientRequestId })
-  }, (data) => songSchema.parse(data));
-}
-
 export async function deleteSong(song: Pick<Song, "id" | "version">, clientRequestId: string): Promise<Song> {
   if (mockMode()) {
-    const existing = sampleSongs.find((item) => item.id === song.id);
-    if (!existing) throw new Error("삭제할 곡을 찾지 못했어요.");
-    return songSchema.parse({ ...existing, status: "deleted" });
+    const index = sampleSongs.findIndex((item) => item.id === song.id);
+    if (index < 0) throw new Error("삭제할 곡을 찾지 못했어요.");
+    const [removed] = sampleSongs.splice(index, 1);
+    return songSchema.parse(removed);
   }
   return request(`/api/songs/${encodeURIComponent(song.id)}/delete`, {
     method: "DELETE",

@@ -25,7 +25,7 @@ function service(): SongbookService {
     createPerformance: vi.fn((_, input) => ({ id: "performance-1", songId: input.songId, performedAt: input.performedAt ?? "2026-01-01T00:00:00.000Z", keySelection: null, memo: input.memo, createdByName: "Owner", createdAt: "2026-01-01T00:00:00.000Z", cancelledAt: "", clientRequestId: input.clientRequestId, version: 1 })),
     cancelPerformance: vi.fn((_, input) => ({ id: input.performanceId, songId: "song-1", performedAt: "2026-01-01T00:00:00.000Z", keySelection: null, memo: "", createdByName: "Owner", createdAt: "2026-01-01T00:00:00.000Z", cancelledAt: "2026-01-01T00:00:00.000Z", clientRequestId: input.clientRequestId, version: 2 })),
     checkDuplicate: vi.fn(() => null),
-    createSong: vi.fn(), updateSong: vi.fn(), softDeleteSong: vi.fn(), restoreSong: vi.fn(), performanceStats: vi.fn()
+    createSong: vi.fn(), updateSong: vi.fn(), deleteSong: vi.fn(), performanceStats: vi.fn()
   } as unknown as SongbookService;
 }
 

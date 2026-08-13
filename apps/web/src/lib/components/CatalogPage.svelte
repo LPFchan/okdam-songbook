@@ -4,7 +4,7 @@
   import { goto } from "$app/navigation";
   import { Filter, LogIn, LogOut, Search, SlidersHorizontal, X } from "@lucide/svelte";
   import type { PerformerId, Song, SongFilters, SortKey } from "@songbook/shared";
-  import { filterSongs, performers, performerOrder, searchSongs, sortSongs } from "@songbook/shared";
+  import { filterSongs, performers, searchSongs, sortSongs } from "@songbook/shared";
   import BottomSheet from "./BottomSheet.svelte";
   import SongCard from "./SongCard.svelte";
   import SongDetail from "./SongDetail.svelte";
@@ -388,23 +388,7 @@
       {/if}
     </label>
     <div class="controls-bar">
-      <div class="controls-bar-scroll">
-        <button type="button" class="chip-toggle" onclick={() => (filterOpen = true)}>
-          <Filter size={15} />
-          필터
-        </button>
-        <label class="sort-select">
-          <SlidersHorizontal size={15} />
-          <select bind:value={sortKey}>
-            <option value="title">가나다순</option>
-            <option value="tjNumber">TJ 번호순</option>
-            <option value="recentAdded">최근 추가순</option>
-            <option value="recentUpdated">최근 수정순</option>
-            <option value="recentPerformed">최근 부른 순</option>
-            <option value="performanceCount">많이 부른 순</option>
-          </select>
-        </label>
-        <span class="controls-divider" aria-hidden="true"></span>
+      <div class="controls-bar-scroll" role="group" aria-label="빠른 필터">
         {#each quickFilters as filter (filter.key)}
           {@const pressed =
             filter.key === "favorite" || filter.key === "practicing"
@@ -423,7 +407,53 @@
             {filter.label}
           </button>
         {/each}
+        <button
+          type="button"
+          class="chip-toggle"
+          aria-pressed={Boolean(filters.hasKey)}
+          data-selected={filters.hasKey ? "true" : undefined}
+          onclick={() => toggleBooleanFilter("hasKey")}
+        >
+          추천 키
+        </button>
+        {#each countries as country (country)}
+          <button
+            type="button"
+            class="chip-toggle"
+            aria-pressed={filters.country === country}
+            data-selected={filters.country === country ? "true" : undefined}
+            onclick={() => selectSingleFilter("country", filters.country === country ? "" : country)}
+          >
+            {country}
+          </button>
+        {/each}
+        {#each genres as genre (genre)}
+          <button
+            type="button"
+            class="chip-toggle"
+            aria-pressed={filters.genre === genre}
+            data-selected={filters.genre === genre ? "true" : undefined}
+            onclick={() => selectSingleFilter("genre", filters.genre === genre ? "" : genre)}
+          >
+            {genre}
+          </button>
+        {/each}
+        <label class="sort-select">
+          <SlidersHorizontal size={15} />
+          <select bind:value={sortKey}>
+            <option value="title">가나다순</option>
+            <option value="tjNumber">TJ 번호순</option>
+            <option value="recentAdded">최근 추가순</option>
+            <option value="recentUpdated">최근 수정순</option>
+            <option value="recentPerformed">최근 부른 순</option>
+            <option value="performanceCount">많이 부른 순</option>
+          </select>
+        </label>
       </div>
+      <button type="button" class="chip-toggle filter-open-button" onclick={() => (filterOpen = true)}>
+        <Filter size={15} />
+        필터
+      </button>
     </div>
     {#if activeFilters.length}
       <div class="active-filters" aria-label="활성 필터">
@@ -519,51 +549,18 @@
   {#if filterOpen}
     <BottomSheet title="필터" onClose={() => (filterOpen = false)}>
       <div class="filter-form">
-        <fieldset class="filter-fieldset">
-          <legend>국가</legend>
-          <div class="chip-toggle-group" role="group" aria-label="국가 필터">
-            <button type="button" class="chip-toggle" aria-pressed={!filters.country} data-selected={!filters.country ? "true" : undefined} onclick={() => selectSingleFilter("country", "")}>전체</button>
-            {#each countries as country (country)}
-              <button type="button" class="chip-toggle" aria-pressed={filters.country === country} data-selected={filters.country === country ? "true" : undefined} onclick={() => selectSingleFilter("country", country)}>{country}</button>
+        {#if activeFilters.length}
+          <div class="chip-toggle-group" role="group" aria-label="활성 필터">
+            {#each activeFilters as filter (filter.key)}
+              <button type="button" class="chip-toggle" data-selected="true" onclick={() => removeFilter(filter.key)}>{filter.label} ×</button>
             {/each}
           </div>
-        </fieldset>
-        <fieldset class="filter-fieldset">
-          <legend>장르</legend>
-          <div class="chip-toggle-group" role="group" aria-label="장르 필터">
-            <button type="button" class="chip-toggle" aria-pressed={!filters.genre} data-selected={!filters.genre ? "true" : undefined} onclick={() => selectSingleFilter("genre", "")}>전체</button>
-            {#each genres as genre (genre)}
-              <button type="button" class="chip-toggle" aria-pressed={filters.genre === genre} data-selected={filters.genre === genre ? "true" : undefined} onclick={() => selectSingleFilter("genre", genre)}>{genre}</button>
-            {/each}
-          </div>
-        </fieldset>
-        <fieldset class="filter-fieldset">
-          <legend>부를 사람</legend>
-          <div class="chip-toggle-group" role="group" aria-label="부를 사람 필터">
-            {#each performerOrder as id (id)}
-              <button
-                type="button"
-                class="chip-toggle"
-                aria-pressed={Boolean(filters.performerIds?.includes(id))}
-                data-selected={filters.performerIds?.includes(id) ? "true" : undefined}
-                onclick={() => togglePerformerFilter(id)}
-              >
-                {performers[id].displayName}
-              </button>
-            {/each}
-          </div>
-        </fieldset>
-        <fieldset class="filter-fieldset">
-          <legend>상태</legend>
-          <div class="chip-toggle-group" role="group" aria-label="상태 필터">
-            {#each [["hasKey", "추천 키 있음"], ["favorite", "즐겨찾기"], ["practicing", "연습 중"]] as const as [key, label] (key)}
-              <button type="button" class="chip-toggle" aria-pressed={Boolean(filters[key])} data-selected={filters[key] ? "true" : undefined} onclick={() => toggleBooleanFilter(key)}>{label}</button>
-            {/each}
-          </div>
-        </fieldset>
+        {:else}
+          <p class="hint">활성화된 필터가 없어요. 칩을 눌러 필터를 고를 수 있어요.</p>
+        {/if}
         <div class="filter-actions">
-          <button type="button" class="secondary-button" onclick={() => (filters = {})}>초기화</button>
-          <button type="button" class="primary-button" onclick={() => (filterOpen = false)}>{visibleSongs.length}곡 보기</button>
+          <button type="button" class="secondary-button" onclick={() => (filters = {})}>모두 초기화</button>
+          <button type="button" class="primary-button" onclick={() => (filterOpen = false)}>닫기</button>
         </div>
       </div>
     </BottomSheet>

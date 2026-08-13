@@ -48,8 +48,7 @@ export interface SongRepository {
   findDuplicate(input: { tjNumber?: string | null; title: string; artist: string }, excludeId?: string): Song | null;
   insert(song: Song & { createdByEmail?: string; updatedByEmail?: string; deletedByEmail?: string | null }): void;
   update(song: Song & { createdByEmail?: string; updatedByEmail?: string; deletedByEmail?: string | null }, expectedVersion: number): boolean;
-  remove(id: string, expectedVersion: number, deletedAt: string, email: string): boolean;
-  restore(id: string, expectedVersion: number, updatedAt: string, email: string): boolean;
+  remove(id: string, expectedVersion: number): boolean;
 }
 
 export function createSongRepository(sqlite: Database.Database): SongRepository {
@@ -65,14 +64,13 @@ export function createSongRepository(sqlite: Database.Database): SongRepository 
       clauses.push("(lower(s.title)=lower(?) AND lower(s.artist)=lower(?))"); values.push(input.title, input.artist);
       const exclusion = excludeId ? " AND s.id<>?" : "";
       if (excludeId) values.push(excludeId);
-      const row = sqlite.prepare(`${select} WHERE (${clauses.join(" OR ")})${exclusion} LIMIT 1`).get(...values) as RawSong | undefined;
+      const row = sqlite.prepare(`${select} WHERE (${clauses.join(" OR ")})${exclusion} AND s.deleted_at IS NULL LIMIT 1`).get(...values) as RawSong | undefined;
       return row ? songFromRow(row) : null;
     },
     insert: (song) => { sqlite.prepare(`INSERT INTO songs (id,tj_number,title,title_reading_ko,title_romanized,title_aliases_json,artist,artist_reading_ko,artist_aliases_json,country,genres_json,original_work,key_candidates_json,performer_ids_json,memo,status,youtube_url,youtube_video_id,is_official_tj_video,source_type,source_reference,created_by_email,created_by_name,created_at,updated_by_email,updated_by_name,updated_at,deleted_at,deleted_by_email,version) VALUES (${Array.from({ length: 30 }, () => "?").join(",")})`).run(...songValues(song)); },
     update: (song, expectedVersion) => {
       const result = sqlite.prepare(`UPDATE songs SET tj_number=?,title=?,title_reading_ko=?,title_romanized=?,title_aliases_json=?,artist=?,artist_reading_ko=?,artist_aliases_json=?,country=?,genres_json=?,original_work=?,key_candidates_json=?,performer_ids_json=?,memo=?,status=?,youtube_url=?,youtube_video_id=?,is_official_tj_video=?,source_type=?,source_reference=?,updated_by_email=?,updated_by_name=?,updated_at=?,deleted_at=?,deleted_by_email=?,version=version+1 WHERE id=? AND version=?`).run(song.tjNumber || null,song.title,song.titleReadingKo,song.titleRomanized,JSON.stringify(song.titleAliases),song.artist,song.artistReadingKo,JSON.stringify(song.artistAliases),song.country,JSON.stringify(song.genres),song.originalWork,JSON.stringify(song.keyCandidates),JSON.stringify(song.performerIds),song.memo,song.status,song.youtubeUrl,song.youtubeVideoId,song.isOfficialTjVideo,song.sourceType,song.sourceReference,song.updatedByEmail || "",song.updatedByName,song.updatedAt,song.deletedAt || null,song.deletedByEmail || null,song.id,expectedVersion); return result.changes === 1; },
-    remove: (id, expectedVersion, deletedAt, email) => sqlite.prepare("UPDATE songs SET status='deleted',deleted_at=?,deleted_by_email=?,updated_at=?,updated_by_email=?,version=version+1 WHERE id=? AND version=? AND deleted_at IS NULL").run(deletedAt,email,deletedAt,email,id,expectedVersion).changes === 1,
-    restore: (id, expectedVersion, updatedAt, email) => sqlite.prepare("UPDATE songs SET status='active',deleted_at=NULL,deleted_by_email=NULL,updated_at=?,updated_by_email=?,version=version+1 WHERE id=? AND version=? AND deleted_at IS NOT NULL").run(updatedAt,email,id,expectedVersion).changes === 1
+    remove: (id, expectedVersion) => sqlite.prepare("DELETE FROM songs WHERE id=? AND version=? AND deleted_at IS NULL").run(id, expectedVersion).changes === 1
   };
 }
 

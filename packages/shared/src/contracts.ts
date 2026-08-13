@@ -111,12 +111,6 @@ export const songUpdateRouteSchema = z.object({
   authentication: protectedBrowserRoute
 });
 
-export const songRestoreRouteSchema = z.object({
-  method: z.literal("POST"),
-  path: z.literal("/api/songs/:id/restore"),
-  authentication: z.literal("owner-session")
-});
-
 export const songDeleteRouteSchema = z.object({
   method: z.literal("DELETE"),
   path: z.literal("/api/songs/:id"),
@@ -162,12 +156,6 @@ export const songUpdateRequestSchema = songCreateRequestSchema.partial().extend(
   clientRequestId: z.string().uuid()
 });
 
-export const songRestoreRequestSchema = z.object({
-  songId: z.string().min(1),
-  expectedVersion: z.number().int().nonnegative().optional(),
-  clientRequestId: z.string().uuid()
-});
-
 export const songDeleteRequestSchema = z.object({
   songId: z.string().min(1),
   expectedVersion: z.number().int().nonnegative(),
@@ -199,7 +187,6 @@ export const apiRouteContractSchema = z.discriminatedUnion("path", [
   performanceCancelRouteSchema,
   songCreateRouteSchema,
   songUpdateRouteSchema,
-  songRestoreRouteSchema,
   songDeleteActionRouteSchema,
   tjLookupRouteSchema,
   tjSearchRouteSchema,
@@ -211,7 +198,6 @@ export const apiActionContractSchema = z.object({
   performanceCancel: performanceCancelRequestSchema,
   songCreate: songCreateRequestSchema,
   songUpdate: songUpdateRequestSchema,
-  songRestore: songRestoreRequestSchema,
   songDelete: songDeleteRequestSchema,
   tjLookup: tjLookupRequestSchema,
   tjSearch: tjSearchRequestSchema,
@@ -225,7 +211,6 @@ export type PerformanceCreateRequest = z.infer<typeof performanceCreateRequestSc
 export type PerformanceCancelRequest = z.infer<typeof performanceCancelRequestSchema>;
 export type SongCreateRequest = z.infer<typeof songCreateRequestSchema>;
 export type SongUpdateRequest = z.infer<typeof songUpdateRequestSchema>;
-export type SongRestoreRequest = z.infer<typeof songRestoreRequestSchema>;
 export type SongDeleteRequest = z.infer<typeof songDeleteRequestSchema>;
 
 export const idempotencyKeySchema = z.string().uuid();

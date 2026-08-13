@@ -50,8 +50,7 @@ export interface SongbookService {
   search(query: string, filters?: SongFilters, sortKey?: SortKey): Song[];
   createSong(actor: RequestActor, input: SongMutation): Song;
   updateSong(actor: RequestActor, input: SongUpdate): Song;
-  softDeleteSong(actor: RequestActor, input: { id: string; expectedVersion: number; clientRequestId: string }): Song;
-  restoreSong(actor: RequestActor, input: { id: string; expectedVersion?: number; clientRequestId: string }): Song;
+  deleteSong(actor: RequestActor, input: { id: string; expectedVersion: number; clientRequestId: string }): Song;
   createPerformance(actor: RequestActor, input: PerformanceCreate): Performance;
   cancelPerformance(actor: RequestActor, input: PerformanceCancel): Performance;
   performanceStats(songId: string): PerformanceStats;
@@ -172,22 +171,12 @@ export function createSongbookService(database: SongbookDatabase, options: Servi
       appendAudit(resolved, "song", input.id, "update", before, after, input.clientRequestId, before.version, after.version);
       return after;
     }),
-    softDeleteSong: (actor, input) => withMutation(actor, "song:softDelete", "song.softDelete", input.clientRequestId, input, (resolved) => {
+    deleteSong: (actor, input) => withMutation(actor, "song:delete", "song.delete", input.clientRequestId, input, (resolved) => {
       const before = songs.get(input.id);
       if (!before || before.deletedAt) throw new DomainError("NOT_FOUND", "곡을 찾을 수 없어.");
-      if (!songs.remove(input.id, input.expectedVersion, now(), resolved.email)) throw new DomainError("VERSION_MISMATCH", "곡이 다른 곳에서 바뀌었어.");
-      const after = songs.get(input.id)!;
-      appendAudit(resolved, "song", input.id, "softDelete", before, after, input.clientRequestId, before.version, after.version);
-      return after;
-    }),
-    restoreSong: (actor, input) => withMutation(actor, "song:restore", "song.restore", input.clientRequestId, input, (resolved) => {
-      const before = songs.get(input.id);
-      if (!before || !before.deletedAt) throw new DomainError("NOT_FOUND", "삭제된 곡을 찾을 수 없어.");
-      const expectedVersion = input.expectedVersion ?? before.version;
-      if (!songs.restore(input.id, expectedVersion, now(), resolved.email)) throw new DomainError("VERSION_MISMATCH", "곡이 다른 곳에서 바뀌었어.");
-      const after = songs.get(input.id)!;
-      appendAudit(resolved, "song", input.id, "restore", before, after, input.clientRequestId, before.version, after.version);
-      return after;
+      if (!songs.remove(input.id, input.expectedVersion)) throw new DomainError("VERSION_MISMATCH", "곡이 다른 곳에서 바뀌었어.");
+      appendAudit(resolved, "song", input.id, "delete", before, null, input.clientRequestId, before.version, null);
+      return before;
     }),
     createPerformance: (actor, input) => withMutation(actor, "performance:create", "performance.create", input.clientRequestId, input, (resolved) => {
       const song = songs.get(input.songId);

@@ -87,7 +87,7 @@ describe("same-origin server surface", () => {
     expect((await invalid.json()).error.code).toBe("VALIDATION_ERROR");
   });
 
-  it("soft-deletes a song as owner and rejects editors", async () => {
+  it("deletes a song as owner and rejects editors", async () => {
     const headers = { Origin: origin, "Content-Type": "application/json" };
     const ownerServer = app({
       sessionResolver: async () => ({ email: "owner@example.com", displayName: "Owner" }),
@@ -111,10 +111,20 @@ describe("same-origin server surface", () => {
       })
     );
     expect(deleted.status).toBe(200);
-    expect((await deleted.json()).data.deletedAt).not.toBe("");
+    expect((await deleted.json()).data.id).toBe(song.id);
 
     const catalog = await ownerServer.request(request("/api/catalog"));
     expect((await catalog.json()).data.songs.map((entry: { id: string }) => entry.id)).not.toContain(song.id);
+
+    const reAdded = await ownerServer.request(
+      request("/api/songs", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ title: "삭제 대상", artist: "가수", clientRequestId: crypto.randomUUID() })
+      })
+    );
+    expect(reAdded.status).toBe(200);
+    expect((await reAdded.json()).data.id).not.toBe(song.id);
 
     const editorServer = app({
       sessionResolver: async () => ({ email: "editor@example.com", displayName: "Editor" }),

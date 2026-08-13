@@ -1,14 +1,13 @@
 <script lang="ts">
   import type { PerformerId, Song, TjSearchType, TjSongCandidate } from "@songbook/shared";
   import { can, performerOrder, performers } from "@songbook/shared";
-  import { Search, SquarePlay, Trash2, Wand2 } from "@lucide/svelte";
+  import { Pencil, Search, SquarePlay, Trash2, Wand2 } from "@lucide/svelte";
   import {
     addTjSong,
     analyzeYouTube,
     deleteSong,
     generateReading,
     lookupTjSong,
-    restoreSong,
     searchTjSongs,
     upsertSong
   } from "../api";
@@ -44,8 +43,6 @@
   let tjCandidates = $state<TjSongCandidate[]>([]);
   let tjAddPending = $state<Record<string, boolean>>({});
   const tjAddRequestIds = new Map<string, string>();
-  let tjRestoreCandidate = $state<Song | null>(null);
-  let tjRestorePending = $state(false);
   let deleteConfirm = $state(false);
   let deletePending = $state(false);
 
@@ -154,35 +151,12 @@
         const existing = result.existing as Song;
         draft = existing;
         editingId = existing.id;
-        tjRestoreCandidate = result.outcome === "deleted" ? existing : null;
-        snackbar.show(
-          result.outcome === "deleted"
-            ? "삭제된 같은 곡이 있어. 기존 곡을 열어 복구 여부를 확인해주세요."
-            : "같은 TJ 번호 또는 제목·아티스트의 곡이 이미 있어요. 덮어쓰지 않았어요."
-        );
+        snackbar.show("같은 TJ 번호 또는 제목·아티스트의 곡이 이미 있어요. 덮어쓰지 않았어요.");
       }
     } catch (error) {
       snackbar.show(messageOrAuth(error, "곡 추가에 실패했어요. 다시 눌러도 안전해요."));
     } finally {
       tjAddPending = { ...tjAddPending, [key]: false };
-    }
-  }
-
-  async function restoreTjCandidate() {
-    if (!tjRestoreCandidate || tjRestorePending) return;
-    if (!(await requireWriteCredential())) return;
-    tjRestorePending = true;
-    try {
-      const restored = await restoreSong(tjRestoreCandidate.id, crypto.randomUUID());
-      onSongSaved(restored);
-      draft = restored;
-      editingId = restored.id;
-      tjRestoreCandidate = null;
-      snackbar.show("기존 곡을 복구했어요.");
-    } catch (error) {
-      snackbar.show(messageOrAuth(error, "곡 복구에 실패했어요."));
-    } finally {
-      tjRestorePending = false;
     }
   }
 
@@ -201,7 +175,7 @@
   }
 
   async function deleteDraft() {
-    if (!editingId || !auth.user || !can(auth.user.role, "song:softDelete")) return;
+    if (!editingId || !auth.user || !can(auth.user.role, "song:delete")) return;
     if (!deleteConfirm) {
       deleteConfirm = true;
       setTimeout(() => {
@@ -218,7 +192,7 @@
       const title = draft.title || "곡";
       onSongDeleted(editingId);
       resetDraft();
-      snackbar.show(`${title}을(를) 삭제했어요. 다시 추가하면 복구할 수 있어요.`);
+      snackbar.show(`${title}을(를) 삭제했어요.`);
     } catch (error) {
       snackbar.show(messageOrAuth(error, "삭제에 실패했어요."));
     } finally {
@@ -320,18 +294,6 @@
         </button>
       </div>
       {#if tjSearchMessage}<p class="hint">{tjSearchMessage}</p>{/if}
-      {#if tjRestoreCandidate}
-        <div class="tj-restore-action">
-          <span>삭제된 곡: {tjRestoreCandidate.title}</span>
-          {#if auth.user?.role === "owner"}
-            <button type="button" class="secondary-button" disabled={tjRestorePending} onclick={() => void restoreTjCandidate()}>
-              {tjRestorePending ? "복구 중…" : "기존 곡 복구"}
-            </button>
-          {:else}
-            <span class="hint">기존 곡을 열었어. 복구는 소유자만 할 수 있어.</span>
-          {/if}
-        </div>
-      {/if}
       {#if tjCandidates.length}
         <div class="tj-results" aria-label="TJ 검색 결과">
           {#each tjCandidates as candidate (candidate.tjNumber)}
@@ -340,7 +302,7 @@
               <span>{candidate.tjNumber}</span>
               <strong>{candidate.title}</strong>
               <small>{candidate.artist}</small>
-              {#if duplicate}<em>{duplicate.status === "deleted" ? "삭제됨" : "이미 있음"}</em>{/if}
+              {#if duplicate}<em>이미 있음</em>{/if}
               <a href={candidate.sourceUrl} target="_blank" rel="noreferrer">TJ 원본</a>
               <button
                 type="button"
@@ -405,7 +367,7 @@
     <div class="admin-action-bar">
       <button type="button" class="secondary-button" onclick={resetDraft}>취소</button>
       <span></span>
-      {#if editingId && can(auth.user?.role, "song:softDelete")}
+      {#if editingId && can(auth.user?.role, "song:delete")}
         <button
           type="button"
           class="danger-button"
@@ -435,6 +397,7 @@
           <span>{song.tjNumber || "번호 없음"}</span>
           <strong>{song.title}</strong>
           <small>{song.artist}</small>
+          <Pencil size={15} class="admin-song-edit" aria-hidden="true" />
         </button>
       {/each}
     </div>

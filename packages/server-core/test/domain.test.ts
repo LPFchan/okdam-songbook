@@ -48,7 +48,7 @@ describe("songbook domain services", () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
     expect(() => service.createSong(owner, songInput())).not.toThrow();
     expect(() => service.createSong({ email: "revoked@example.com" }, songInput({ tjNumber: "54321" }))).toThrowError(DomainError);
-    expect(() => service.softDeleteSong(editor, { id: "missing", expectedVersion: 1, clientRequestId: crypto.randomUUID() })).toThrowError(/권한/);
+    expect(() => service.deleteSong(editor, { id: "missing", expectedVersion: 1, clientRequestId: crypto.randomUUID() })).toThrowError(/권한/);
   });
 
   it("creates, searches, and returns anonymous public catalog rows", () => {
@@ -112,15 +112,15 @@ describe("songbook domain services", () => {
     expect(database.sqlite.prepare("SELECT COUNT(*) AS count FROM idempotency_keys WHERE key=?").get(clientRequestId)).toEqual({ count: 0 });
   });
 
-  it("supports owner-only soft delete and restore while reserving TJ numbers", () => {
+  it("supports owner-only hard delete that frees the TJ number", () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
     const created = service.createSong(editor, songInput());
-    expect(() => service.softDeleteSong(editor, { id: created.id, expectedVersion: 1, clientRequestId: crypto.randomUUID() })).toThrowError(/권한/);
-    const deleted = service.softDeleteSong(owner, { id: created.id, expectedVersion: 1, clientRequestId: crypto.randomUUID() });
-    expect(deleted.deletedAt).toBeTruthy();
-    expect(() => service.createSong(owner, songInput({ clientRequestId: crypto.randomUUID() }))).toThrowError(DomainError);
-    const restored = service.restoreSong(owner, { id: created.id, expectedVersion: deleted.version, clientRequestId: crypto.randomUUID() });
-    expect(restored.deletedAt).toBe("");
+    expect(() => service.deleteSong(editor, { id: created.id, expectedVersion: 1, clientRequestId: crypto.randomUUID() })).toThrowError(/권한/);
+    const deleted = service.deleteSong(owner, { id: created.id, expectedVersion: 1, clientRequestId: crypto.randomUUID() });
+    expect(deleted.id).toBe(created.id);
+    expect(service.catalog()).toHaveLength(0);
+    const recreated = service.createSong(owner, songInput({ clientRequestId: crypto.randomUUID() }));
+    expect(recreated.tjNumber).toBe(created.tjNumber);
   });
 
   it("creates, counts, and cancels performance records", () => {

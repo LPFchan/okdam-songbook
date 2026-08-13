@@ -4,9 +4,7 @@ export type PermissionAction =
   | "song:create"
   | "song:update"
   | "song:markDeletionCandidate"
-  | "song:softDelete"
-  | "song:restore"
-  | "song:hardDelete"
+  | "song:delete"
   | "performance:create"
   | "performance:cancel"
   | "changeLog:read"
@@ -17,9 +15,7 @@ export type PermissionAction =
   | "settings:read";
 
 const ownerOnly = new Set<PermissionAction>([
-  "song:softDelete",
-  "song:restore",
-  "song:hardDelete",
+  "song:delete",
   "changeLog:restore",
   "settings:read"
 ]);

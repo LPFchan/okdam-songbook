@@ -77,7 +77,7 @@ describe("TjOmnibar", () => {
         onSongSaved: vi.fn()
       }
     });
-    await screen.findByText(/TJ에서도 찾으려면 로그인해줘/);
+    await screen.findByText(/TJ에서도 찾으려면 로그인해주세요/);
     expect(searchTjSongs).not.toHaveBeenCalled();
   });
 
