@@ -38,13 +38,15 @@
   let songs = $state<Song[]>([]);
   let catalogVersion = $state(0);
   let query = $state("");
-  let sortKey = $state<SortKey>("title");
+  let sortKey = $state<SortKey>("recentAdded");
   let filters = $state<SongFilters>({});
   let selected = $state<Song | null>(null);
   let chipsExpanded = $state(false);
   let editingSong = $state<Song | null>(null);
   let confirmSignOut = $state(false);
   let topbarCollapsed = $state(false);
+  let topbarEl = $state<HTMLElement | null>(null);
+  let topbarHeight = $state(0);
   let lastPerformed = $state<{ performanceId: string; clientRequestId: string; songId: string } | null>(null);
   let undoTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -58,7 +60,7 @@
 
   onMount(() => {
     query = window.localStorage.getItem("songbook:query") ?? "";
-    sortKey = (window.localStorage.getItem("songbook:sort") as SortKey | null) ?? "title";
+    sortKey = (window.localStorage.getItem("songbook:sort") as SortKey | null) ?? "recentAdded";
 
     const stopOnline = onlineStatus.start();
     void auth.initialize();
@@ -114,6 +116,13 @@
     };
     window.addEventListener("scroll", onScroll, { passive: true });
 
+    // Keep the page padding in sync with the real topbar height so the
+    // first song is never hidden underneath it.
+    const observer = new ResizeObserver(() => {
+      topbarHeight = topbarEl?.offsetHeight ?? 0;
+    });
+    if (topbarEl) observer.observe(topbarEl);
+
     void refreshQueue();
     if (onlineStatus.online) void drainQueue();
 
@@ -124,6 +133,7 @@
       window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("scroll", onScroll);
+      observer.disconnect();
     };
   });
 
@@ -133,7 +143,7 @@
   });
 
   $effect(() => {
-    const stored = (window.localStorage.getItem("songbook:sort") as SortKey | null) ?? "title";
+    const stored = (window.localStorage.getItem("songbook:sort") as SortKey | null) ?? "recentAdded";
     if (sortKey !== stored) window.localStorage.setItem("songbook:sort", sortKey);
   });
 
@@ -378,8 +388,8 @@
   }
 </script>
 
-<main class="app-frame">
-  <header class="topbar" data-collapsed={topbarCollapsed ? "true" : undefined}>
+<main class="app-frame" style:padding-top={topbarHeight ? `calc(${topbarHeight}px + env(safe-area-inset-top, 0px))` : undefined}>
+  <header class="topbar" bind:this={topbarEl} data-collapsed={topbarCollapsed ? "true" : undefined}>
     <div class="topline">
       <h1 class="brand-title">Songbook</h1>
       <button
