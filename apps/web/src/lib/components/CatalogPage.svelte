@@ -240,9 +240,8 @@
     lastPerformed = performanceId ? { performanceId, clientRequestId, songId: song.id } : null;
     if (performanceId) {
       scheduleUndoExpiry();
-      snackbar.show("오늘 부른 곡으로 기록했어요. 8초 안에 취소할 수 있어요.", {
-        action: { label: "취소", run: () => undoLastPerformance() },
-        timeoutMs: 8000
+      snackbar.show("오늘 부른 곡으로 기록했어요.", {
+        action: { label: "취소", run: () => undoLastPerformance() }
       });
     } else {
       snackbar.show("오늘 부른 곡으로 기록했어요.");

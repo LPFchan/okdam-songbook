@@ -8,18 +8,17 @@ export interface SnackbarState {
   action: SnackbarAction | null;
 }
 
-const DEFAULT_TIMEOUT_MS = 2000;
+const DEFAULT_TIMEOUT_MS = 1000;
 
 class SnackbarStore {
   current = $state<SnackbarState | null>(null);
   private timer: ReturnType<typeof setTimeout> | undefined;
 
   /** Show a transient message. Auto-dismisses; never blocks interaction. */
-  show(message: string, options: { action?: SnackbarAction | null; timeoutMs?: number } = {}) {
+  show(message: string, options: { action?: SnackbarAction | null } = {}) {
     this.clearTimer();
     this.current = { message, action: options.action ?? null };
-    const timeout = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-    this.timer = setTimeout(() => this.dismiss(), timeout);
+    this.timer = setTimeout(() => this.dismiss(), DEFAULT_TIMEOUT_MS);
   }
 
   dismiss() {
