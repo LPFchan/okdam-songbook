@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow,noarchive" />
+    <meta http-equiv="Cache-Control" content="no-store" />
+    <title>Songbook moved</title>
+    <style>
+      :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+      body { min-height: 100vh; margin: 0; display: grid; place-items: center; background: #f4f1ff; color: #211b36; }
+      main { width: min(34rem, calc(100% - 3rem)); padding: 2rem; border-radius: 1.5rem; background: white; box-shadow: 0 1rem 3rem #493a7c22; }
+      a { display: inline-block; margin-top: 1rem; padding: .8rem 1.1rem; border-radius: 999px; color: white; background: #6549ae; text-decoration: none; font-weight: 700; }
+      small { display: block; margin-top: 1rem; color: #716a80; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Songbook이 이사했어.</h1>
+      <p>새 서버에서 계속 사용할 수 있어. 이 페이지는 예전 오프라인 캐시를 정리한 뒤 새 주소로 이동해.</p>
+      <a href="https://okdam.lost.plus/">새 Songbook 열기</a>
+      <small id="status">예전 캐시를 정리하는 중…</small>
+    </main>
+    <script>
+      const destination = "https://okdam.lost.plus/";
+      async function retire() {
+        try {
+          const registrations = await navigator.serviceWorker?.getRegistrations?.() ?? [];
+          await Promise.all(registrations.map((registration) => registration.unregister()));
+          const keys = await caches?.keys?.() ?? [];
+          await Promise.all(keys.map((key) => caches.delete(key)));
+          document.getElementById("status").textContent = "정리 완료. 새 주소로 이동할게.";
+        } catch {
+          document.getElementById("status").textContent = "새 주소로 이동할게.";
+        }
+        window.setTimeout(() => location.replace(destination), 1200);
+      }
+      retire();
+    </script>
+  </body>
+</html>

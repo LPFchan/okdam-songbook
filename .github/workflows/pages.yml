@@ -1,4 +1,4 @@
-name: Deploy GitHub Pages
+name: Deploy retired GitHub Pages redirect
 
 on:
   workflow_dispatch:
@@ -13,34 +13,20 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  retire:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm run test
-      - run: npm run build
-        env:
-          VITE_APP_BASE_PATH: /okdam-songbook/
-          VITE_APPS_SCRIPT_API_URL: ${{ vars.VITE_APPS_SCRIPT_API_URL }}
-          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
-          VITE_ENABLE_MOCK_API: "false"
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: apps/web/dist
+          path: apps/pages-retirement
 
   deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    needs: build
+    needs: retire
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
