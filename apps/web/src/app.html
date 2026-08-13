@@ -8,10 +8,9 @@
     <meta property="og:description" content="개인용 노래방 애창곡 검색" />
     <meta name="theme-color" content="#3f5fb7" />
     <title>Songbook</title>
+    %sveltekit.head%
   </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+  <body data-sveltekit-preload-data="hover">
+    <div style="display: contents">%sveltekit.body%</div>
   </body>
 </html>
-

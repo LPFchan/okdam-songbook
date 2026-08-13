@@ -8,6 +8,7 @@ coverage/
 .env.*
 !.env.example
 apps-script/.clasp.json
+apps/web/.svelte-kit/
 apps/web/.vite/
 apps/web/dist/
 apps/server/dist/

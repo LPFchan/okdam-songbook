@@ -17,6 +17,12 @@ export default [
         sourceType: "module"
       },
       globals: {
+        $state: "readonly",
+        $derived: "readonly",
+        $effect: "readonly",
+        $props: "readonly",
+        $bindable: "readonly",
+        $inspect: "readonly",
         document: "readonly",
         window: "readonly",
         navigator: "readonly",
@@ -39,6 +45,10 @@ export default [
         atob: "readonly",
         TextEncoder: "readonly",
         TextDecoder: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        setInterval: "readonly",
+        clearInterval: "readonly"
       }
     },
     plugins: {
