@@ -1,4 +1,5 @@
 import { publicDataSchema, sampleSongs, type CurrentUser, type PublicData, type Song } from "@songbook/shared";
+import { betterAuthApiUrl, betterAuthConfigured, getBetterAuthSession } from "./auth/client";
 
 const apiUrl = import.meta.env.VITE_APPS_SCRIPT_API_URL as string | undefined;
 function readMockMode(): boolean {
@@ -115,8 +116,17 @@ function encodeClientRequestId(requestId: string): string {
   return requestId;
 }
 
-export async function fetchCurrentUser(idToken: string): Promise<CurrentUser> {
+export async function fetchCurrentUser(idToken?: string): Promise<CurrentUser> {
   if (mockMode()) return { email: "owner@example.com", displayName: "마리", role: "owner" };
+  if (betterAuthConfigured()) {
+    const session = await getBetterAuthSession();
+    if (!session) throw unauthorizedError("UNAUTHORIZED", "로그인이 필요해.", 401, null);
+    return {
+      email: session.user.email,
+      displayName: session.user.name,
+      role: session.user.role
+    };
+  }
   const response = await fetch(`${apiUrl}?action=currentUser`, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -127,6 +137,7 @@ export async function fetchCurrentUser(idToken: string): Promise<CurrentUser> {
 
 export async function createPerformance(songId: string, idToken: string, clientRequestId: string): Promise<{ id: string; duplicate?: boolean }> {
   if (mockMode()) return { id: `mock-${encodeClientRequestId(clientRequestId)}` };
+  if (betterAuthConfigured()) return protectedBrowserAction("createPerformance", { songId, clientRequestId: encodeClientRequestId(clientRequestId), performedAt: nowIso() }) as Promise<{ id: string; duplicate?: boolean }>;
   const response = await fetch(`${apiUrl}?action=createPerformance`, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -137,6 +148,10 @@ export async function createPerformance(songId: string, idToken: string, clientR
 
 export async function cancelPerformance(performanceId: string, idToken: string, clientRequestId: string): Promise<void> {
   if (mockMode()) return;
+  if (betterAuthConfigured()) {
+    await protectedBrowserAction("cancelPerformance", { performanceId, clientRequestId: encodeClientRequestId(clientRequestId) });
+    return;
+  }
   const response = await fetch(`${apiUrl}?action=cancelPerformance`, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -149,6 +164,7 @@ export async function upsertSong(song: Partial<Song>, idToken: string, clientReq
   if (mockMode()) {
     return { ...sampleSongs[0], ...song, id: song.id || crypto.randomUUID(), version: (song.version ?? 0) + 1 } as Song;
   }
+  if (betterAuthConfigured()) return protectedBrowserAction("upsertSong", { song, clientRequestId: encodeClientRequestId(clientRequestId) }) as Promise<Song>;
   const response = await fetch(`${apiUrl}?action=upsertSong`, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -159,6 +175,7 @@ export async function upsertSong(song: Partial<Song>, idToken: string, clientReq
 
 export async function analyzeYouTube(url: string, idToken: string): Promise<Partial<Song>> {
   if (mockMode()) return { youtubeUrl: url, sourceType: "youtube", sourceReference: url };
+  if (betterAuthConfigured()) return protectedBrowserAction("analyzeYouTube", { url }) as Promise<Partial<Song>>;
   const response = await fetch(`${apiUrl}?action=analyzeYouTube`, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -169,10 +186,21 @@ export async function analyzeYouTube(url: string, idToken: string): Promise<Part
 
 export async function generateReading(input: { title: string; artist: string }, idToken: string): Promise<{ titleReadingKo: string; artistReadingKo: string }> {
   if (mockMode()) return { titleReadingKo: input.title, artistReadingKo: input.artist };
+  if (betterAuthConfigured()) return protectedBrowserAction("generateReading", { input }) as Promise<{ titleReadingKo: string; artistReadingKo: string }>;
   const response = await fetch(`${apiUrl}?action=generateReading`, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify({ idToken, input })
   });
   return parseWriteResponse(response, (data) => data as { titleReadingKo: string; artistReadingKo: string });
+}
+
+async function protectedBrowserAction<T = unknown>(action: string, body: Record<string, unknown>): Promise<T> {
+  const response = await fetch(betterAuthApiUrl(action), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  return parseWriteResponse(response, (data) => data as T);
 }

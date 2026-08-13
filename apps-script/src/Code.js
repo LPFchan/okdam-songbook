@@ -99,12 +99,12 @@ function routeRequest(e, method) {
     action = String(initialAction || (body && body.action) || "");
     LAST_STEP.action = action;
     if (action === "publicData") return jsonResponse(ok(publicData(), requestId));
-    if (action === "currentUser") return jsonResponse(ok(requireUser(body.idToken), requestId));
-    if (action === "createPerformance") return jsonResponse(ok(createPerformance(body), requestId));
-    if (action === "cancelPerformance") return jsonResponse(ok(cancelPerformance(body), requestId));
-    if (action === "upsertSong") return jsonResponse(ok(upsertSong(body, requestId), requestId));
-    if (action === "analyzeYouTube") return jsonResponse(ok(analyzeYouTube(body), requestId));
-    if (action === "generateReading") return jsonResponse(ok(generateReading(body), requestId));
+    if (action === "currentUser") return jsonResponse(ok(requireRequestUser(body, e), requestId));
+    if (action === "createPerformance") return jsonResponse(ok(createPerformance(body, e), requestId));
+    if (action === "cancelPerformance") return jsonResponse(ok(cancelPerformance(body, e), requestId));
+    if (action === "upsertSong") return jsonResponse(ok(upsertSong(body, requestId, e), requestId));
+    if (action === "analyzeYouTube") return jsonResponse(ok(analyzeYouTube(body, e), requestId));
+    if (action === "generateReading") return jsonResponse(ok(generateReading(body, e), requestId));
     if (action === "schema") return jsonResponse(ok(validateSpreadsheetSchema(), requestId));
     if (action === "gptSearchSongs") return jsonResponse(ok(gptSearchSongs(body, e), requestId));
     if (action === "gptCheckDuplicate") return jsonResponse(ok(gptCheckDuplicate(body, e), requestId));
@@ -711,8 +711,8 @@ function requirePermission(user, action) {
   }
 }
 
-function createPerformance(body) {
-  const user = requireUser(body.idToken);
+function createPerformance(body, e) {
+  const user = requireRequestUser(body, e);
   requirePermission(user, "performance:create");
   return withScriptLock(() => {
     const clientRequestId = String(body.clientRequestId || Utilities.getUuid());
@@ -740,8 +740,8 @@ function createPerformance(body) {
   });
 }
 
-function cancelPerformance(body) {
-  const user = requireUser(body.idToken);
+function cancelPerformance(body, e) {
+  const user = requireRequestUser(body, e);
   requirePermission(user, "performance:cancel");
   const performanceId = String(body.performanceId || "");
   if (!performanceId) throw publicError("BAD_REQUEST", "performanceId가 필요해.");
@@ -768,12 +768,12 @@ function cancelPerformance(body) {
   });
 }
 
- function upsertSong(body, requestId) {
+ function upsertSong(body, requestId, e) {
   const reqId = requestId || newRequestId();
   logStep(reqId, "upsertSong", "body parsed", { hasSong: Boolean(body && body.song), hasIdToken: Boolean(body && body.idToken), clientRequestId: body && body.clientRequestId ? String(body.clientRequestId) : "" });
   let user;
   logStep(reqId, "upsertSong", "auth start");
-  user = requireUser(body.idToken);
+  user = requireRequestUser(body, e);
   logStep(reqId, "upsertSong", "auth success", { role: user.role, emailHash: simpleHash(user.email) });
   requirePermission(user, body.song && body.song.id ? "song:update" : "song:create");
   logStep(reqId, "upsertSong", "validation start", { mode: body.song && body.song.id ? "update" : "create" });
@@ -899,15 +899,15 @@ function findChangeByClientRequestId(clientRequestId) {
   return found ? found.values : null;
 }
 
-function generateReading(body) {
-  const user = requireUser(body.idToken);
+function generateReading(body, e) {
+  const user = requireRequestUser(body, e);
   requirePermission(user, "song:create");
   const adapter = aiAdapter();
   return adapter.generateKoreanReading(body.input || {});
 }
 
-function analyzeYouTube(body) {
-  const user = requireUser(body.idToken);
+function analyzeYouTube(body, e) {
+  const user = requireRequestUser(body, e);
   requirePermission(user, "song:create");
   const url = String(body.url || "");
   const videoId = extractYouTubeId(url);

@@ -1,9 +1,8 @@
 // ChatGPT Custom GPT Action integration. The /exec endpoint is now reached
 // only through the Cloudflare Worker (integrations/chatgpt-proxy). The
 // Worker injects an INTERNAL_PROXY_SECRET header and actor metadata after
-// validating the user's Google OAuth session. Apps Script trusts the
-// upstream proxy and the actor headers; it never reads email fields from
-// the request body.
+// validating the user's OAuth session. Apps Script trusts the upstream proxy
+// and the actor headers; it never reads email fields from the request body.
 //
 // Legacy direct API key auth has been removed — the previous
 // `apiKey`-in-body mode is no longer accepted and a request without
@@ -36,8 +35,8 @@ function gptAuthenticateInternal(e, body) {
   const source = gptReadHeader(e, "X-ChatGpt-Source") || String(proxy.source || "");
   if (!actorId || !actorEmail) throw publicError("FORBIDDEN", "actor 정보가 누락됐어.");
   if (actorRole !== "member") throw publicError("FORBIDDEN", "actor role이 올바르지 않아.");
-  if (source !== "chatgpt-action") throw publicError("FORBIDDEN", "actor source가 올바르지 않아.");
-  const allow = JSON.parse(scriptProps().getProperty("CHATGPT_ALLOWED_USERS_JSON") || "{}");
+  if (["chatgpt-action", "browser-session"].indexOf(source) === -1) throw publicError("FORBIDDEN", "actor source가 올바르지 않아.");
+  const allow = JSON.parse(scriptProps().getProperty(source === "browser-session" ? "ALLOWED_USERS_JSON" : "CHATGPT_ALLOWED_USERS_JSON") || "{}");
   const expectedEntry = allow[actorEmail];
   if (!expectedEntry) throw publicError("FORBIDDEN", "이 Songbook에 등록할 권한이 없어.");
   return {
@@ -45,9 +44,19 @@ function gptAuthenticateInternal(e, body) {
       id: actorId,
       email: actorEmail,
       displayName: expectedEntry.displayName || actorName || actorEmail,
-      role: "integration"
+      role: source === "browser-session" ? (expectedEntry.role || "editor") : "integration"
     }
   };
+}
+
+// Browser write actions use the Better Auth session attested by the Worker.
+// They share the existing Apps Script validators and permission matrix, while
+// the legacy GIS idToken path remains available for rollback.
+function requireRequestUser(body, e) {
+  if (body && body.__proxy && String(body.__proxy.source || "") === "browser-session") {
+    return gptAuthenticateInternal(e, body).actor;
+  }
+  return requireUser(body && body.idToken);
 }
 
 function gptSearchSongs(body, e) {

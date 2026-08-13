@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import worker from "../src/index";
+import worker, { __internals } from "../src/index";
 import { CodeStore } from "../src/store";
 import { generateAuthorizationCode, mintAccessToken, signStateCookie, verifyAccessToken } from "../src/oauth";
 import { generateState } from "@songbook/shared";
@@ -23,6 +23,32 @@ const env = {
 };
 
 const GPT_REDIRECT = "https://chatgpt.com/aip/g-123/oauth/callback";
+
+const fakeD1 = {
+  prepare() {
+    const statement = {
+      bind() {
+        return statement;
+      },
+      async all() {
+        return { results: [], meta: { changes: 0 } };
+      },
+      async first() {
+        return null;
+      },
+      async run() {
+        return { meta: { changes: 0 } };
+      }
+    };
+    return statement;
+  },
+  async batch() {
+    return [];
+  },
+  async exec() {
+    return { count: 0, duration: 0 };
+  }
+} as never;
 
 type RequestInit = globalThis.RequestInit;
 
@@ -97,6 +123,52 @@ describe("routing", () => {
   it("does not accept POST on /oauth/callback", async () => {
     const response = await worker.fetch(new Request("https://chatgpt-proxy.example.com/oauth/callback", { method: "POST", body: "" }), env);
     expect(response.status).toBe(404);
+  });
+
+  it("keeps Better Auth routes opt-in", async () => {
+    const response = await worker.fetch(new Request("https://chatgpt-proxy.example.com/api/auth/get-session"), env);
+    expect(response.status).toBe(404);
+  });
+
+  it("rejects an anonymous browser gateway call when Better Auth is enabled", async () => {
+    const response = await worker.fetch(
+      new Request("https://chatgpt-proxy.example.com/api/browser/createPerformance", {
+        method: "POST",
+        headers: { Origin: "https://devuterian.github.io", "Content-Type": "application/json" },
+        body: JSON.stringify({ songId: "song-1" })
+      }),
+      { ...env, BETTER_AUTH_ENABLED: "true", AUTH_DB: fakeD1, BETTER_AUTH_URL: "https://chatgpt-proxy.example.com", BETTER_AUTH_SECRET: "test-better-auth-secret", AUTH_TRUSTED_ORIGINS: "https://devuterian.github.io" }
+    );
+    expect(response.status).toBe(401);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("https://devuterian.github.io");
+    expect(response.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+  });
+
+  it("admits credentialed browser gateway preflight only for a trusted origin", async () => {
+    const authEnv = { ...env, BETTER_AUTH_ENABLED: "true", AUTH_DB: fakeD1, BETTER_AUTH_URL: "https://chatgpt-proxy.example.com", BETTER_AUTH_SECRET: "test-better-auth-secret", AUTH_TRUSTED_ORIGINS: "https://devuterian.github.io" };
+    const allowed = await worker.fetch(new Request("https://chatgpt-proxy.example.com/api/browser/createPerformance", {
+      method: "OPTIONS", headers: { Origin: "https://devuterian.github.io" }
+    }), authEnv);
+    expect(allowed.status).toBe(204);
+    expect(allowed.headers.get("Access-Control-Allow-Origin")).toBe("https://devuterian.github.io");
+    const denied = await worker.fetch(new Request("https://chatgpt-proxy.example.com/api/browser/createPerformance", {
+      method: "OPTIONS", headers: { Origin: "https://evil.example" }
+    }), authEnv);
+    expect(denied.status).toBe(204);
+    expect(denied.headers.get("Access-Control-Allow-Origin")).toBeNull();
+  });
+
+  it("derives the browser actor from the Better Auth session user", () => {
+    expect(__internals.browserActor({
+      user: { id: "ba-user", email: "MARIE@example.com", name: "Marie", emailVerified: true },
+      session: { id: "ba-session", userId: "ba-user", expiresAt: new Date(Date.now() + 60_000) }
+    })).toEqual({
+      actorId: "ba-user",
+      actorEmail: "marie@example.com",
+      actorName: "Marie",
+      actorRole: "member",
+      source: "browser-session"
+    });
   });
 });
 

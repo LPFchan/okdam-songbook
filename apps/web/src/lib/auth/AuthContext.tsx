@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { fetchCurrentUser as apiFetchCurrentUser, isApiAuthError } from "../api";
 import { isJwtExpired, jwtExpiresAt } from "@songbook/shared";
 import { loadGoogleIdentityScript } from "../googleIdentity";
+import { betterAuthConfigured, getBetterAuthSession, signInWithGoogle, signInWithGoogleIdToken, signOutBetterAuth } from "./client";
 
 type AuthStatus = "unknown" | "anonymous" | "authenticating" | "authenticated" | "reauthRequired";
 
@@ -105,6 +106,7 @@ export function AuthProvider({ clientId, children }: AuthProviderProps) {
   const credentialRef = useRef<string | null>(null);
   const pendingRef = useRef<PendingAction | null>(null);
   const gisInitRef = useRef(false);
+  const betterAuthMode = betterAuthConfigured();
 
   const clearCredential = useCallback(() => {
     credentialRef.current = null;
@@ -157,6 +159,24 @@ export function AuthProvider({ clientId, children }: AuthProviderProps) {
     async (credential: string) => {
       setStatus("authenticating");
       try {
+        if (betterAuthMode) {
+          await signInWithGoogleIdToken(credential);
+          const session = await getBetterAuthSession();
+          if (!session) throw new AuthRequiredError("Better Auth 세션을 만들지 못했어.");
+          const next: AuthUser = {
+            email: session.user.email,
+            displayName: session.user.name,
+            role: session.user.role,
+            expiresAt: typeof session.session.expiresAt === "number" ? session.session.expiresAt : new Date(session.session.expiresAt).getTime()
+          };
+          setUser(next);
+          setDisplayInfo({ email: next.email, displayName: next.displayName });
+          writeSessionDisplay({ email: next.email, displayName: next.displayName });
+          setCredentialExpiresAt(next.expiresAt);
+          setStatus("authenticated");
+          setForceUpdateToken((token) => token + 1);
+          return next;
+        }
         const next = await adoptCredential(credential);
         const pending = pendingRef.current;
         if (pending) {
@@ -173,10 +193,15 @@ export function AuthProvider({ clientId, children }: AuthProviderProps) {
         throw error;
       }
     },
-    [adoptCredential]
+    [adoptCredential, betterAuthMode]
   );
 
   const loginWithGoogleButton = useCallback(async () => {
+    if (betterAuthMode) {
+      setStatus("authenticating");
+      await signInWithGoogle();
+      throw new AuthRequiredError("Google 로그인 화면으로 이동했어.");
+    }
     if (!clientId) throw new AuthRequiredError("Google 로그인이 설정되지 않았어.");
     setStatus("authenticating");
     const accounts = await loadGoogleIdentityScript();
@@ -219,9 +244,10 @@ export function AuthProvider({ clientId, children }: AuthProviderProps) {
         if (!settled) finish(new AuthRequiredError("Google 로그인 응답이 없어. 버튼을 직접 눌러줘."));
       }, GIS_PROMPT_TIMEOUT_MS);
     });
-  }, [clientId, loginWithCredential]);
+  }, [betterAuthMode, clientId, loginWithCredential]);
 
   const signOut = useCallback(() => {
+    if (betterAuthMode) signOutBetterAuth();
     credentialRef.current = null;
     setCredentialExpiresAt(null);
     setUser(null);
@@ -234,9 +260,18 @@ export function AuthProvider({ clientId, children }: AuthProviderProps) {
       pendingRef.current = null;
       pending.reject(new AuthRequiredError("로그아웃됐어."));
     }
-  }, []);
+  }, [betterAuthMode]);
 
   const requireValidCredential = useCallback(async (): Promise<string> => {
+    if (betterAuthMode) {
+      const session = await getBetterAuthSession();
+      if (session && user) return "";
+      setUser(null);
+      setCredentialExpiresAt(null);
+      setStatus("reauthRequired");
+      await loginWithGoogleButton();
+      return "";
+    }
     const current = credentialRef.current;
     if (current && !isJwtExpired(current)) {
       return current;
@@ -278,7 +313,7 @@ export function AuthProvider({ clientId, children }: AuthProviderProps) {
         }
       });
     });
-  }, [clientId, clearCredential, loginWithGoogleButton]);
+  }, [betterAuthMode, clientId, clearCredential, loginWithGoogleButton, user]);
 
   // Initial status: if we have a display name from a previous session, mark
   // reauthRequired (we do NOT trust the previous credential). Otherwise the
@@ -288,6 +323,40 @@ export function AuthProvider({ clientId, children }: AuthProviderProps) {
       setStatus(displayInfo ? "reauthRequired" : "anonymous");
     }
   }, [status, displayInfo]);
+
+  useEffect(() => {
+    if (!betterAuthMode) return;
+    let cancelled = false;
+    setStatus("authenticating");
+    getBetterAuthSession()
+      .then(async (session) => {
+        if (cancelled) return;
+        if (!session) {
+          setStatus("anonymous");
+          return;
+        }
+        const expiresAt = typeof session.session.expiresAt === "number"
+          ? session.session.expiresAt
+          : new Date(session.session.expiresAt).getTime();
+        const next: AuthUser = {
+          email: session.user.email,
+          displayName: session.user.name,
+          role: session.user.role,
+          expiresAt
+        };
+        setUser(next);
+        setDisplayInfo({ email: next.email, displayName: next.displayName });
+        writeSessionDisplay({ email: next.email, displayName: next.displayName });
+        setCredentialExpiresAt(expiresAt);
+        setStatus("authenticated");
+      })
+      .catch(() => {
+        if (!cancelled) setStatus("anonymous");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [betterAuthMode]);
 
   // Best-effort GIS init so the prompt() helper is available app-wide.
   useEffect(() => {

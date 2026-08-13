@@ -1,12 +1,27 @@
 name = "songbook-chatgpt-proxy"
 main = "src/index.ts"
 compatibility_date = "2025-05-01"
+compatibility_flags = ["nodejs_compat"]
 workers_dev = true
+
+# Provision a D1 database, apply migrations, then uncomment and fill in the
+# binding before setting BETTER_AUTH_ENABLED=true. Never commit the real id.
+# [[d1_databases]]
+# binding = "AUTH_DB"
+# database_name = "songbook-auth"
+# database_id = "<operator-provisioned-d1-id>"
 
 # Plaintext (non-secret) values. Override per environment with `wrangler secret put`.
 [vars]
 CALLBACK_BASE_URL = "https://songbook-chatgpt-proxy.iam-marierie.workers.dev"
 SESSION_TTL_SECONDS = "43200"
+# Better Auth browser sessions are opt-in until the operator provisions D1,
+# the dedicated Google OAuth client, and the exact production origins.
+BETTER_AUTH_ENABLED = "false"
+BETTER_AUTH_URL = "https://songbook-chatgpt-proxy.iam-marierie.workers.dev"
+AUTH_TRUSTED_ORIGINS = "https://devuterian.github.io"
+AUTH_SESSION_EXPIRES_IN_SECONDS = "1209600"
+AUTH_SESSION_UPDATE_AGE_SECONDS = "86400"
 # Comma-separated allowlist of GPT redirect URIs ChatGPT may use to receive
 # our minted authorization code. The <GPT_ID> is replaced with the actual
 # Custom GPT id after the GPT is created. The same /oauth/callback is also
@@ -15,6 +30,8 @@ CHATGPT_REDIRECT_URI_ALLOWLIST = "https://chatgpt.com/aip/g-6a451de53b6c819196b0
 CODE_STORE_TTL_MS = "300000"
 REFRESH_TOKEN_TTL_SECONDS = "2592000"
 
-# `wrangler secret put` slots expected: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+# `wrangler d1 create songbook-auth` then bind its id as AUTH_DB before enabling
+# Better Auth. `wrangler secret put` slots expected: GOOGLE_CLIENT_ID,
+# GOOGLE_CLIENT_SECRET, BETTER_AUTH_SECRET,
 # APPS_SCRIPT_URL, INTERNAL_PROXY_SECRET, MARIE_EMAIL, SEONGWOOK_EMAIL,
 # YEOWOOL_EMAIL, COOKIE_SECRET, GPT_OAUTH_CLIENT_ID, GPT_OAUTH_CLIENT_SECRET

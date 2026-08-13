@@ -31,6 +31,8 @@ import {
   verifyStateCookie
 } from "./oauth";
 import { buildAllowlist, generateState, normalizeEmail, parseAuthorizationHeader } from "@songbook/shared";
+import { createBrowserAuth } from "./auth";
+import type { D1Database } from "@cloudflare/workers-types";
 
 export interface Env {
   GOOGLE_CLIENT_ID?: string;
@@ -49,6 +51,13 @@ export interface Env {
   CHATGPT_REDIRECT_URI_ALLOWLIST?: string;
   CODE_STORE_TTL_MS?: string;
   REFRESH_TOKEN_TTL_SECONDS?: string;
+  AUTH_DB?: D1Database;
+  BETTER_AUTH_ENABLED?: string;
+  BETTER_AUTH_URL?: string;
+  BETTER_AUTH_SECRET?: string;
+  AUTH_TRUSTED_ORIGINS?: string;
+  AUTH_SESSION_EXPIRES_IN_SECONDS?: string;
+  AUTH_SESSION_UPDATE_AGE_SECONDS?: string;
 }
 
 export interface ForwardedActor {
@@ -56,7 +65,7 @@ export interface ForwardedActor {
   actorEmail: string;
   actorName: string;
   actorRole: "member";
-  source: "chatgpt-action";
+  source: "chatgpt-action" | "browser-session";
 }
 
 const COOKIE_NAME = "songbook_chatgpt_state";
@@ -68,6 +77,18 @@ export default {
     const url = new URL(request.url);
     const codeStore = ctx?.codeStore ?? sharedCodeStore;
     try {
+      if (isBrowserAuthEnabled(env) && request.method === "OPTIONS" && isBrowserRoute(url.pathname)) {
+        return withAuthCors(new Response(null, { status: 204 }), request, env);
+      }
+      if (isBrowserAuthEnabled(env) && (url.pathname === "/api/auth" || url.pathname.startsWith("/api/auth/"))) {
+        return await handleBrowserAuth(request, env);
+      }
+      if (isBrowserAuthEnabled(env) && request.method === "GET" && url.pathname === "/api/session") {
+        return await handleBrowserSession(request, env);
+      }
+      if (isBrowserAuthEnabled(env) && request.method === "POST" && url.pathname.startsWith("/api/browser/")) {
+        return await handleBrowserGateway(request, env, url);
+      }
       if (request.method === "GET" && url.pathname === "/authorize") return await handleAuthorize(request, env, url);
       if (request.method === "GET" && url.pathname === "/oauth/callback") return await handleCallback(request, env, url, codeStore);
       if (request.method === "POST" && url.pathname === "/token") return await handleToken(request, env, codeStore);
@@ -317,6 +338,120 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
   return jsonResponse(forwarded.status, forwarded.body);
 }
 
+function isBrowserAuthEnabled(env: Env): boolean {
+  return String(env.BETTER_AUTH_ENABLED || "false").toLowerCase() === "true";
+}
+
+function isBrowserRoute(pathname: string): boolean {
+  return pathname === "/api/session" || pathname === "/api/auth" || pathname.startsWith("/api/auth/") || pathname.startsWith("/api/browser/");
+}
+
+function authOrigins(env: Env): string[] {
+  return String(env.AUTH_TRUSTED_ORIGINS || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
+function withAuthCors(response: Response, request: Request, env: Env): Response {
+  const origin = request.headers.get("Origin");
+  const allowed = origin && authOrigins(env).includes(origin) ? origin : "";
+  if (!allowed) return response;
+  const headers = new Headers(response.headers);
+  headers.set("Access-Control-Allow-Origin", allowed);
+  headers.set("Access-Control-Allow-Credentials", "true");
+  headers.set("Access-Control-Allow-Headers", "Content-Type, X-Requested-With");
+  headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  headers.append("Vary", "Origin");
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
+async function handleBrowserAuth(request: Request, env: Env): Promise<Response> {
+  if (request.method === "OPTIONS") return withAuthCors(new Response(null, { status: 204 }), request, env);
+  const auth = createBrowserAuth(env);
+  return withAuthCors(await auth.handler(request), request, env);
+}
+
+interface BrowserSession {
+  session: { id: string; userId: string; expiresAt: Date };
+  user: { id: string; email: string; name: string; emailVerified: boolean };
+}
+
+async function getBrowserSession(request: Request, env: Env): Promise<BrowserSession | null> {
+  if (!isBrowserAuthEnabled(env)) return null;
+  const auth = createBrowserAuth(env);
+  return await auth.api.getSession({ headers: request.headers }) as BrowserSession | null;
+}
+
+function browserActor(session: BrowserSession): ForwardedActor {
+  return {
+    actorId: session.user.id,
+    actorEmail: normalizeEmail(session.user.email),
+    actorName: session.user.name,
+    actorRole: "member",
+    source: "browser-session"
+  };
+}
+
+async function handleBrowserSession(request: Request, env: Env): Promise<Response> {
+  const session = await getBrowserSession(request, env);
+  if (!session) return withAuthCors(jsonResponse(401, { error: "UNAUTHORIZED", data: null }), request, env);
+  const actor = browserActor(session);
+  // Apps Script remains the allowlist/role authority. The Worker only attests
+  // the Better Auth session and forwards an actor; it never chooses a role.
+  const forwarded = await forwardToAppsScript(readConfigForForwarding(env), {
+    action: "currentUser",
+    body: {},
+    actor,
+    requestId: crypto.randomUUID(),
+    sessionEmail: actor.actorEmail
+  });
+  if (forwarded.status >= 400) return withAuthCors(jsonResponse(forwarded.status, forwarded.body), request, env);
+  const payload = forwarded.body as { ok?: boolean; data?: unknown };
+  if (!payload?.ok) return withAuthCors(jsonResponse(403, payload), request, env);
+  const current = payload.data as { email?: string; displayName?: string; role?: string };
+  return withAuthCors(jsonResponse(200, {
+    data: {
+      user: {
+        id: actor.actorId,
+        email: String(current.email || actor.actorEmail),
+        name: String(current.displayName || actor.actorName),
+        role: String(current.role || "editor")
+      },
+      session: { id: session.session.id, expiresAt: session.session.expiresAt }
+    },
+  }), request, env);
+}
+
+const BROWSER_ACTIONS = new Set(["upsertSong", "createPerformance", "cancelPerformance", "generateReading", "analyzeYouTube"]);
+
+async function handleBrowserGateway(request: Request, env: Env, url: URL): Promise<Response> {
+  const action = url.pathname.slice("/api/browser/".length);
+  if (!BROWSER_ACTIONS.has(action)) return withAuthCors(errorResponse(404, "NOT_FOUND", "허용되지 않은 browser action이야."), request, env);
+  const session = await getBrowserSession(request, env);
+  if (!session) return withAuthCors(errorResponse(401, "UNAUTHORIZED", "브라우저 세션이 필요해."), request, env);
+  const actor = browserActor(session);
+  let body: Record<string, unknown> = {};
+  try {
+    const text = await request.text();
+    body = text ? JSON.parse(text) : {};
+  } catch {
+    return withAuthCors(errorResponse(400, "BAD_REQUEST", "JSON body 파싱 실패"), request, env);
+  }
+  const forwarded = await forwardToAppsScript(readConfigForForwarding(env), {
+    action,
+    body,
+    actor,
+    requestId: crypto.randomUUID(),
+    sessionEmail: actor.actorEmail
+  });
+  return withAuthCors(jsonResponse(forwarded.status, forwarded.body), request, env);
+}
+
+function readConfigForForwarding(env: Env): WorkerConfig {
+  return mustConfig(env);
+}
+
 interface ForwardRequest {
   action: string;
   body: Record<string, unknown>;
@@ -483,5 +618,6 @@ export const __internals = {
   handleCallback,
   handleToken,
   handleApi,
+  browserActor,
   CodeStore
 };
