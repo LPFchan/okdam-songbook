@@ -17,10 +17,15 @@
   ],
   "scripts": {
     "dev": "npm run dev -w @songbook/web",
+    "build:runtime": "npm run build -w @songbook/shared && npm run build -w @songbook/server-core && npm run build -w @songbook/mcp && npm run build -w @songbook/admin",
+    "build:ordered": "npm run build:runtime && npm run build -w @songbook/server && npm run build -w @songbook/web && npm run build -w @songbook/chatgpt-proxy",
+    "pretest": "npm run build:runtime",
     "lint": "npm run lint --workspaces --if-present",
+    "pretypecheck": "npm run build:runtime",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "build": "npm run build --workspaces --if-present"
+    "build": "npm run build:ordered",
+    "verify": "npm run typecheck && npm test && npm run lint && npm run build"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.18.0",
