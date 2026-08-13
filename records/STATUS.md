@@ -6,17 +6,19 @@ Recorded by agent: codex-orchestrator
 ## Snapshot
 
 - Last updated: 2026-08-13.
-- Overall posture: `source-integrated; production rollout pending`.
-- Integrated source baseline: commits through `5be715a` (`Integrate auth TJ
-  and unified UI`).
+- Overall posture: `OCI single-server source complete; release gates pending`.
+- Integrated source baseline: commits through `c8bb6b1` (`Order clean-checkout
+  verification`).
 - Current product shape: one catalog-first main surface whose search input
   returns saved songs first and debounced TJ candidates second. Manage/history
   remain contextual utilities; `/admin` is a compatibility alias.
-- Current production reality: the previously deployed GIS/direct Apps Script
-  path and separate ChatGPT OAuth Worker remain the live external components.
-  The new Better Auth browser path and TJ Apps Script actions are not live.
-- Verification on the integrated source: lint, typecheck, tests, build,
-  Apps Script syntax checks, and Wrangler dry-run pass.
+- Current production reality: no OCI cutover has been attempted. Existing
+  external services remain untouched until the release gates and operator
+  authorization are complete.
+- Verification on the integrated source: clean `npm ci`, all 200 workspace
+  tests, root typecheck, lint, ordered production builds, server
+  start/health/shutdown smoke, and a complete read-only amd64 container health
+  smoke pass.
 
 ## Integrated Source
 
@@ -36,58 +38,67 @@ Recorded by agent: codex-orchestrator
 
 - `packages/shared/src/tj.ts` defines bounded lookup/search/candidate contracts
   and parsing helpers.
-- Apps Script source implements fixed-host TJ HTML fetching, 30-second cache,
-  throttling, parser-drift/upstream errors, exact lookup, bounded search,
-  duplicate-safe immediate add, and owner restore.
-- Web code uses authenticated actions and keeps manual add/edit available.
-- The updated Apps Script has not been pushed, deployed, or live-smoked.
+- The single-server TJ adapter implements fixed-host fetching, bounded cache,
+  throttling, parser-drift/upstream errors, exact lookup, and bounded search.
+- Same-origin authenticated actions provide duplicate-safe immediate add and
+  owner restore through the SQLite domain service. Manual add/edit remains
+  available.
+- Live TJ behavior through the final OCI hostname has not been smoke-tested.
 
-### Better Auth foundation
+### OCI single-server foundation
 
-- The Worker has request-scoped Better Auth 1.6.27 configuration with Google,
-  D1, `/api/auth/*`, `/api/session`, and `/api/browser/*` gateway routes.
-- Sessions are configured for 14-day expiry with 1-day renewal age and
-  credentialed cross-origin cookies.
-- Apps Script receives only a Worker-attested actor through the existing
-  internal-secret pattern, then independently resolves `ALLOWED_USERS_JSON`.
-- GIS direct-token handling remains available as rollback. ChatGPT `/authorize`,
-  `/token`, and GPT action routes remain separate.
-- `BETTER_AUTH_ENABLED=false` is the checked-in Worker default and the web
-  Better Auth client is opt-in through `VITE_AUTH_ENABLED` plus
-  `VITE_AUTH_BASE_URL`.
+- One executable Hono server serves the built PWA, anonymous catalog API,
+  protected browser API, Better Auth, health checks, and `/mcp`.
+- SQLite owns domain, audit, idempotency, Better Auth, and MCP resource-binding
+  state. Import/reconciliation, CSV recovery, backup, integrity-check, and
+  guarded restore tools are checked in.
+- Browser access uses same-origin HTTP-only sessions, exact-origin mutation
+  checks, JSON-only bodies, and a per-request owner/editor allowlist.
+- The offline performance queue drains on startup, reconnect, visibility, and
+  authentication recovery, with bounded retry, dead letters, and preserved
+  write identities.
+- MCP uses stateless SDK v2 transport with legacy stateless fallback. Read and
+  write scopes protect five tools, and authoritative Better Auth identity is
+  resolved before the shared domain service executes.
+- The Docker image runs non-root with a read-only root filesystem, persistent
+  SQLite bind mount, localhost-only published port, bounded logs/resources,
+  and an application-owned `/healthz` check.
 
-## Production Blockers
+## Release Gates
 
-1. Provision a Cloudflare D1 database and bind it as `AUTH_DB`.
-2. Apply `integrations/chatgpt-proxy/migrations/0001_better_auth.sql` to the
-   remote D1 database.
-3. Store a strong `BETTER_AUTH_SECRET`; keep existing ChatGPT/Gateway secrets
-   separate.
-4. Create a dedicated Google OAuth web client for Better Auth and register the
-   exact Worker callback `/api/auth/callback/google`. Do not reuse the
-   ChatGPT callback contract.
-5. Decide and provision the production same-site/custom-domain posture for
-   the Pages app and Worker. Verify `SameSite=None; Secure` cookies from the
-   actual browser origin before enabling the feature.
-6. Set exact `AUTH_TRUSTED_ORIGINS`, `BETTER_AUTH_URL`, and Pages
-   `VITE_AUTH_ENABLED=true` / `VITE_AUTH_BASE_URL` values. Keep
-   `VITE_AUTH_LEGACY_GIS_FALLBACK=true` during rollout.
-7. Push and deploy the updated Apps Script source, including TJ actions and
-   browser-session actor admission; verify its `INTERNAL_PROXY_SECRET` and
-   allowlist properties.
-8. Run the staged browser, TJ, PWA-cache, and ChatGPT regression smoke before
-   enabling Better Auth traffic. No production deployment has been attempted
-   by this work.
+1. Build and start the image natively on the OCI ARM64 host and pass `/healthz`;
+   the successful local amd64 build is not ARM64 evidence.
+2. Configure the final origin, Google callback, strong Better Auth secret, and
+   non-empty owner/editor allowlist without committing their values.
+3. Import the source Sheet repeatedly into a staging SQLite database, reconcile
+   counts/relations/duplicates, export recovery CSV, and obtain operator
+   acceptance before the production import.
+4. Run an integrity-checked backup and restore drill using production-shaped
+   paths and retention.
+5. Complete a real external MCP client flow: discovery, dynamic registration
+   where required, PKCE authorization, token issuance/resource binding,
+   initialize, tool listing, read call, scoped write, revocation, and restart.
+6. Prepare and verify the old GitHub Pages service-worker cleanup and redirect
+   artifact before removing Pages or its legacy data paths.
+7. Run browser, TJ, offline replay, cache, auth, and MCP smoke tests through the
+   final Cloudflare Tunnel hostname.
+8. Perform deployment, tunnel/DNS changes, and cutover only with explicit
+   operator authorization. Retain the legacy source and rollback route during
+   the observation window.
 
 ## Rollback
 
-- Set `BETTER_AUTH_ENABLED=false` and rebuild Pages with GIS fallback enabled.
-- Keep Apps Script's existing ID-token path available until the cookie gateway
-  and Sheet actor checks pass live smoke.
-- Leave ChatGPT Action OAuth unchanged while browser auth is rolled out.
+- Restore the last integrity-checked SQLite backup into a stopped service, then
+  start and verify locally before restoring public traffic.
+- Keep the previous container image and Cloudflare Tunnel route available
+  during the observation window.
+- Preserve the legacy external source for at least the accepted observation
+  period; do not delete it as part of initial cutover.
 
-## Historical Data and Deployment Notes
+## Evidence
 
-The July seed/import and existing production bindings remain historical
-operational context. The executable current rollout sequence, without secret
-values, is [docs/ops-checklist-2026-08-13.md](../docs/ops-checklist-2026-08-13.md).
+- Architecture decision: `DEC-20260813-005`.
+- Reviewed refactor plan: `RSH-20260813-002`.
+- OAuth compatibility spike and remaining external-client gate:
+  `RSH-20260813-003`.
+- OCI packaging and host procedure: `deploy/container/README.md`.

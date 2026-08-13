@@ -8,7 +8,7 @@ Recorded by agent: codex-orchestrator
 - Canonical repo: https://github.com/devuterian/okdam-songbook
 - Operator: Marie
 - Last updated: 2026-08-13
-- Related decisions: DEC-20260701-001 through DEC-20260701-008, DEC-20260813-001 through DEC-20260813-003
+- Related decisions: DEC-20260701-001 through DEC-20260701-008, DEC-20260813-001 through DEC-20260813-005
 
 ## Project Thesis
 
@@ -17,21 +17,22 @@ trusted group quickly search TJ karaoke numbers, titles, artists, Korean
 readings for Japanese songs, recommended keys, notes, and recent singing
 history.
 
-## Main Surface
+## Runtime Shape
 
-- Public GitHub Pages PWA under `/okdam-songbook/`.
+- One Node 22/Hono application runs on OCI and serves the PWA, same-origin API,
+  Better Auth routes, TJ integration, health endpoint, and MCP endpoint.
+- Cloudflare Tunnel may provide ingress to the OCI service, but no application
+  logic runs in a Cloudflare Worker.
+- SQLite is the operational database for songs, performers, performances,
+  audit events, idempotency records, Better Auth state, and MCP token-resource
+  bindings.
 - The catalog is the primary surface for search, filters, account/session
   state, theme, sync status, and role-aware management entry points.
 - The main search is an omnibar: saved-song matches appear immediately, then
   authenticated debounced TJ matches continue below with inline add actions.
 - Manage and history tools open contextually from the catalog toolbar; manual
-  add remains a TJ-search fallback.
-- `/okdam-songbook/admin/` remains a compatibility deep link to the same
-  composition; it is not a separate security boundary.
-- Google Apps Script Web App API backed by a private Google Sheets workbook
-  with `Songs`, `Performances`, and `ChangeLog` sheets.
-- Existing Cloudflare Worker integration at `/authorize`, `/token`, and
-  `/api/gpt*` for ChatGPT Actions.
+  add remains a TJ-search fallback. `/admin` is a compatibility alias to the
+  same composition, not a separate security boundary.
 
 ## Core Capabilities
 
@@ -47,33 +48,36 @@ history.
   authenticated one-action candidate add with manual fallback.
 - Server-authoritative duplicate checks, replay-safe writes, TJ provenance, and
   owner-only restore for deleted matches.
-- Better Auth browser-session foundation on the Cloudflare Worker: Google
-  OAuth, D1 data, renewable HTTP-only sessions, current-user admission, and a
-  protected Worker-to-Apps-Script browser gateway. The source path is
-  feature-disabled until production provisioning is complete.
-- GIS direct-token transport remains available as an explicit rollback path
-  during the auth migration.
-- Owner/editor role matrix enforced by Apps Script, including song CRUD,
-  deletion/restore, performance history, ChangeLog, and AI helper adapters.
+- Better Auth Google OAuth and renewable HTTP-only browser sessions use the
+  same SQLite database as the songbook domain.
+- The server resolves the current allowlist and owner/editor role on every
+  protected request. Missing admission configuration fails closed.
+- Stateless MCP Streamable HTTP is mounted at `/mcp`, with legacy stateless
+  compatibility, bearer-only OAuth, resource binding, per-tool scopes, and no
+  long-lived MCP session state.
+- MCP exposes catalog, search, song lookup, performance recording, and
+  performance cancellation through the same domain service as the browser API.
 - Songs store structured `performerIds` for who will sing the song. Built-in
   performers are `marie`, `seongwook`, and `yeowool`; legacy `뽀냐` input maps to
   `marie` plus `yeowool` and is not a stored user ID.
 
 ## Invariants
 
-- The Google Sheet is the operational source of truth.
-- GitHub repo JSON is not the production data store.
-- Secrets, allowed emails, OAuth secrets, D1 ids, and internal proxy secrets
-  are never bundled in the frontend or committed to the repository.
-- Browser-supplied email, actor, or role values are never authority for
-  writes. Apps Script resolves the current allowlist and role.
-- Better Auth sessions use HTTP-only cookies; Google ID tokens are not persisted
-  in browser-readable storage, URLs, IndexedDB, or service-worker caches.
-- Public reads remain available without login. Protected writes require a
-  valid session transport and server-side permission checks.
-- TJ candidates remain editable, attributed input until an authenticated Sheet
-  write succeeds. TJ outages or parser drift never remove manual entry or
-  public catalog access.
+- SQLite on OCI is the operational source of truth. Google Sheets and repo JSON
+  are migration inputs or recovery exports, not live production stores.
+- Secrets, allowed emails, OAuth credentials, database files, and backup
+  archives are never bundled in the frontend or committed to the repository.
+- Browser- or MCP-supplied identity and role values are never authority. The
+  server derives identity from Better Auth and rechecks the current allowlist.
+- Better Auth sessions use HTTP-only cookies. MCP accepts bearer credentials
+  only and rejects cookie or mixed cookie/bearer authentication.
+- Browser mutations require JSON and the exact configured origin. Public
+  catalog reads remain available without login.
+- Every write carries an idempotency key. Offline replay and MCP retries must
+  preserve it across process restarts and lost responses.
+- TJ candidates remain editable, attributed input until an authenticated
+  SQLite write succeeds. TJ outages or parser drift never remove manual entry
+  or public catalog access.
+- Backups are useful only when integrity checks and a restore drill pass.
 - `noindex` and link obscurity reduce discoverability only; they are not access
   control.
-- ChatGPT Action OAuth remains a separate protocol from browser sessions.
