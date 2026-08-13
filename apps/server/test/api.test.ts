@@ -87,6 +87,57 @@ describe("same-origin server surface", () => {
     expect((await invalid.json()).error.code).toBe("VALIDATION_ERROR");
   });
 
+  it("soft-deletes a song as owner and rejects editors", async () => {
+    const headers = { Origin: origin, "Content-Type": "application/json" };
+    const ownerServer = app({
+      sessionResolver: async () => ({ email: "owner@example.com", displayName: "Owner" }),
+      roleResolver: createAllowlistRoleResolver({ "owner@example.com": "owner" })
+    });
+    const created = await ownerServer.request(
+      request("/api/songs", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ title: "삭제 대상", artist: "가수", clientRequestId: crypto.randomUUID() })
+      })
+    );
+    expect(created.status).toBe(200);
+    const song = (await created.json()).data;
+
+    const deleted = await ownerServer.request(
+      request(`/api/songs/${song.id}/delete`, {
+        method: "DELETE",
+        headers,
+        body: JSON.stringify({ songId: song.id, expectedVersion: song.version, clientRequestId: crypto.randomUUID() })
+      })
+    );
+    expect(deleted.status).toBe(200);
+    expect((await deleted.json()).data.deletedAt).not.toBe("");
+
+    const catalog = await ownerServer.request(request("/api/catalog"));
+    expect((await catalog.json()).data.songs.map((entry: { id: string }) => entry.id)).not.toContain(song.id);
+
+    const editorServer = app({
+      sessionResolver: async () => ({ email: "editor@example.com", displayName: "Editor" }),
+      roleResolver: createAllowlistRoleResolver({ "editor@example.com": "editor" })
+    });
+    const madeByEditor = await editorServer.request(
+      request("/api/songs", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ title: "편집자 곡", artist: "가수", clientRequestId: crypto.randomUUID() })
+      })
+    );
+    const editorSong = (await madeByEditor.json()).data;
+    const forbidden = await editorServer.request(
+      request(`/api/songs/${editorSong.id}/delete`, {
+        method: "DELETE",
+        headers,
+        body: JSON.stringify({ songId: editorSong.id, expectedVersion: editorSong.version, clientRequestId: crypto.randomUUID() })
+      })
+    );
+    expect(forbidden.status).toBe(403);
+  });
+
   it("returns the browser session contract with name and expiry fields", async () => {
     const server = app({
       sessionResolver: async () => ({ id: "session-1", email: "editor@example.com", displayName: "Editor", expiresAt: "2026-08-14T00:00:00.000Z" }),

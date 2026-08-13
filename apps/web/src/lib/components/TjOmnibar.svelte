@@ -60,7 +60,7 @@
           if (cancelled) return;
           results = [];
           completedQuery = q;
-          error = reason instanceof Error ? reason.message : "TJ 검색을 불러오지 못했어.";
+          error = reason instanceof Error ? reason.message : "TJ 검색을 불러오지 못했어요.";
         })
         .finally(() => {
           if (!cancelled) loading = false;
@@ -106,11 +106,11 @@
       if (song) {
         added = { ...added, [key]: song };
         onSongSaved(song);
-        snackbar.show(response.outcome === "created" ? `${song.title}을(를) 추가했어.` : "이미 Songbook에 있는 곡을 열었어.");
+        snackbar.show(response.outcome === "created" ? `${song.title}을(를) 추가했어요.` : "이미 Songbook에 있는 곡을 열었어.");
         onOpenExisting(song);
       }
     } catch (reason) {
-      snackbar.show(reason instanceof Error ? reason.message : "곡을 추가하지 못했어.");
+      snackbar.show(reason instanceof Error ? reason.message : "곡을 추가하지 못했어요.");
     } finally {
       pending = { ...pending, [key]: false };
     }
@@ -120,7 +120,7 @@
 {#if searchable}
   {#if !enabled}
     <section class="omnibar-tj" aria-label="TJ 검색">
-      <p class="omnibar-tj-status">TJ에서도 찾으려면 로그인해줘.</p>
+      <p class="omnibar-tj-status">TJ에서도 찾으려면 로그인해주세요.</p>
     </section>
   {:else}
     <section class="omnibar-tj" aria-label="TJ 검색 결과" aria-live="polite">
@@ -132,9 +132,9 @@
         <button type="button" class="secondary-button" onclick={onManualAdd}>직접 입력</button>
       </header>
       {#if loading}<p class="omnibar-tj-status">TJ 검색 중…</p>{/if}
-      {#if error}<p class="omnibar-tj-status error">{error} 직접 입력은 계속 사용할 수 있어.</p>{/if}
+      {#if error}<p class="omnibar-tj-status error">{error} 직접 입력은 계속 사용할 수 있어요.</p>{/if}
       {#if !loading && !error && completedQuery === trimmedQuery && results.length === 0}
-        <p class="omnibar-tj-status">TJ에도 검색 결과가 없어.</p>
+        <p class="omnibar-tj-status">TJ에도 검색 결과가 없어요.</p>
       {/if}
       {#if results.length}
         <div class="omnibar-tj-results">

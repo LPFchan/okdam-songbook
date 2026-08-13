@@ -122,12 +122,12 @@ function retryDelay(attemptCount: number): number {
 function errorMessage(error: unknown, classification: QueueFailureClassification): string {
   if (error instanceof Error && error.message) return error.message;
   switch (classification) {
-    case "auth": return "로그인이 필요해.";
-    case "validation": return "입력값을 확인해줘.";
-    case "not_found": return "대상 곡이나 기록을 찾지 못했어.";
-    case "conflict": return "서버에서 이미 바뀐 기록이야.";
-    case "network": return "네트워크 연결을 확인해줘.";
-    default: return "동기화하지 못했어.";
+    case "auth": return "로그인이 필요해요.";
+    case "validation": return "입력값을 확인해주세요.";
+    case "not_found": return "대상 곡이나 기록을 찾지 못했어요.";
+    case "conflict": return "서버에서 이미 바뀐 기록이에요.";
+    case "network": return "네트워크 연결을 확인해주세요.";
+    default: return "동기화하지 못했어요.";
   }
 }
 
@@ -197,7 +197,7 @@ export function drainOfflineQueue(options: QueueReplayOptions = {}): Promise<Que
           await db.queue.update(item.id, {
             status: "failed",
             errorClassification: "auth",
-            errorMessage: "로그인 후 다시 시도할 수 있어.",
+            errorMessage: "로그인 후 다시 시도할 수 있어요.",
             nextRetryAt: undefined
           });
         }
@@ -215,7 +215,7 @@ export function drainOfflineQueue(options: QueueReplayOptions = {}): Promise<Que
           await db.queue.update(item.id, {
             status: "failed",
             errorClassification: "auth",
-            errorMessage: "로그인 후 다시 시도할 수 있어.",
+            errorMessage: "로그인 후 다시 시도할 수 있어요.",
             nextRetryAt: undefined
           });
           break;
@@ -257,7 +257,7 @@ export async function markQueueItemFailed(id: string, error: unknown, classifica
   await db.queue.update(id, {
     status: "failed",
     errorClassification: classification,
-    errorMessage: error instanceof Error ? error.message : "동기화하지 못했어.",
+    errorMessage: error instanceof Error ? error.message : "동기화하지 못했어요.",
     nextRetryAt: undefined
   });
   notify();

@@ -54,14 +54,14 @@ async function parseResponse<T>(response: Response, parser: (value: unknown) => 
   try {
     json = await response.json();
   } catch {
-    throw apiError("INTERNAL_ERROR", "요청에 실패했어.", response.status);
+    throw apiError("INTERNAL_ERROR", "요청에 실패했어요.", response.status);
   }
 
   const isSuccess = response.ok && json && typeof json === "object" && "ok" in json && (json as { ok?: unknown }).ok === true;
   if (!isSuccess) {
     const failure = apiFailureSchema.safeParse(json);
     const error = failure.success ? failure.data.error : null;
-    throw apiError(error?.code ?? "INTERNAL_ERROR", error?.message ?? "요청에 실패했어.", response.status, json);
+    throw apiError(error?.code ?? "INTERNAL_ERROR", error?.message ?? "요청에 실패했어요.", response.status, json);
   }
 
   return parser((json as { data?: unknown }).data);
@@ -240,7 +240,7 @@ export async function addTjSong(candidate: TjSongCandidate, clientRequestId: str
 export async function restoreSong(songId: string, clientRequestId: string): Promise<Song> {
   if (mockMode()) {
     const existing = sampleSongs.find((song) => song.id === songId);
-    if (!existing) throw new Error("복구할 곡을 찾지 못했어.");
+    if (!existing) throw new Error("복구할 곡을 찾지 못했어요.");
     return songSchema.parse({ ...existing, status: "active" });
   }
   return request(`/api/songs/${encodeURIComponent(songId)}/restore`, {
@@ -249,13 +249,25 @@ export async function restoreSong(songId: string, clientRequestId: string): Prom
   }, (data) => songSchema.parse(data));
 }
 
+export async function deleteSong(song: Pick<Song, "id" | "version">, clientRequestId: string): Promise<Song> {
+  if (mockMode()) {
+    const existing = sampleSongs.find((item) => item.id === song.id);
+    if (!existing) throw new Error("삭제할 곡을 찾지 못했어요.");
+    return songSchema.parse({ ...existing, status: "deleted" });
+  }
+  return request(`/api/songs/${encodeURIComponent(song.id)}/delete`, {
+    method: "DELETE",
+    body: JSON.stringify({ songId: song.id, expectedVersion: song.version, clientRequestId })
+  }, (data) => songSchema.parse(data));
+}
+
 /** These older helpers have no route in the shared single-origin contract yet. */
 export async function analyzeYouTube(url: string): Promise<Partial<Song>> {
   if (mockMode()) return { youtubeUrl: url, sourceType: "youtube", sourceReference: url };
-  throw new Error("YouTube 분석은 아직 서버에서 제공되지 않아.");
+  throw new Error("YouTube 분석은 아직 서버에서 제공되지 않아요.");
 }
 
 export async function generateReading(input: { title: string; artist: string }): Promise<{ titleReadingKo: string; artistReadingKo: string }> {
   if (mockMode()) return { titleReadingKo: input.title, artistReadingKo: input.artist };
-  throw new Error("독음 생성은 아직 서버에서 제공되지 않아.");
+  throw new Error("독음 생성은 아직 서버에서 제공되지 않아요.");
 }

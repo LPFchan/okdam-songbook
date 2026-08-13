@@ -14,7 +14,7 @@ const SESSION_KEY = "songbook:display-user";
 
 export class AuthRequiredError extends Error {
   readonly code = "AUTH_REQUIRED";
-  constructor(message = "기록하려면 Google 로그인이 필요해.") {
+  constructor(message = "기록하려면 Google 로그인이 필요해요.") {
     super(message);
     this.name = "AuthRequiredError";
   }
@@ -79,10 +79,10 @@ class AuthStore {
     } catch (error) {
       if (error instanceof AuthRequiredError) throw error;
       this.status = "reauthRequired";
-      const message = error instanceof Error && error.message ? error.message : "Google 로그인을 시작하지 못했어.";
+      const message = error instanceof Error && error.message ? error.message : "Google 로그인을 시작하지 못했어요.";
       throw new AuthRequiredError(message);
     }
-    throw new AuthRequiredError("Google 로그인 화면으로 이동했어.");
+    throw new AuthRequiredError("Google 로그인 화면으로 이동했어요.");
   }
 
   signOut() {
@@ -114,6 +114,6 @@ export const auth = new AuthStore();
 
 export function handleAuthErrorMessage(error: unknown): string | null {
   if (error instanceof AuthRequiredError) return error.message;
-  if (isApiAuthError(error)) return "로그인이 만료됐어. 다시 로그인해줘.";
+  if (isApiAuthError(error)) return "로그인이 만료됐어요. 다시 로그인해주세요.";
   return null;
 }

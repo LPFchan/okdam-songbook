@@ -117,6 +117,18 @@ export const songRestoreRouteSchema = z.object({
   authentication: z.literal("owner-session")
 });
 
+export const songDeleteRouteSchema = z.object({
+  method: z.literal("DELETE"),
+  path: z.literal("/api/songs/:id"),
+  authentication: z.literal("owner-session")
+});
+
+export const songDeleteActionRouteSchema = z.object({
+  method: z.literal("DELETE"),
+  path: z.literal("/api/songs/:id/delete"),
+  authentication: z.literal("owner-session")
+});
+
 export const performanceCreateRequestSchema = z.object({
   songId: z.string().min(1),
   performedAt: z.string().datetime({ offset: true }).optional(),
@@ -156,6 +168,12 @@ export const songRestoreRequestSchema = z.object({
   clientRequestId: z.string().uuid()
 });
 
+export const songDeleteRequestSchema = z.object({
+  songId: z.string().min(1),
+  expectedVersion: z.number().int().nonnegative(),
+  clientRequestId: z.string().uuid()
+});
+
 export const tjLookupRouteSchema = z.object({
   method: z.literal("POST"),
   path: z.literal("/api/tj/lookup"),
@@ -182,6 +200,7 @@ export const apiRouteContractSchema = z.discriminatedUnion("path", [
   songCreateRouteSchema,
   songUpdateRouteSchema,
   songRestoreRouteSchema,
+  songDeleteActionRouteSchema,
   tjLookupRouteSchema,
   tjSearchRouteSchema,
   tjAddRouteSchema
@@ -193,6 +212,7 @@ export const apiActionContractSchema = z.object({
   songCreate: songCreateRequestSchema,
   songUpdate: songUpdateRequestSchema,
   songRestore: songRestoreRequestSchema,
+  songDelete: songDeleteRequestSchema,
   tjLookup: tjLookupRequestSchema,
   tjSearch: tjSearchRequestSchema,
   tjAdd: z.object({
@@ -206,6 +226,7 @@ export type PerformanceCancelRequest = z.infer<typeof performanceCancelRequestSc
 export type SongCreateRequest = z.infer<typeof songCreateRequestSchema>;
 export type SongUpdateRequest = z.infer<typeof songUpdateRequestSchema>;
 export type SongRestoreRequest = z.infer<typeof songRestoreRequestSchema>;
+export type SongDeleteRequest = z.infer<typeof songDeleteRequestSchema>;
 
 export const idempotencyKeySchema = z.string().uuid();
 export const expectedVersionSchema = z.number().int().nonnegative();

@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
-  import { Filter, LogIn, LogOut, Search, SlidersHorizontal } from "@lucide/svelte";
+  import { Filter, LogIn, LogOut, Search, SlidersHorizontal, X } from "@lucide/svelte";
   import type { PerformerId, Song, SongFilters, SortKey } from "@songbook/shared";
   import { filterSongs, performers, performerOrder, searchSongs, sortSongs } from "@songbook/shared";
   import BottomSheet from "./BottomSheet.svelte";
@@ -35,6 +35,7 @@
   type QueueItem = Awaited<ReturnType<typeof queueItems>>[number];
 
   let songs = $state<Song[]>([]);
+  let catalogVersion = $state(0);
   let query = $state("");
   let sortKey = $state<SortKey>("title");
   let filters = $state<SongFilters>({});
@@ -70,15 +71,19 @@
     let cancelled = false;
     async function load() {
       const cached = await readCachedPublicData();
-      if (cached && !cancelled) songs = cached.songs;
+      if (cached && !cancelled) {
+        songs = cached.songs;
+        catalogVersion += 1;
+      }
       try {
         const data = await fetchPublicData();
         if (!cancelled) {
           songs = data.songs;
+          catalogVersion += 1;
           await saveCachedPublicData(data);
         }
       } catch (error) {
-        if (!cached) snackbar.show(error instanceof Error ? error.message : "데이터를 불러오지 못했어.");
+        if (!cached) snackbar.show(error instanceof Error ? error.message : "데이터를 불러오지 못했어요.");
       }
     }
     void load();
@@ -160,13 +165,13 @@
   async function retryQueuedItem(id: string) {
     await retryQueueItem(id);
     await drainQueue();
-    snackbar.show("동기화를 다시 시도할게.");
+    snackbar.show("동기화를 다시 시도할게요.");
   }
 
   async function discardQueuedItem(id: string) {
     await discardQueueItem(id);
     await refreshQueue();
-    snackbar.show("실패한 기록을 버렸어.");
+    snackbar.show("실패한 기록을 버렸어요.");
   }
 
   const queueTotal = $derived(
@@ -186,12 +191,12 @@
     lastPerformed = performanceId ? { performanceId, clientRequestId, songId: song.id } : null;
     if (performanceId) {
       scheduleUndoExpiry();
-      snackbar.show("오늘 부른 곡으로 기록했어. 8초 안에 취소할 수 있어.", {
+      snackbar.show("오늘 부른 곡으로 기록했어요. 8초 안에 취소할 수 있어요.", {
         action: { label: "취소", run: () => undoLastPerformance() },
         timeoutMs: 8000
       });
     } else {
-      snackbar.show("오늘 부른 곡으로 기록했어.");
+      snackbar.show("오늘 부른 곡으로 기록했어요.");
     }
   }
 
@@ -206,7 +211,7 @@
 
     if (!onlineStatus.online) {
       await enqueuePerformanceCreate(song.id, clientRequestId, performedAt);
-      snackbar.show("오프라인이라 큐에 저장했어. 온라인 복귀 후 자동 동기화돼.");
+      snackbar.show("오프라인이라 큐에 저장했어요. 온라인 복귀 후 자동 동기화돼요.");
       return;
     }
 
@@ -221,19 +226,19 @@
             : item
         );
         await enqueuePerformanceCreate(song.id, clientRequestId, performedAt);
-        snackbar.show("기록하려면 Google 로그인이 필요해.");
+        snackbar.show("기록하려면 Google 로그인이 필요해요.");
         return;
       }
       await enqueuePerformanceCreate(song.id, clientRequestId, performedAt);
       await markQueueItemFailed(clientRequestId, error, classifyQueueError(error));
-      snackbar.show("기록에 실패해서 큐에 저장했어.");
+      snackbar.show("기록에 실패해서 큐에 저장했어요.");
     }
   }
 
   async function undoLastPerformance() {
     const target = lastPerformed;
     if (!target) {
-      snackbar.show("취소할 기록이 없어.");
+      snackbar.show("취소할 기록이 없어요.");
       return;
     }
     lastPerformed = null;
@@ -246,30 +251,30 @@
     const cancellationRequestId = crypto.randomUUID();
     if (!onlineStatus.online) {
       await enqueuePerformanceCancel(target.songId, target.performanceId, cancellationRequestId);
-      snackbar.show("오프라인이라 취소는 큐에 저장했어.");
+      snackbar.show("오프라인이라 취소는 큐에 저장했어요.");
       return;
     }
     try {
       await auth.requireValidCredential();
       const result = await cancelPerformanceOrQueue(target.songId, target.performanceId, cancellationRequestId);
-      snackbar.show(result.queued ? "취소에 실패해서 큐에 저장했어." : "방금 기록한 곡을 취소했어.");
+      snackbar.show(result.queued ? "취소에 실패해서 큐에 저장했어요." : "방금 기록한 곡을 취소했어요.");
     } catch (error) {
       if (error instanceof AuthRequiredError) {
         const queued = await enqueuePerformanceCancel(target.songId, target.performanceId, cancellationRequestId);
-        await markQueueItemFailed(queued.id, new Error("로그인 후 다시 시도할 수 있어."), "auth");
-        snackbar.show("취소하려면 Google 로그인이 필요해.");
+        await markQueueItemFailed(queued.id, new Error("로그인 후 다시 시도할 수 있어요."), "auth");
+        snackbar.show("취소하려면 Google 로그인이 필요해요.");
         return;
       }
-      snackbar.show(error instanceof Error ? error.message : "취소에 실패했어.");
+      snackbar.show(error instanceof Error ? error.message : "취소에 실패했어요.");
     }
   }
 
   async function loginWithGoogle() {
     try {
       await auth.loginWithGoogleButton();
-      snackbar.show("로그인됐어.");
+      snackbar.show("로그인됐어요.");
     } catch (error) {
-      snackbar.show(error instanceof Error ? error.message : "로그인하지 못했어.");
+      snackbar.show(error instanceof Error ? error.message : "로그인하지 못했어요.");
     }
   }
 
@@ -287,7 +292,7 @@
     }
     confirmSignOut = false;
     auth.signOut();
-    snackbar.show("로그아웃했어.");
+    snackbar.show("로그아웃했어요.");
   }
 
   function openManagement(tab: AdminTab, song: Song | null = null) {
@@ -308,6 +313,14 @@
     songs = songs.some((song) => song.id === saved.id)
       ? songs.map((song) => (song.id === saved.id ? saved : song))
       : [saved, ...songs];
+    catalogVersion += 1;
+  }
+
+  function onSongDeleted(deletedId: string) {
+    songs = songs.filter((song) => song.id !== deletedId);
+    if (selected?.id === deletedId) selected = null;
+    if (editingSong?.id === deletedId) closeManagement();
+    catalogVersion += 1;
   }
 
   function togglePerformerFilter(id: PerformerId) {
@@ -335,7 +348,7 @@
 
   function handleFavorite(song: Song) {
     snackbar.show(
-      song.status === "favorite" ? "즐겨찾기 해제는 곡 수정에서 할 수 있어." : "즐겨찾기는 곡 수정에서 추가할 수 있어."
+      song.status === "favorite" ? "즐겨찾기 해제는 곡 수정에서 할 수 있어요." : "즐겨찾기는 곡 수정에서 추가할 수 있어요."
     );
   }
 
@@ -368,26 +381,30 @@
     <label class="search-box">
       <Search size={18} />
       <input bind:value={query} placeholder="곡명, 가수, TJ 번호 검색" />
+      {#if query}
+        <button type="button" class="search-clear" aria-label="검색어 지우기" onclick={() => (query = "")}>
+          <X size={16} />
+        </button>
+      {/if}
     </label>
-    <div class="toolbar">
-      <button type="button" onclick={() => (filterOpen = true)}>
-        <Filter size={17} />
-        필터
-      </button>
-      <label>
-        <SlidersHorizontal size={17} />
-        <select bind:value={sortKey}>
-          <option value="title">가나다순</option>
-          <option value="tjNumber">TJ 번호순</option>
-          <option value="recentAdded">최근 추가순</option>
-          <option value="recentUpdated">최근 수정순</option>
-          <option value="recentPerformed">최근 부른 순</option>
-          <option value="performanceCount">많이 부른 순</option>
-        </select>
-      </label>
-    </div>
-    {#if !filterOpen}
-      <div class="quick-chip-row" role="group" aria-label="빠른 필터">
+    <div class="controls-bar">
+      <div class="controls-bar-scroll">
+        <button type="button" class="chip-toggle" onclick={() => (filterOpen = true)}>
+          <Filter size={15} />
+          필터
+        </button>
+        <label class="sort-select">
+          <SlidersHorizontal size={15} />
+          <select bind:value={sortKey}>
+            <option value="title">가나다순</option>
+            <option value="tjNumber">TJ 번호순</option>
+            <option value="recentAdded">최근 추가순</option>
+            <option value="recentUpdated">최근 수정순</option>
+            <option value="recentPerformed">최근 부른 순</option>
+            <option value="performanceCount">많이 부른 순</option>
+          </select>
+        </label>
+        <span class="controls-divider" aria-hidden="true"></span>
         {#each quickFilters as filter (filter.key)}
           {@const pressed =
             filter.key === "favorite" || filter.key === "practicing"
@@ -407,7 +424,7 @@
           </button>
         {/each}
       </div>
-    {/if}
+    </div>
     {#if activeFilters.length}
       <div class="active-filters" aria-label="활성 필터">
         {#each activeFilters as filter (filter.key)}
@@ -468,20 +485,22 @@
       {/each}
     {:else}
       <div class="empty-state">
-        {songs.length ? "검색 결과가 없어." : "아직 캐시된 곡이 없어. 한 번 온라인으로 동기화해줘."}
+        {songs.length ? "검색 결과가 없어요." : "아직 캐시된 곡이 없어요. 한 번 온라인으로 동기화해주세요."}
       </div>
     {/if}
   </section>
 
-  <TjOmnibar
-    {query}
-    enabled={Boolean(auth.user && onlineStatus.online)}
-    {songs}
-    requireCredential={auth.requireValidCredential.bind(auth)}
-    onManualAdd={() => openManagement("add")}
-    onOpenExisting={(song) => (selected = song)}
-    {onSongSaved}
-  />
+  {#key catalogVersion}
+    <TjOmnibar
+      {query}
+      enabled={Boolean(auth.user && onlineStatus.online)}
+      {songs}
+      requireCredential={auth.requireValidCredential.bind(auth)}
+      onManualAdd={() => openManagement("add")}
+      onOpenExisting={(song) => (selected = song)}
+      {onSongSaved}
+    />
+  {/key}
 
   {#if selected}
     <BottomSheet title={selected.title} onClose={() => (selected = null)}>
@@ -560,10 +579,10 @@
               <button type="button" aria-current={managementTab === "history" ? "page" : undefined} onclick={() => openManagement("history")}>변경 이력</button>
             </nav>
           {/if}
-          <SongForm tab={managementTab} {songs} editSong={editingSong} {onSongSaved} onRequestTab={(tab) => openManagement(tab)} />
+          <SongForm tab={managementTab} {songs} editSong={editingSong} {onSongSaved} {onSongDeleted} onRequestTab={(tab) => openManagement(tab)} />
         </div>
       {:else}
-        <p class="hint">곡 관리는 로그인한 편집자만 사용할 수 있어.</p>
+        <p class="hint">곡 관리는 로그인한 편집자만 사용할 수 있어요.</p>
         <button type="button" class="primary-button" onclick={() => void loginWithGoogle()}>
           <LogIn size={17} />
           Google로 로그인

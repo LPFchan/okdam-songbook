@@ -65,7 +65,7 @@
   <div class="sheet-actions">
     <button type="button" class="primary-button" onclick={() => onPerformed(song)}>
       <CalendarCheck size={18} />
-      오늘 불렀습니다!
+      오늘 불렀어요!
     </button>
     <button type="button" class="secondary-button" disabled={!canEdit} onclick={() => onEdit(song)}>
       <Edit3 size={18} />

@@ -9,6 +9,7 @@ import {
   performanceCreateRequestSchema,
   publicDataSchema,
   songCreateRequestSchema,
+  songDeleteRequestSchema,
   songRestoreRequestSchema,
   songUpdateRequestSchema,
   tjAddResultSchema,
@@ -290,6 +291,19 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
       const parsed = songRestoreRequestSchema.safeParse({ ...(await c.req.json()), songId: c.req.param("id") });
       if (!parsed.success) return validationFailure(c, parsed.error, now);
       return envelope(c, service.restoreSong(principal, { id: parsed.data.songId, expectedVersion: parsed.data.expectedVersion, clientRequestId: parsed.data.clientRequestId }), now);
+    } catch (error) { return failure(c, error, now); }
+  });
+
+  app.delete("/api/songs/:id/delete", async (c) => {
+    const bodyError = jsonBodyRequired(c);
+    if (bodyError) return bodyError;
+    if (!sameOrigin(c, options.origin)) return failure(c, new DomainError("FORBIDDEN", "같은 출처 요청만 허용해."), now);
+    const principal = await protectBrowser(c, "owner");
+    if (principal instanceof Response) return principal;
+    try {
+      const parsed = songDeleteRequestSchema.safeParse({ ...(await c.req.json()), songId: c.req.param("id") });
+      if (!parsed.success) return validationFailure(c, parsed.error, now);
+      return envelope(c, service.softDeleteSong(principal, { id: parsed.data.songId, expectedVersion: parsed.data.expectedVersion, clientRequestId: parsed.data.clientRequestId }), now);
     } catch (error) { return failure(c, error, now); }
   });
 

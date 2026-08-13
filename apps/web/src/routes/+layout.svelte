@@ -6,28 +6,25 @@
   let { children }: { children: Snippet } = $props();
 
   let updateReady = $state(false);
-  let updateServiceWorker: ((reloadPage?: boolean) => Promise<void>) | null = $state(null);
+  let applyUpdate = $state<(() => void) | null>(null);
 
   onMount(() => {
     const sw = registerSW({
       onNeedRefresh() {
         updateReady = true;
-        updateServiceWorker = sw;
       }
     });
+    applyUpdate = () => {
+      void sw(true);
+    };
   });
-
-  function applyUpdate() {
-    if (updateServiceWorker) void updateServiceWorker(true);
-    else window.location.reload();
-  }
 </script>
 
 {@render children()}
 
 {#if updateReady}
   <div class="update-toast" role="status">
-    <span>새 버전이 있어.</span>
-    <button type="button" onclick={applyUpdate}>업데이트</button>
+    <span>새 버전이 있어요.</span>
+    <button type="button" onclick={() => (applyUpdate ? applyUpdate() : window.location.reload())}>업데이트</button>
   </div>
 {/if}

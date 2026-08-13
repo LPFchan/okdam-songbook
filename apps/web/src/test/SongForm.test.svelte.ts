@@ -17,7 +17,7 @@ describe("SongForm", () => {
 
   it("offers performer toggles without a ponya option", async () => {
     render(SongForm, {
-      props: { tab: "add", songs: [], onSongSaved: () => {}, onRequestTab: () => {} }
+      props: { tab: "add", songs: [], onSongSaved: () => {}, onSongDeleted: () => {}, onRequestTab: () => {} }
     });
 
     const marie = screen.getByRole("button", { name: "마리" });

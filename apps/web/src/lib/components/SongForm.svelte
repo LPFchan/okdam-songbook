@@ -1,10 +1,11 @@
 <script lang="ts">
   import type { PerformerId, Song, TjSearchType, TjSongCandidate } from "@songbook/shared";
   import { can, performerOrder, performers } from "@songbook/shared";
-  import { Search, SquarePlay, Wand2 } from "@lucide/svelte";
+  import { Search, SquarePlay, Trash2, Wand2 } from "@lucide/svelte";
   import {
     addTjSong,
     analyzeYouTube,
+    deleteSong,
     generateReading,
     lookupTjSong,
     restoreSong,
@@ -21,10 +22,11 @@
     songs: Song[];
     editSong?: Song | null;
     onSongSaved(song: Song): void;
+    onSongDeleted(songId: string): void;
     onRequestTab(tab: AdminTab): void;
   }
 
-  const { tab, songs, editSong = null, onSongSaved, onRequestTab }: Props = $props();
+  const { tab, songs, editSong = null, onSongSaved, onSongDeleted, onRequestTab }: Props = $props();
 
   function emptyDraft(): Partial<Song> {
     return { title: "", artist: "", tjNumber: "", status: "active", country: "일본", performerIds: [] };
@@ -44,6 +46,8 @@
   const tjAddRequestIds = new Map<string, string>();
   let tjRestoreCandidate = $state<Song | null>(null);
   let tjRestorePending = $state(false);
+  let deleteConfirm = $state(false);
+  let deletePending = $state(false);
 
   function tjCandidateKey(candidate: TjSongCandidate): string {
     return `${candidate.tjNumber}:${candidate.title}:${candidate.artist}`;
@@ -66,7 +70,7 @@
       await auth.requireValidCredential();
       return true;
     } catch (error) {
-      snackbar.show(handleAuthErrorMessage(error) ?? "로그인이 필요해.");
+      snackbar.show(handleAuthErrorMessage(error) ?? "로그인이 필요해요.");
       return false;
     }
   }
@@ -74,7 +78,7 @@
   async function lookupTjNumber() {
     const tjNumber = String(draft.tjNumber || "").replace(/\D/g, "");
     if (!tjNumber) {
-      tjLookupMessage = "TJ 번호를 입력해줘.";
+      tjLookupMessage = "TJ 번호를 입력해주세요.";
       return;
     }
     if (!(await requireWriteCredential())) return;
@@ -85,8 +89,8 @@
       if (!result.candidate) {
         tjLookupMessage =
           result.candidates.length > 1
-            ? "같은 번호의 결과가 여러 개라 직접 골라줘."
-            : "TJ에서 해당 번호를 찾지 못했어. 아래 수동 입력을 계속 사용할 수 있어.";
+            ? "같은 번호의 결과가 여러 개라 직접 골라주세요."
+            : "TJ에서 해당 번호를 찾지 못했어요. 아래 수동 입력을 계속 사용할 수 있어요.";
         return;
       }
       const candidate = result.candidate;
@@ -98,9 +102,9 @@
         sourceType: "tjmedia",
         sourceReference: candidate.sourceUrl
       };
-      tjLookupMessage = "TJ 후보를 채웠어. 저장 전에 자유롭게 고쳐도 돼.";
+      tjLookupMessage = "TJ 후보를 채웠어요. 저장 전에 자유롭게 고쳐도 돼요.";
     } catch (error) {
-      tjLookupMessage = messageOrAuth(error, "TJ 조회에 실패했어. 수동 입력을 사용해줘.");
+      tjLookupMessage = messageOrAuth(error, "TJ 조회에 실패했어요. 수동 입력을 사용해줘.");
     } finally {
       tjLookupLoading = false;
     }
@@ -108,7 +112,7 @@
 
   async function runTjSearch() {
     if (!tjSearchQuery.trim()) {
-      tjSearchMessage = "검색어를 입력해줘.";
+      tjSearchMessage = "검색어를 입력해주세요.";
       return;
     }
     if (!(await requireWriteCredential())) return;
@@ -119,9 +123,9 @@
       tjCandidates = result.candidates;
       tjSearchMessage = result.candidates.length
         ? `${result.candidates.length}개 결과를 찾았어.`
-        : "검색 결과가 없어. 수동 입력을 계속 사용할 수 있어.";
+        : "검색 결과가 없어요. 수동 입력을 계속 사용할 수 있어요.";
     } catch (error) {
-      tjSearchMessage = messageOrAuth(error, "TJ 검색에 실패했어. 수동 입력을 사용해줘.");
+      tjSearchMessage = messageOrAuth(error, "TJ 검색에 실패했어요. 수동 입력을 사용해줘.");
       tjCandidates = [];
     } finally {
       tjSearchLoading = false;
@@ -145,7 +149,7 @@
         onSongSaved(saved);
         draft = saved;
         editingId = saved.id;
-        snackbar.show("곡을 바로 추가했어. 필요하면 아래 폼에서 이어서 편집해줘.");
+        snackbar.show("곡을 바로 추가했어요. 필요하면 아래 폼에서 이어서 편집해주세요.");
       } else if (result.existing) {
         const existing = result.existing as Song;
         draft = existing;
@@ -153,12 +157,12 @@
         tjRestoreCandidate = result.outcome === "deleted" ? existing : null;
         snackbar.show(
           result.outcome === "deleted"
-            ? "삭제된 같은 곡이 있어. 기존 곡을 열어 복구 여부를 확인해줘."
-            : "같은 TJ 번호 또는 제목·아티스트의 곡이 이미 있어. 덮어쓰지 않았어."
+            ? "삭제된 같은 곡이 있어. 기존 곡을 열어 복구 여부를 확인해주세요."
+            : "같은 TJ 번호 또는 제목·아티스트의 곡이 이미 있어요. 덮어쓰지 않았어요."
         );
       }
     } catch (error) {
-      snackbar.show(messageOrAuth(error, "곡 추가에 실패했어. 다시 눌러도 안전해."));
+      snackbar.show(messageOrAuth(error, "곡 추가에 실패했어요. 다시 눌러도 안전해요."));
     } finally {
       tjAddPending = { ...tjAddPending, [key]: false };
     }
@@ -174,9 +178,9 @@
       draft = restored;
       editingId = restored.id;
       tjRestoreCandidate = null;
-      snackbar.show("기존 곡을 복구했어.");
+      snackbar.show("기존 곡을 복구했어요.");
     } catch (error) {
-      snackbar.show(messageOrAuth(error, "곡 복구에 실패했어."));
+      snackbar.show(messageOrAuth(error, "곡 복구에 실패했어요."));
     } finally {
       tjRestorePending = false;
     }
@@ -190,9 +194,35 @@
       draft = saved;
       editingId = saved.id;
       onSongSaved(saved);
-      snackbar.show("저장했어. 공개 목록에 바로 반영돼.");
+      snackbar.show("저장했어요. 공개 목록에 바로 반영돼요.");
     } catch (error) {
-      snackbar.show(messageOrAuth(error, "저장에 실패했어."));
+      snackbar.show(messageOrAuth(error, "저장에 실패했어요."));
+    }
+  }
+
+  async function deleteDraft() {
+    if (!editingId || !auth.user || !can(auth.user.role, "song:softDelete")) return;
+    if (!deleteConfirm) {
+      deleteConfirm = true;
+      setTimeout(() => {
+        deleteConfirm = false;
+      }, 4000);
+      return;
+    }
+    if (deletePending) return;
+    deleteConfirm = false;
+    if (!(await requireWriteCredential())) return;
+    deletePending = true;
+    try {
+      await deleteSong({ id: editingId, version: draft.version ?? 0 }, crypto.randomUUID());
+      const title = draft.title || "곡";
+      onSongDeleted(editingId);
+      resetDraft();
+      snackbar.show(`${title}을(를) 삭제했어요. 다시 추가하면 복구할 수 있어요.`);
+    } catch (error) {
+      snackbar.show(messageOrAuth(error, "삭제에 실패했어요."));
+    } finally {
+      deletePending = false;
     }
   }
 
@@ -202,9 +232,9 @@
     try {
       const reading = await generateReading({ title: draft.title ?? "", artist: draft.artist ?? "" });
       draft = { ...draft, ...reading };
-      snackbar.show("독음 후보를 채웠어. 저장 전에 수정할 수 있어.");
+      snackbar.show("독음 후보를 채웠어요. 저장 전에 수정할 수 있어요.");
     } catch (error) {
-      snackbar.show(messageOrAuth(error, "독음 생성에 실패했어."));
+      snackbar.show(messageOrAuth(error, "독음 생성에 실패했어요."));
     }
   }
 
@@ -214,9 +244,9 @@
     try {
       const result = await analyzeYouTube(youtubeUrl);
       draft = { ...draft, ...result };
-      snackbar.show("YouTube 분석 후보를 불러왔어. 자동 저장은 하지 않았어.");
+      snackbar.show("YouTube 분석 후보를 불러왔어요. 자동 저장은 하지 않았어요.");
     } catch (error) {
-      snackbar.show(messageOrAuth(error, "YouTube 분석에 실패했어."));
+      snackbar.show(messageOrAuth(error, "YouTube 분석에 실패했어요."));
     }
   }
 
@@ -231,6 +261,7 @@
   function resetDraft() {
     draft = emptyDraft();
     editingId = null;
+    deleteConfirm = false;
   }
 
   function startEdit(song: Song) {
@@ -374,6 +405,17 @@
     <div class="admin-action-bar">
       <button type="button" class="secondary-button" onclick={resetDraft}>취소</button>
       <span></span>
+      {#if editingId && can(auth.user?.role, "song:softDelete")}
+        <button
+          type="button"
+          class="danger-button"
+          disabled={deletePending}
+          onclick={() => void deleteDraft()}
+        >
+          <Trash2 size={17} />
+          {deletePending ? "삭제 중…" : deleteConfirm ? "정말 삭제할까요?" : "삭제"}
+        </button>
+      {/if}
       <button type="button" class="secondary-button" disabled={!auth.user} onclick={() => void fillReading()}>
         <Wand2 size={18} />
         독음 생성
@@ -386,7 +428,7 @@
 {:else if tab === "songs"}
   <section class="admin-panel">
     <h2>곡 관리</h2>
-    {#if !songs.length}<p class="hint">곡이 없어.</p>{/if}
+    {#if !songs.length}<p class="hint">곡이 없어요.</p>{/if}
     <div class="admin-song-list">
       {#each songs as song (song.id)}
         <button type="button" class="admin-song-row" onclick={() => startEdit(song)}>
