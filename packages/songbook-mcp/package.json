@@ -3,6 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
     "lint": "eslint \"src/**/*.ts\" \"test/**/*.test.ts\"",
     "typecheck": "tsc --noEmit",
@@ -13,7 +22,8 @@
     "@better-auth/mcp": "^1.4.17",
     "@modelcontextprotocol/server": "^2.0.0",
     "@songbook/server-core": "file:../../packages/server-core",
-    "@songbook/shared": "file:../../packages/shared"
+    "@songbook/shared": "file:../../packages/shared",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

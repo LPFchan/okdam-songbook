@@ -114,6 +114,50 @@ describe("same-origin server surface", () => {
 });
 
 describe("MCP OAuth resource-server gate", () => {
+  it("runs the stateless MCP handler only after bearer verification", async () => {
+    database = openDatabase();
+    let verified = false;
+    const server = createServerApp({
+      database,
+      origin,
+      mcpAuth: {
+        captureToken: async () => undefined,
+        verifyRequest: async (request) => {
+          verified = true;
+          expect(request.headers.get("Authorization")).toBe("Bearer accepted");
+          return {
+            ok: true,
+            token: { accessToken: "accepted", resource: `${origin}/mcp`, scopes: ["songbook:read"], expiresAt: new Date(Date.now() + 60_000).toISOString() },
+            session: { userId: "user-1" },
+            principal: { userId: "user-1", actor: { email: "owner@example.com", displayName: "Owner" } }
+          };
+        }
+      },
+      roleResolver: createAllowlistRoleResolver({ "owner@example.com": "owner" })
+    }).app;
+    const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: { _meta: { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } });
+    const response = await server.request(request("/mcp", { method: "POST", headers: { Authorization: "Bearer accepted", "Content-Type": "application/json", Accept: "application/json, text/event-stream", "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/list" }, body }));
+    expect(verified).toBe(true);
+    expect(response.status).toBe(200);
+    expect((await response.json()).result.tools).toEqual(expect.arrayContaining([expect.objectContaining({ name: "catalog" })]));
+  });
+
+  it("rejects MCP requests before the handler when bearer verification fails", async () => {
+    database = openDatabase();
+    let handlerReached = false;
+    const server = createServerApp({
+      database,
+      origin,
+      mcpAuth: {
+        captureToken: async () => undefined,
+        verifyRequest: async () => { handlerReached = true; return { ok: false, response: new Response("unauthorized", { status: 401 }) }; }
+      }
+    }).app;
+    const response = await server.request(request("/mcp", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", "Mcp-Method": "tools/list" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }) }));
+    expect(handlerReached).toBe(true);
+    expect(response.status).toBe(401);
+  });
+
   it("binds opaque Better Auth tokens to the canonical resource and rejects cookie auth", async () => {
     database = openDatabase();
     const auth = { api: { getMcpSession: async () => ({ userId: "user-1" }) }, $context: Promise.resolve({ internalAdapter: { findUserById: async () => ({ email: "owner@example.com", name: "Owner" }) } }) } as never;

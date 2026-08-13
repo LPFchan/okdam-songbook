@@ -38,6 +38,7 @@ import {
   type McpAuthAdapter,
   createMcpAuthAdapter
 } from "./auth.js";
+import { authInfoForPrincipal, createSongbookMcpHandler } from "@songbook/mcp";
 
 export interface BrowserPrincipal extends RequestActor {
   id?: string;
@@ -198,6 +199,7 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
   const auth = options.auth;
   const sessionResolver = options.sessionResolver ?? (auth ? (request: Request) => authSession(auth, request) : async () => null);
   const mcpAuth = options.mcpAuth ?? (auth ? createMcpAuthAdapter({ auth, database: options.database, origin: options.origin }) : createMcpAuthAdapter({ database: options.database, origin: options.origin }));
+  const mcpHandler = createSongbookMcpHandler({ service });
   const app = new Hono();
 
   const protectBrowser = async (c: Context, action?: UserRole): Promise<BrowserPrincipal | Response> => {
@@ -347,10 +349,13 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
   };
   app.on(["GET", "POST", "OPTIONS"], "/api/auth/*", authHandler);
   app.all("/mcp", async (c) => {
-    const checked = await mcpAuth.verifyRequest(c.req.raw, ["songbook:read"]);
+    const body = c.req.method === "POST" ? await c.req.raw.clone().json().catch(() => null) as { method?: unknown; params?: { name?: unknown } } | null : null;
+    const toolName = body?.method === "tools/call" && typeof body.params?.name === "string" ? body.params.name : "";
+    const requiredScope = toolName === "record_performance" || toolName === "cancel_performance" ? "songbook:write" : "songbook:read";
+    const checked = await mcpAuth.verifyRequest(c.req.raw, [requiredScope]);
     if (!checked.ok) return checked.response;
     if (!roleResolver.resolve(checked.principal.actor)) return failure(c, new DomainError("UNAUTHORIZED", "로그인 또는 허용된 계정이 필요해."), now);
-    return c.json({ error: "MCP tools are mounted by the MCP application package." }, 501);
+    return mcpHandler.fetch(c.req.raw, { authInfo: authInfoForPrincipal({ ...checked.principal, scopes: checked.token.scopes }, checked.token.accessToken) });
   });
 
   app.all("*", (c) => {
