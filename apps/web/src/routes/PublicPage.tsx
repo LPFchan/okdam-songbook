@@ -7,10 +7,11 @@ import { BottomSheet } from "../components/BottomSheet";
 import { SongCard } from "../components/SongCard";
 import { SongDetail } from "../components/SongDetail";
 import { TjOmnibarResults } from "../components/TjOmnibarResults";
-import { cancelPerformance, createPerformance, fetchPublicData } from "../lib/api";
+import { createPerformance, fetchPublicData } from "../lib/api";
 import { readCachedPublicData, saveCachedPublicData } from "../lib/db";
 import {
   drainOfflineQueue,
+  cancelPerformanceOrQueue,
   enqueuePerformanceCancel,
   enqueuePerformanceCreate,
   classifyQueueError,
@@ -263,8 +264,8 @@ export function PublicPage() {
     }
     try {
       await auth.requireValidCredential();
-      await cancelPerformance(target.performanceId, cancellationRequestId);
-      setMessage("방금 기록한 곡을 취소했어.");
+      const result = await cancelPerformanceOrQueue(target.songId, target.performanceId, cancellationRequestId);
+      setMessage(result.queued ? "취소에 실패해서 큐에 저장했어." : "방금 기록한 곡을 취소했어.");
     } catch (error) {
       if (error instanceof AuthRequiredError) {
         const queued = await enqueuePerformanceCancel(target.songId, target.performanceId, cancellationRequestId);
@@ -272,9 +273,9 @@ export function PublicPage() {
         setMessage("취소하려면 Google 로그인이 필요해.");
         return;
       }
-      const queued = await enqueuePerformanceCancel(target.songId, target.performanceId);
-      await markQueueItemFailed(queued.id, error, classifyQueueError(error));
-      setMessage("취소에 실패해서 큐에 저장했어.");
+      // cancelPerformanceOrQueue owns the online failure path; this branch is
+      // retained only for errors thrown while credential setup is in progress.
+      setMessage(error instanceof Error ? error.message : "취소에 실패했어.");
     }
   }
 

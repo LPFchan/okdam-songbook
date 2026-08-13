@@ -75,6 +75,23 @@ export async function enqueuePerformanceCancel(songId: string, performanceId: st
   return item;
 }
 
+/**
+ * Attempt an online cancellation and preserve its request id if the response
+ * is lost. The queued retry must replay the exact id used by the request so
+ * the server's idempotency key can identify a cancellation that actually
+ * completed before the network failure.
+ */
+export async function cancelPerformanceOrQueue(songId: string, performanceId: string, clientRequestId: string): Promise<{ queued: boolean }> {
+  try {
+    await cancelPerformance(performanceId, clientRequestId);
+    return { queued: false };
+  } catch (error) {
+    const queued = await enqueuePerformanceCancel(songId, performanceId, clientRequestId);
+    await markQueueItemFailed(queued.id, error, classifyQueueError(error));
+    return { queued: true };
+  }
+}
+
 /** Convert a browser/network/API error into a user-actionable queue category. */
 export function classifyQueueError(error: unknown): QueueFailureClassification {
   if (isApiAuthError(error)) return "auth";

@@ -17,6 +17,7 @@ vi.mock("../lib/api", () => ({
 
 import {
   discardQueueItem,
+  cancelPerformanceOrQueue,
   drainOfflineQueue,
   enqueuePerformanceCancel,
   enqueuePerformanceCreate,
@@ -94,6 +95,23 @@ describe("offline performance queue", () => {
     cancelPerformance.mockResolvedValue(undefined);
     await drainOfflineQueue({ auth: { requireValidCredential: async () => undefined } });
     expect(cancelPerformance).toHaveBeenCalledWith(item.performanceId, item.clientRequestId);
+    expect(await queueItems()).toEqual([]);
+  });
+
+  it("keeps the online cancellation request id when a response is lost", async () => {
+    const cancellationRequestId = "66666666-6666-4666-8666-666666666666";
+    cancelPerformance.mockRejectedValueOnce(new TypeError("response lost"));
+
+    const result = await cancelPerformanceOrQueue("song-1", "performance-1", cancellationRequestId);
+    const queued = (await queueItems())[0]!;
+
+    expect(result).toEqual({ queued: true });
+    expect(cancelPerformance).toHaveBeenCalledWith("performance-1", cancellationRequestId);
+    expect(queued).toMatchObject({ id: cancellationRequestId, clientRequestId: cancellationRequestId, performanceId: "performance-1", status: "failed", errorClassification: "network" });
+
+    await retryQueueItem(queued.id);
+    await drainOfflineQueue({ auth: { requireValidCredential: async () => undefined } });
+    expect(cancelPerformance).toHaveBeenNthCalledWith(2, "performance-1", cancellationRequestId);
     expect(await queueItems()).toEqual([]);
   });
 });
