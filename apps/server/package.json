@@ -7,10 +7,13 @@
     "lint": "eslint \"src/**/*.ts\" \"test/**/*.test.ts\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "build": "tsc -p tsconfig.build.json"
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "smoke": "npm run build && node test/start-smoke.mjs"
   },
   "dependencies": {
     "@better-auth/mcp": "^1.4.17",
+    "@hono/node-server": "^2.1.0",
     "@songbook/admin": "file:../../packages/songbook-admin",
     "@songbook/mcp": "file:../../packages/songbook-mcp",
     "@songbook/server-core": "file:../../packages/server-core",

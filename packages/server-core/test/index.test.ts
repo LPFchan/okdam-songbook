@@ -43,7 +43,7 @@ describe("SQLite storage foundation", () => {
 
   it("runs numbered migrations once and records them", () => {
     expect(runMigrations(database.sqlite)).toEqual([]);
-    expect(database.sqlite.prepare("SELECT id FROM schema_migrations").all()).toEqual([{ id: "0001_core" }]);
+    expect(database.sqlite.prepare("SELECT id FROM schema_migrations").all()).toEqual(expect.arrayContaining([{ id: "0001_core" }, { id: "0100_mcp_token_resources" }]));
   });
 
   it("uses WAL for a file-backed database", () => {

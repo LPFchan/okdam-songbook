@@ -88,6 +88,19 @@ export const migrations = [
       CREATE INDEX IF NOT EXISTS idempotency_keys_expiry_idx ON idempotency_keys(expires_at);
       CREATE INDEX IF NOT EXISTS idempotency_keys_actor_operation_idx ON idempotency_keys(actor_email, operation);
     `
+  },
+  {
+    id: "0100_mcp_token_resources",
+    sql: `
+      CREATE TABLE IF NOT EXISTS mcp_token_resources (
+        access_token TEXT PRIMARY KEY NOT NULL,
+        resource TEXT NOT NULL,
+        scopes TEXT NOT NULL DEFAULT '',
+        expires_at TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS mcp_token_resources_expiry_idx ON mcp_token_resources(expires_at);
+    `
   }
 ] as const;
 
