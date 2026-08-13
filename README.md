@@ -1,89 +1,54 @@
 # Songbook
 
-개인용 노래방 애창곡 관리 PWA입니다. GitHub Pages는 공개 정적 앱만 제공하고, 운영 데이터는 비공개 Google Sheets와 Apps Script Web App이 담당합니다.
+개인용 노래방 애창곡 관리 PWA입니다. GitHub Pages의 정적 웹 앱, 비공개 Google Sheets/Apps Script 데이터 경계, 별도 Cloudflare Worker ChatGPT OAuth 경계를 함께 사용합니다.
+
+## 현재 상태
+
+통합 소스에는 카탈로그 중심의 통합 화면, 문맥형 곡 추가·관리·공연 기록, TJ 반주번호 보조 입력, Better Auth 브라우저 세션 기반이 반영되어 있습니다. Better Auth와 TJ Apps Script 변경은 아직 운영 환경에 활성화하지 않았으며, 현재 운영 브라우저 쓰기는 기존 GIS 직접 Apps Script 경로를 사용합니다.
+
+Better Auth는 Worker+D1의 14일 갱신 HTTP-only 세션을 목표로 하며, `BETTER_AUTH_ENABLED=false`가 기본값입니다. GIS 직접 토큰 경로는 명시적인 롤백용으로 유지됩니다. 브라우저는 actor/email/role을 권한 근거로 제공하지 않습니다.
 
 ## 주요 기능
 
-- 모바일 중심 곡 검색: TJ 번호, 곡명, 아티스트, 일본어 원문, 한글 독음, 로마자, 장르, 메모
-- 촘촘한 카드 목록과 곡 상세 Bottom Sheet
-- 다크 모드, 접근성 포커스, 검색엔진 noindex
-- PWA 설치, 서비스 워커, IndexedDB 캐시
+- TJ 번호, 곡명, 아티스트, 일본어 원문, 한글 독음, 로마자, 장르, 메모 검색
+- 카탈로그 중심 목록과 곡 상세 화면, 문맥형 추가·관리·공연 기록
+- TJ 번호 정확 조회, 제한된 제목·아티스트 검색, 후보 수정 후 즉시 추가
+- 다크 모드, 접근성 포커스, 검색엔진 noindex, PWA 설치와 IndexedDB 캐시
 - 오프라인 공연 기록 큐와 `clientRequestId` 중복 방지
-- Google 로그인 기반 admin shell
-- owner/editor 권한 모델
-- Apps Script Sheet setup, public read, token verification, role-checked writes, ChangeLog
+- owner/editor 권한 모델과 Apps Script allowlist 최종 판정
 - CSV/JSON/AI/YouTube/Image 분석을 위한 안전한 API 경계와 수동 폴백
-
-## 인증 상태 관리
-
-`apps/web/src/lib/auth/AuthContext.tsx`가 Google ID token을 메모리에서만 보관합니다.
-모든 쓰기 API(`upsertSong`, `createPerformance`, `cancelPerformance`,
-`analyzeYouTube`, `generateReading`)는 `requireValidCredential()`을 통해
-유효한 토큰을 보장하고, 서버가 `UNAUTHORIZED` / `FORBIDDEN`을 돌려주면 캐시된
-credential을 폐기한 뒤 재인증을 요구합니다. 공개 화면 header는 현재 상태
-(예: `마리 · owner`, `다시 로그인 필요`, `비로그인`)를 작은 칩으로 보여줘서
-stale credential이 조용히 재사용되지 않게 합니다.
 
 ## 구조
 
 ```text
 apps/web/        React + TypeScript + Vite PWA
 apps-script/     Google Apps Script Web App source
-packages/shared/ shared schemas, search, permissions, CSV key parsing
-docs/            architecture, deployment, security, operations docs
+integrations/    Cloudflare Worker, Better Auth, D1 migration, ChatGPT OAuth
+packages/shared/ shared schemas, search, permissions, TJ contracts
+docs/            architecture, deployment, security, API, operations
 records/         repo-template truth, decisions, research
 ```
 
-## 로컬 실행
+## 로컬 실행과 검증
 
 ```bash
 npm install
 npm run dev
-```
-
-mock 모드는 기본값입니다. `apps/web/.env.example`을 참고해 `.env`를 만들 수 있습니다.
-
-```bash
-VITE_APP_BASE_PATH=/songbook/
-VITE_ENABLE_MOCK_API=true
-```
-
-## 검증
-
-```bash
 npm run lint
 npm run typecheck
 npm run test
 npm run build
 ```
 
-## GitHub Pages
+mock 모드는 기본값입니다. `apps/web/.env.example`을 참고해 `.env`를 만들 수 있습니다. 운영 인증을 켜려면 [현재 운영 체크리스트](docs/ops-checklist-2026-08-13.md)를 먼저 완료해야 합니다.
 
-GitHub repository settings에서 Pages source를 GitHub Actions로 설정합니다. Actions variables:
+## 운영 문서
 
-- `VITE_APPS_SCRIPT_API_URL`
-- `VITE_GOOGLE_CLIENT_ID`
+- [Architecture](docs/architecture.md)
+- [API](docs/api.md)
+- [Security](docs/security.md)
+- [Deployment](docs/deployment.md)
+- [Production rollout checklist](docs/ops-checklist-2026-08-13.md)
+- [Apps Script README](apps-script/README.md)
 
-빌드는 `/songbook/` base path를 사용하고, `404.html` fallback을 생성해 `/songbook/admin/` 새로고침을 처리합니다.
-
-## Google Sheets와 Apps Script
-
-자세한 절차는 [deployment](docs/deployment.md)와 [apps-script README](apps-script/README.md)를 보세요.
-
-Script Properties에는 실제 값을 넣습니다.
-
-- `SPREADSHEET_ID`
-- `GOOGLE_OAUTH_CLIENT_ID`
-- `ALLOWED_USERS_JSON`
-- `ALLOWED_ORIGINS`
-- `AI_PROVIDER`
-- `AI_API_KEY`
-- `AI_MODEL`
-- `YOUTUBE_API_KEY`
-- `APP_ENV`
-
-실제 이메일과 비밀키는 저장소에 커밋하지 않습니다.
-
-## 보안상 한계
-
-`robots.txt`와 `noindex`는 검색 노출을 줄일 뿐 접근 통제가 아닙니다. 공개 앱과 공개 읽기 API URL을 아는 사람은 비삭제 공개 곡 목록을 볼 수 있습니다. 쓰기 권한은 Apps Script의 ID 토큰 검증과 allowlist가 최종 판단합니다.
+실제 이메일, OAuth client secret, Better Auth secret, D1 ID와 내부 공유 비밀은 저장소에 커밋하지 않습니다.

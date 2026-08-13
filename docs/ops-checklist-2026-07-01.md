@@ -1,5 +1,7 @@
 # Production Ops Checklist (2026-07-01)
 
+> Historical checklist. The current rollout sequence, including Better Auth and TJ provisioning, is [Production Rollout Checklist (2026-08-13)](ops-checklist-2026-08-13.md).
+
 ## Sheet
 - ID: `1VU3ad7z19J92V18DKmqVNzfpRzCKywXKxmXoD3EscgM`
 - URL: https://docs.google.com/spreadsheets/d/1VU3ad7z19J92V18DKmqVNzfpRzCKywXKxmXoD3EscgM/edit

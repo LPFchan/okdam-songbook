@@ -11,10 +11,21 @@
    - `ALLOWED_USERS_JSON`
    - `ALLOWED_ORIGINS`
    - `APP_ENV`
+   - `INTERNAL_PROXY_SECRET` when the Worker gateway is enabled
    - optional: `AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL`, `YOUTUBE_API_KEY`
 5. Push with `clasp push`.
 6. Run `setupSpreadsheet()` once from the Apps Script editor.
 7. Deploy as Web App. Use "execute as me" and allow anyone with the deployment URL, because write authorization is enforced inside the script with Google ID tokens.
+
+The legacy GIS `idToken` path remains available during migration. The Worker
+Better Auth path sends an internal-secret request with a derived actor; Apps
+Script independently resolves that actor's email and role from
+`ALLOWED_USERS_JSON`. Never trust browser-supplied actor, email, or role fields.
+
+The current source also includes `lookupTjSong`, `searchTjSongs`, `addTjSong`,
+and `restoreSong`. Push and deploy those actions before enabling TJ controls in
+the production Pages build, then smoke exact lookup, Unicode search,
+no-result/upstream/parser-drift fallbacks, duplicate outcomes, and ChangeLog.
 
 `ALLOWED_USERS_JSON` example:
 
