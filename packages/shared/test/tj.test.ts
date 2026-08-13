@@ -27,6 +27,11 @@ describe("TJ parser", () => {
     expect(parseTjSearchHtml("<p>검색 결과를 찾을 수 없습니다.</p>", "https://www.tjmedia.com")).toEqual([]);
   });
 
+  it("keeps valid rows when TJ also renders hidden empty placeholders", () => {
+    const html = `${ordinaryFixture}<div>검색 결과를 찾을 수 없습니다.</div>`;
+    expect(parseTjSearchHtml(html, "https://www.tjmedia.com")).toHaveLength(1);
+  });
+
   it("deduplicates repeated section rows and exposes paging", () => {
     expect(parseTjSearchHtml(`${ordinaryFixture}${ordinaryFixture}`, "https://www.tjmedia.com")).toHaveLength(1);
     expect(parseTjHasMore('<button class="search more-btn">MORE</button>')).toBe(true);

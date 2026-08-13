@@ -784,11 +784,11 @@ function tjTitleText(row) {
 
 function parseTjHtml(html, sourceUrl) {
   const text = String(html || "");
-  if (/검색\s*결과를\s*찾을\s*수\s*없습니다/.test(text)) return [];
   const rows = [];
   const rowPattern = /<ul\b[^>]*class\s*=\s*["'][^"']*\bgrid-container\b[^"']*\blist\b[^"']*["'][^>]*>[\s\S]*?<\/ul>\s*<\/li>/gi;
   let match;
   while ((match = rowPattern.exec(text))) rows.push(match[0]);
+  if (!rows.length && /검색\s*결과를\s*찾을\s*수\s*없습니다/.test(text)) return [];
   const candidates = rows.map(function (row) {
     return {
       tjNumber: tjFirstText(row, /class\s*=\s*["'][^"']*\bnum2\b[^"']*["'][^>]*>([\s\S]*?)<\/span>/i).replace(/\D/g, ""),

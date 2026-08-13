@@ -127,8 +127,9 @@ function uniqueCandidates(candidates: TjSongCandidate[]): TjSongCandidate[] {
 /** Parse only the server-rendered result rows. Raw TJ markup never leaves this boundary. */
 export function parseTjSearchHtml(html: string, sourceUrl: string): TjSongCandidate[] {
   const text = String(html || "");
-  if (/검색\s*결과를\s*찾을\s*수\s*없습니다/iu.test(text)) return [];
-  const candidates = listRows(text).map((row) => ({
+  const rows = listRows(text);
+  if (!rows.length && /검색\s*결과를\s*찾을\s*수\s*없습니다/iu.test(text)) return [];
+  const candidates = rows.map((row) => ({
     tjNumber: firstText(row, /class\s*=\s*["'][^"']*\bnum2\b[^"']*["'][^>]*>([\s\S]*?)<\/span>/iu).replace(/\D/gu, ""),
     title: titleText(row),
     artist: firstText(row, /class\s*=\s*["'][^"']*\btitle4\b[^"']*\bsinger\b[^"']*["'][\s\S]*?<p\b[^>]*>([\s\S]*?)<\/p>/iu),
