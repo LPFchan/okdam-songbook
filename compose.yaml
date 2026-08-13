@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: songbook:local
+    image: ${SONGBOOK_CONTAINER_IMAGE:-songbook:local}
     init: true
     restart: unless-stopped
     read_only: true
@@ -14,14 +14,14 @@ services:
       # port on all host interfaces.
       - "127.0.0.1:3000:3000"
     env_file:
-      - path: ./deploy/container/songbook.env
+      - path: ${SONGBOOK_ENV_FILE:-./deploy/container/songbook.env}
         required: false
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
       PORT: "3000"
-      SONGBOOK_DB: /var/lib/songbook/songbook.sqlite
-      SONGBOOK_BACKUP_DIR: /var/backups/songbook
+      DATABASE_PATH: /var/lib/songbook/songbook.sqlite
+      ASSETS_ROOT: /app/apps/web/dist
     volumes:
       - type: bind
         source: ${SONGBOOK_DATA_DIR:-/var/lib/songbook}

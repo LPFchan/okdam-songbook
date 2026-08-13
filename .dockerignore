@@ -1,0 +1,23 @@
+# Keep the build context small and prevent local/operator state from entering
+# Docker's context. The Dockerfile copies only the workspace manifests/source
+# and compiled artifacts it needs.
+.git
+.github
+.githooks
+.venv
+node_modules
+**/node_modules
+dist
+**/dist
+coverage
+**/.vite
+*.sqlite
+*.sqlite-*
+backups
+work
+outputs
+.env
+.env.*
+!.env.example
+deploy/container/songbook.env
+apps-script/.clasp.json
