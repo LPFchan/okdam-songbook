@@ -43,7 +43,8 @@ button:disabled{cursor:not-allowed;opacity:.55}
 .active-filters>button{border:1px solid var(--color-primary);background:transparent;color:var(--color-primary);border-radius:999px;padding:4px 10px;font-size:13px}
 .active-filters>.clear-filters{border-color:var(--color-line);color:var(--color-muted)}
 .result-count{margin:0;font-size:13px;color:var(--color-muted);font-variant-numeric:tabular-nums}
-.song-list{display:flex;flex-direction:column;padding:8px 12px;gap:6px}
+.song-list{display:flex;flex-direction:column;padding:8px 12px;gap:6px;transition:opacity 140ms ease}
+.song-list.list-faded{opacity:0.25}
 .song-card{display:grid;grid-template-columns:5.5ch 1fr auto;grid-template-areas:"number content actions" "number meta meta";column-gap:12px;row-gap:4px;padding:10px 12px;border-radius:var(--radius);background:var(--color-surface);border:1px solid transparent;text-align:left;width:100%;transition:background 160ms ease,transform 120ms ease}
 .song-card:active{background:var(--color-surface-strong);transform:scale(0.99)}
 .tj-number{grid-area:number;align-self:start;font-variant-numeric:tabular-nums;font-weight:700;color:var(--color-primary);font-size:15px;padding-top:1px;text-align:right}

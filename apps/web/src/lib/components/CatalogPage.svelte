@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { flip } from "svelte/animate";
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import { ChevronDown, LogIn, LogOut, Search, SlidersHorizontal, X } from "@lucide/svelte";
@@ -153,6 +152,26 @@
   });
 
   const visibleSongs = $derived(sortSongs(searchSongs(filterSongs(songs, filters), query), sortKey));
+
+  // Briefly fade the list out and back in whenever the visible set changes
+  // order or membership, instead of animating each card's position.
+  const listSignature = $derived(visibleSongs.map((song) => song.id).join(","));
+  let listFaded = $state(false);
+  let lastSignature = "";
+  $effect(() => {
+    const signature = listSignature;
+    if (!lastSignature) {
+      lastSignature = signature;
+      return;
+    }
+    if (signature === lastSignature) return;
+    lastSignature = signature;
+    listFaded = true;
+    const settle = window.setTimeout(() => {
+      listFaded = false;
+    }, 90);
+    return () => window.clearTimeout(settle);
+  });
   const countries = $derived([...new Set(songs.map((song) => song.country).filter(Boolean))]);
   const genres = $derived([...new Set(songs.flatMap((song) => song.genres))]);
 
@@ -543,12 +562,10 @@
     </section>
   {/if}
 
-  <section class="song-list" aria-label="곡 목록">
+  <section class="song-list" class:list-faded={listFaded} aria-label="곡 목록">
     {#if visibleSongs.length > 0}
       {#each visibleSongs as song (song.id)}
-        <div animate:flip>
-          <SongCard {song} {query} onOpen={(next) => (selected = next)} onFavoriteClick={handleFavorite} />
-        </div>
+        <SongCard {song} {query} onOpen={(next) => (selected = next)} onFavoriteClick={handleFavorite} />
       {/each}
     {:else}
       <div class="empty-state">
