@@ -7,8 +7,7 @@ import { PublicPage } from "./routes/PublicPage";
 import { AuthProvider } from "./lib/auth/AuthContext";
 import "./styles.css";
 
-const basePath = import.meta.env.VITE_APP_BASE_PATH || "/okdam-songbook/";
-const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+const basePath = import.meta.env.VITE_APP_BASE_PATH || "/";
 
 const updateServiceWorker = registerSW({
   onNeedRefresh() {
@@ -18,7 +17,7 @@ const updateServiceWorker = registerSW({
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <AuthProvider clientId={googleClientId}>
+    <AuthProvider>
       <BrowserRouter basename={basePath.replace(/\/$/, "")}>
         <Routes>
           <Route element={<AppShell />}>

@@ -43,7 +43,7 @@ describe("TjOmnibarResults", () => {
         query="Pretender"
         enabled
         songs={[]}
-        requireCredential={vi.fn().mockResolvedValue("credential")}
+        requireCredential={vi.fn().mockResolvedValue(undefined)}
         onManualAdd={vi.fn()}
         onOpenExisting={vi.fn()}
         onSongSaved={vi.fn()}
@@ -54,7 +54,7 @@ describe("TjOmnibarResults", () => {
     await act(async () => { await new Promise((resolve) => window.setTimeout(resolve, 300)); });
     expect(searchTjSongs).not.toHaveBeenCalled();
     await act(async () => { await new Promise((resolve) => window.setTimeout(resolve, 200)); });
-    await waitFor(() => expect(searchTjSongs).toHaveBeenCalledWith(expect.objectContaining({ query: "Pretender" }), "credential"));
+    await waitFor(() => expect(searchTjSongs).toHaveBeenCalledWith(expect.objectContaining({ query: "Pretender" })));
     expect(await screen.findByText("Official髭男dism")).toBeInTheDocument();
   });
 
@@ -66,7 +66,7 @@ describe("TjOmnibarResults", () => {
         query="68058"
         enabled
         songs={[existing]}
-        requireCredential={vi.fn().mockResolvedValue("credential")}
+        requireCredential={vi.fn().mockResolvedValue(undefined)}
         onManualAdd={vi.fn()}
         onOpenExisting={onOpenExisting}
         onSongSaved={vi.fn()}
@@ -88,7 +88,7 @@ describe("TjOmnibarResults", () => {
         query="Pretender"
         enabled
         songs={[]}
-        requireCredential={vi.fn().mockResolvedValue("credential")}
+        requireCredential={vi.fn().mockResolvedValue(undefined)}
         onManualAdd={vi.fn()}
         onOpenExisting={vi.fn()}
         onSongSaved={onSongSaved}

@@ -4,7 +4,7 @@ import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const base = env.VITE_APP_BASE_PATH || "/okdam-songbook/";
+  const base = env.VITE_APP_BASE_PATH || "/";
   return {
     base,
     plugins: [
@@ -34,6 +34,14 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           navigateFallback: `${base}index.html`,
+          navigateFallbackDenylist: [/^\/(?:api|mcp|\.well-known)(?:\/|$)/u],
+          runtimeCaching: [
+            {
+              urlPattern: ({ url }) => /^(?:api|mcp|\.well-known)(?:\/|$)/u.test(url.pathname.replace(/^\//u, "")),
+              handler: "NetworkOnly",
+              options: { cacheName: "songbook-network-only" }
+            }
+          ],
           globPatterns: ["**/*.{js,css,html,svg,png,ico,txt}"]
         }
       })

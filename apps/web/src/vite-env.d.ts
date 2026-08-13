@@ -2,9 +2,8 @@
 /// <reference types="vite-plugin-pwa/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_AUTH_ENABLED?: string;
-  readonly VITE_AUTH_BASE_URL?: string;
-  readonly VITE_AUTH_LEGACY_GIS_FALLBACK?: string;
+  readonly VITE_APP_BASE_PATH?: string;
+  readonly VITE_ENABLE_MOCK_API?: string;
 }
 
 interface ImportMeta {

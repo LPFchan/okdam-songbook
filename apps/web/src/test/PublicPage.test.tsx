@@ -70,8 +70,7 @@ function renderPublic(path = "/") {
 describe("PublicPage", () => {
   beforeEach(() => {
     window.localStorage.clear();
-    // PublicPage unit tests run against the local mock data so we don't have
-    // to mock the Apps Script fetch surface here.
+    // PublicPage unit tests run against the local mock data.
     vi.stubEnv("VITE_ENABLE_MOCK_API", "true");
     vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
     vi.stubGlobal("innerWidth", 390);

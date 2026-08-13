@@ -6,7 +6,7 @@ interface TjOmnibarResultsProps {
   query: string;
   enabled: boolean;
   songs: Song[];
-  requireCredential(): Promise<string>;
+  requireCredential(): Promise<void>;
   onManualAdd(): void;
   onOpenExisting(song: Song): void;
   onSongSaved(song: Song): void;
@@ -57,7 +57,7 @@ export function TjOmnibarResults({
       setLoading(true);
       setError("");
       void requireCredential()
-        .then((credential) => searchTjSongs({ query: trimmedQuery, searchType: /^\d+$/u.test(trimmedQuery) ? "number" : "all", nation: "", page: 1, pageSize: 15 }, credential))
+        .then(() => searchTjSongs({ query: trimmedQuery, searchType: /^\d+$/u.test(trimmedQuery) ? "number" : "all", nation: "", page: 1, pageSize: 15 }))
         .then((response) => {
           if (cancelled) return;
           setResults(response.candidates);
@@ -107,8 +107,8 @@ export function TjOmnibarResults({
     }
     setPending((current) => ({ ...current, [key]: true }));
     try {
-      const credential = await requireCredential();
-      const response = await addTjSong(candidate, credential, requestId);
+      await requireCredential();
+      const response = await addTjSong(candidate, requestId);
       const song = response.song ?? response.existing;
       if (song) {
         setAdded((current) => ({ ...current, [key]: song }));

@@ -2,12 +2,9 @@ import "@testing-library/jest-dom/vitest";
 import "fake-indexeddb/auto";
 import { vi } from "vitest";
 
-// Force the real API path in tests. AuthContext expects a live fetch surface
-// so it can assert UNAUTHORIZED / network behavior. Override per-test with
-// `vi.stubEnv` if you need the mock branch.
+// Keep the browser transport on its same-origin API path by default. Override
+// this per test with `vi.stubEnv` when exercising deterministic local data.
 vi.stubEnv("VITE_ENABLE_MOCK_API", "false");
-vi.stubEnv("VITE_APPS_SCRIPT_API_URL", "https://example.test/exec");
-vi.stubEnv("VITE_GOOGLE_CLIENT_ID", "test-client-id.apps.googleusercontent.com");
 
 const store = new Map<string, string>();
 const storage = {

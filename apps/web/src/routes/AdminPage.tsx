@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useSearchParams } from "react-router-dom";
 import { Image, ListMusic, LogIn, Search, Wand2, Youtube } from "lucide-react";
@@ -6,8 +6,6 @@ import type { PerformerId, Song, TjSearchType, TjSongCandidate } from "@songbook
 import { can, performerOrder, performers, sampleSongs } from "@songbook/shared";
 import { addTjSong, analyzeYouTube, fetchPublicData, generateReading, isApiAuthError, lookupTjSong, mockMode, restoreSong, searchTjSongs, upsertSong } from "../lib/api";
 import { useAuth, AuthRequiredError } from "../lib/auth/AuthContext";
-
-const googleScriptSrc = "https://accounts.google.com/gsi/client";
 
 export type AdminTab = "add" | "songs" | "history";
 
@@ -27,33 +25,11 @@ interface AdminPageProps {
   onSongSaved?: (song: Song) => void;
 }
 
-function loadGoogleIdentityScript(): Promise<void> {
-  if (window.google?.accounts.id) return Promise.resolve();
-  const existingScript = Array.from(document.scripts).find((script) => script.src === googleScriptSrc);
-  if (existingScript) {
-    return new Promise((resolve, reject) => {
-      existingScript.addEventListener("load", () => resolve(), { once: true });
-      existingScript.addEventListener("error", () => reject(new Error("Google 로그인 스크립트를 불러오지 못했어.")), { once: true });
-    });
-  }
-  return new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = googleScriptSrc;
-    script.async = true;
-    script.defer = true;
-    script.addEventListener("load", () => resolve(), { once: true });
-    script.addEventListener("error", () => reject(new Error("Google 로그인 스크립트를 불러오지 못했어.")), { once: true });
-    document.head.append(script);
-  });
-}
-
 export function AdminPage({ embedded = false, surfaceTab, onSongSaved }: AdminPageProps) {
   const auth = useAuth();
-  const googleButtonRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab") as AdminTab | null;
   const activeTab: AdminTab = surfaceTab ?? (requestedTab && tabs.some((tab) => tab.id === requestedTab) ? requestedTab : "add");
-  const [tokenInput, setTokenInput] = useState("");
   const [message, setMessage] = useState("");
   const [draft, setDraft] = useState<Partial<Song>>({ title: "", artist: "", tjNumber: "", status: "active", country: "일본", performerIds: [] });
   const [youtubeUrl, setYoutubeUrl] = useState("");
@@ -88,47 +64,6 @@ export function AdminPage({ embedded = false, surfaceTab, onSongSaved }: AdminPa
     };
   }, []);
 
-  // One Google Identity Services init. The AuthProvider owns the actual
-  // credential state; this block only renders the visible button so the user
-  // can grant a fresh credential on demand.
-  useEffect(() => {
-    if (mockMode()) return;
-    const clientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? undefined;
-    if (!clientId || !googleButtonRef.current) return;
-    let cancelled = false;
-    loadGoogleIdentityScript()
-      .then(() => {
-        if (cancelled || !window.google?.accounts.id || !googleButtonRef.current) return;
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: (response) => {
-            if (response.credential) {
-              auth.loginWithCredential(response.credential).catch((error) => {
-                setMessage(error instanceof Error ? error.message : "로그인 실패");
-              });
-            } else {
-              setMessage("Google 로그인 토큰을 받지 못했어.");
-            }
-          }
-        });
-        googleButtonRef.current.replaceChildren();
-        window.google.accounts.id.renderButton(googleButtonRef.current, {
-          theme: "outline",
-          size: "large",
-          type: "standard",
-          shape: "rectangular",
-          text: "signin_with",
-          width: 280
-        });
-      })
-      .catch((error: unknown) => {
-        setMessage(error instanceof Error ? error.message : "Google 로그인 초기화 실패");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [auth]);
-
   const handleAuthError = useCallback(
     (error: unknown): boolean => {
       if (error instanceof AuthRequiredError) {
@@ -145,19 +80,9 @@ export function AdminPage({ embedded = false, surfaceTab, onSongSaved }: AdminPa
   );
 
   async function loginWithToken() {
-    const token = tokenInput.trim();
-    if (!token) {
-      try {
-        await auth.loginWithGoogleButton();
-        setMessage(`${auth.user?.displayName ?? "로그인"} 확인됐어.`);
-      } catch (error) {
-        handleAuthError(error);
-      }
-      return;
-    }
     try {
-      const user = await auth.loginWithCredential(token);
-      setMessage(`${user.displayName} (${user.role})로 확인됐어.`);
+      await auth.loginWithGoogleButton();
+      setMessage("로그인 화면으로 이동했어.");
     } catch (error) {
       handleAuthError(error);
     }
@@ -165,7 +90,7 @@ export function AdminPage({ embedded = false, surfaceTab, onSongSaved }: AdminPa
 
   async function requireWriteCredential() {
     try {
-      return await auth.requireValidCredential();
+      await auth.requireValidCredential();
     } catch (error) {
       handleAuthError(error);
       throw error;
@@ -178,12 +103,11 @@ export function AdminPage({ embedded = false, surfaceTab, onSongSaved }: AdminPa
       setTjLookupMessage("TJ 번호를 입력해줘.");
       return;
     }
-    let idToken: string;
-    try { idToken = await requireWriteCredential(); } catch { return; }
+    try { await requireWriteCredential(); } catch { return; }
     setTjLookupLoading(true);
     setTjLookupMessage("");
     try {
-      const result = await lookupTjSong({ tjNumber, nation: "", pageSize: 15 }, idToken);
+      const result = await lookupTjSong({ tjNumber, nation: "", pageSize: 15 });
       if (!result.candidate) {
         setTjLookupMessage(result.candidates.length > 1 ? "같은 번호의 결과가 여러 개라 직접 골라줘." : "TJ에서 해당 번호를 찾지 못했어. 아래 수동 입력을 계속 사용할 수 있어.");
         return;
@@ -210,12 +134,11 @@ export function AdminPage({ embedded = false, surfaceTab, onSongSaved }: AdminPa
       setTjSearchMessage("검색어를 입력해줘.");
       return;
     }
-    let idToken: string;
-    try { idToken = await requireWriteCredential(); } catch { return; }
+    try { await requireWriteCredential(); } catch { return; }
     setTjSearchLoading(true);
     setTjSearchMessage("");
     try {
-      const result = await searchTjSongs({ query: tjSearchQuery, searchType: tjSearchType, nation: "", page: 1, pageSize: 15 }, idToken);
+      const result = await searchTjSongs({ query: tjSearchQuery, searchType: tjSearchType, nation: "", page: 1, pageSize: 15 });
       setTjCandidates(result.candidates);
       setTjSearchMessage(result.candidates.length ? `${result.candidates.length}개 결과를 찾았어.` : "검색 결과가 없어. 수동 입력을 계속 사용할 수 있어.");
     } catch (error) {
@@ -229,13 +152,12 @@ export function AdminPage({ embedded = false, surfaceTab, onSongSaved }: AdminPa
   async function addTjCandidate(candidate: TjSongCandidate) {
     const key = tjCandidateKey(candidate);
     if (tjAddPending[key]) return;
-    let idToken: string;
-    try { idToken = await requireWriteCredential(); } catch { return; }
+    try { await requireWriteCredential(); } catch { return; }
     const requestId = tjAddRequestIds[key] || crypto.randomUUID();
     if (!tjAddRequestIds[key]) setTjAddRequestIds((previous) => ({ ...previous, [key]: requestId }));
     setTjAddPending((previous) => ({ ...previous, [key]: true }));
     try {
-      const result = await addTjSong(candidate, idToken, requestId);
+      const result = await addTjSong(candidate, requestId);
       if (result.outcome === "created" && result.song) {
         const saved = result.song as Song;
         setSongs((previous) => [...previous.filter((song) => song.id !== saved.id), saved]);
@@ -257,11 +179,10 @@ export function AdminPage({ embedded = false, surfaceTab, onSongSaved }: AdminPa
 
   async function restoreTjCandidate() {
     if (!tjRestoreCandidate || tjRestorePending) return;
-    let idToken: string;
-    try { idToken = await requireWriteCredential(); } catch { return; }
+    try { await requireWriteCredential(); } catch { return; }
     setTjRestorePending(true);
     try {
-      const restored = await restoreSong(tjRestoreCandidate.id, idToken, crypto.randomUUID());
+      const restored = await restoreSong(tjRestoreCandidate.id, crypto.randomUUID());
       setSongs((previous) => [...previous.filter((song) => song.id !== restored.id), restored]);
       onSongSaved?.(restored);
       setDraft(restored);
@@ -276,14 +197,13 @@ export function AdminPage({ embedded = false, surfaceTab, onSongSaved }: AdminPa
 
   async function saveSong() {
     if (!auth.user || !can(auth.user.role, "song:create")) return;
-    let idToken: string;
     try {
-      idToken = await requireWriteCredential();
+      await requireWriteCredential();
     } catch {
       return;
     }
     try {
-      const saved = await upsertSong(draft, idToken, crypto.randomUUID());
+      const saved = await upsertSong(draft, crypto.randomUUID());
       setDraft(saved);
       onSongSaved?.(saved);
       setMessage("저장했어. editor 곡도 즉시 공개 목록에 반영돼.");
@@ -294,14 +214,13 @@ export function AdminPage({ embedded = false, surfaceTab, onSongSaved }: AdminPa
 
   async function fillReading() {
     if (!auth.user) return;
-    let idToken: string;
     try {
-      idToken = await requireWriteCredential();
+      await requireWriteCredential();
     } catch {
       return;
     }
     try {
-      const reading = await generateReading({ title: draft.title ?? "", artist: draft.artist ?? "" }, idToken);
+      const reading = await generateReading({ title: draft.title ?? "", artist: draft.artist ?? "" });
       setDraft((prev) => ({ ...prev, ...reading }));
       setMessage("독음 후보를 채웠어. 저장 전에 수정할 수 있어.");
     } catch (error) {
@@ -311,14 +230,13 @@ export function AdminPage({ embedded = false, surfaceTab, onSongSaved }: AdminPa
 
   async function analyzeVideo() {
     if (!auth.user) return;
-    let idToken: string;
     try {
-      idToken = await requireWriteCredential();
+      await requireWriteCredential();
     } catch {
       return;
     }
     try {
-      const result = await analyzeYouTube(youtubeUrl, idToken);
+      const result = await analyzeYouTube(youtubeUrl);
       setDraft((prev) => ({ ...prev, ...result }));
       setMessage("YouTube 분석 후보를 불러왔어. 자동 저장은 하지 않았어.");
     } catch (error) {
@@ -335,7 +253,7 @@ export function AdminPage({ embedded = false, surfaceTab, onSongSaved }: AdminPa
   }
 
   const credentialStatus = auth.user
-    ? `${auth.user.displayName} · ${auth.user.role}${auth.credentialExpiresAt ? ` · 만료 ${new Date(auth.credentialExpiresAt).toLocaleTimeString()}` : ""}`
+    ? `${auth.user.displayName} · ${auth.user.role}`
     : auth.status === "reauthRequired"
       ? "다시 로그인 필요"
       : "미인증";
@@ -345,7 +263,7 @@ export function AdminPage({ embedded = false, surfaceTab, onSongSaved }: AdminPa
       {!embedded ? <header className="admin-header">
         <div>
           <h1>Songbook 관리</h1>
-          <p>Google 로그인 토큰은 서버에서 다시 검증돼. mock 모드는 로컬 확인용이야.</p>
+          <p>로그인 세션은 서버에서 확인돼. mock 모드는 로컬 확인용이야.</p>
         </div>
         <Link className="admin-link" to="/">
           공개 화면
@@ -357,16 +275,10 @@ export function AdminPage({ embedded = false, surfaceTab, onSongSaved }: AdminPa
         {mockMode() ? (
           <p className="hint">mock 모드 — 아무 토큰이나 사용 가능해.</p>
         ) : null}
-        <div className="google-login-row" ref={googleButtonRef} />
         <div className="inline-form">
-          <input
-            value={tokenInput}
-            onChange={(event) => setTokenInput(event.target.value)}
-            placeholder="Google ID token을 붙여넣거나 비워두고 버튼을 눌러"
-          />
           <button type="button" className="primary-button" onClick={() => void loginWithToken()}>
             <LogIn size={18} />
-            확인
+            Google 로그인
           </button>
         </div>
         <p data-testid="admin-auth-state">{credentialStatus}</p>

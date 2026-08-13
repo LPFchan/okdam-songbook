@@ -96,9 +96,9 @@ export function PublicPage() {
     window.setTimeout(() => navigate("/admin"), 800);
   }, [navigate]);
 
-  async function performSong(song: Song, idToken: string) {
+  async function performSong(song: Song) {
     const clientRequestId = crypto.randomUUID();
-    const result = await createPerformance(song.id, idToken, clientRequestId);
+    const result = await createPerformance(song.id, clientRequestId);
     const performanceId = result && typeof result === "object" && "id" in result ? String((result as { id: string }).id) : "";
     setLastPerformed(performanceId ? { performanceId, clientRequestId, songId: song.id } : null);
     setMessage(performanceId ? "오늘 부른 곡으로 기록했어. 8초 안에 취소할 수 있어." : "오늘 부른 곡으로 기록했어.");
@@ -125,8 +125,8 @@ export function PublicPage() {
     }
 
     try {
-      const idToken = await auth.requireValidCredential();
-      await performSong(song, idToken);
+      await auth.requireValidCredential();
+      await performSong(song);
     } catch (error) {
       // Roll back the optimistic count if the write was never sent (auth fail).
       if (error instanceof AuthRequiredError) {
@@ -191,8 +191,8 @@ export function PublicPage() {
       return;
     }
     try {
-      const idToken = await auth.requireValidCredential();
-      await cancelPerformance(target.performanceId, idToken, target.clientRequestId);
+      await auth.requireValidCredential();
+      await cancelPerformance(target.performanceId, target.clientRequestId);
       setMessage("방금 기록한 곡을 취소했어.");
     } catch (error) {
       if (error instanceof AuthRequiredError) {
@@ -223,8 +223,8 @@ export function PublicPage() {
     if (!song) return;
     void (async () => {
       try {
-        const idToken = await auth.requireValidCredential();
-        await performSong(song, idToken);
+        await auth.requireValidCredential();
+        await performSong(song);
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "기록에 실패했어.");
       }

@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Songbook 개인정보처리방침</title>
-  <meta name="description" content="Okdam Songbook ChatGPT Action이 수집하는 정보와 보관/삭제 정책" />
+  <title>Okdam Songbook 개인정보처리방침</title>
+  <meta name="description" content="Okdam Songbook 서비스가 수집하는 정보와 보관·삭제 정책" />
   <meta name="robots" content="noindex" />
   <link rel="icon" href="../../icons/icon.svg" type="image/svg+xml" />
   <style>
@@ -56,14 +56,14 @@
 <body>
   <main>
     <h1>Okdam Songbook 개인정보처리방침</h1>
-    <p class="meta">최종 업데이트: 2026-07-01 · 적용 범위: Songbook ChatGPT Action, Cloudflare Worker, Apps Script 백엔드, Google Sheets</p>
+    <p class="meta">최종 업데이트: 2026-08-13 · 적용 범위: OCI에서 운영하는 Songbook 웹 서비스</p>
 
     <h2>1. 수집하는 정보</h2>
     <div class="box">
       <ul>
         <li>Google 계정 이메일</li>
         <li>Google 계정 표시 이름</li>
-        <li>Google OpenID Connect <code>sub</code> (계정 고유 식별자)</li>
+        <li>로그인 세션 식별자와 만료 정보</li>
         <li>곡 등록 요청 본문 (제목, 아티스트, TJ 번호, 부를 사람, 추천 키, 메모 등)</li>
         <li>요청 시각과 ChangeLog (감사 로그)</li>
       </ul>
@@ -78,18 +78,18 @@
     </ul>
 
     <h2>3. 허용 사용자</h2>
-    <p>이 Action은 사전에 등록된 Google 계정 3개만 사용할 수 있다. 그 외 계정이 로그인하면 <code>403</code>과 <code>FORBIDDEN</code> 응답을 받는다.</p>
-    <p>허용 계정은 Worker 시크릿 (<code>MARIE_EMAIL</code>, <code>SEONGWOOK_EMAIL</code>, <code>YEOWOOL_EMAIL</code>)으로 운영자가 관리한다.</p>
+    <p>서비스는 운영자가 등록한 Google 계정만 사용할 수 있다. 등록되지 않은 계정은 접근이 거부된다.</p>
+    <p>허용 계정과 역할은 보호된 서버 설정에서 관리하며, 보호된 요청마다 현재 권한을 다시 확인한다.</p>
 
     <h2>4. 보관 기간 및 위치</h2>
     <ul>
-      <li>세션 토큰: 클라이언트 쿠키에 <code>SESSION_TTL_SECONDS</code>(기본 12시간) 동안만 보관</li>
-      <li>곡 데이터: 비공개 Google Sheet에 저장, 운영자가 명시적으로 삭제할 때까지 유지</li>
-      <li>ChangeLog: Google Sheet <code>ChangeLog</code> 시트에 누적</li>
+      <li>세션: 보안 HTTP 전용 쿠키와 서버 세션 저장소에서 정책에 따라 보관</li>
+      <li>곡·공연 데이터: OCI SQLite 데이터베이스에 저장, 운영자가 삭제할 때까지 유지</li>
+      <li>변경 이력: 같은 데이터베이스의 감사 기록으로 보관</li>
     </ul>
 
     <h2>5. 제3자 공유</h2>
-    <p>수집한 정보를 제3자에게 판매하거나 공유하지 않는다. Apps Script와 Google Sheets는 데이터 처리 및 보관만을 위해 사용된다.</p>
+    <p>수집한 정보를 판매하거나 광고 목적으로 공유하지 않는다. 서비스 운영에 필요한 호스팅·로그인 제공자와의 처리는 필요한 범위에서만 이뤄진다.</p>
 
     <h2>6. 삭제 요청</h2>
     <p>등록된 곡, ChangeLog, 세션 데이터의 삭제를 요청하려면 아래 연락처로 이메일을 보내주면, 운영자가 합리적인 기간(통상 14일) 이내에 처리한다.</p>
