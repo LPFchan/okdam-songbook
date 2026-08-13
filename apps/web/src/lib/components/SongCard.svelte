@@ -24,7 +24,7 @@
     onOpen(song);
   }
 }}>
-  <span class="tj-number">[{song.tjNumber || "----"}]</span>
+  <span class="tj-number">{song.tjNumber || "—"}</span>
   <span class="song-content">
     <span class="song-title-line">
       <strong><Highlight text={song.title} {query} /></strong>

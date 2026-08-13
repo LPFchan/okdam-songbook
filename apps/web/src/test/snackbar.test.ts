@@ -15,17 +15,17 @@ describe("snackbar", () => {
   it("auto-dismisses a transient message", () => {
     snackbar.show("저장했어.");
     expect(snackbar.current?.message).toBe("저장했어.");
-    vi.advanceTimersByTime(5000);
+    vi.advanceTimersByTime(2000);
     expect(snackbar.current).toBeNull();
   });
 
   it("resets the timer when a new message arrives", () => {
     snackbar.show("첫 번째");
-    vi.advanceTimersByTime(4000);
+    vi.advanceTimersByTime(1500);
     snackbar.show("두 번째");
-    vi.advanceTimersByTime(4000);
+    vi.advanceTimersByTime(1500);
     expect(snackbar.current?.message).toBe("두 번째");
-    vi.advanceTimersByTime(1000);
+    vi.advanceTimersByTime(600);
     expect(snackbar.current).toBeNull();
   });
 

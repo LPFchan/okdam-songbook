@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
-  import { Filter, LogIn, LogOut, Search, SlidersHorizontal, X } from "@lucide/svelte";
+  import { ChevronDown, LogIn, LogOut, Search, SlidersHorizontal, X } from "@lucide/svelte";
   import type { PerformerId, Song, SongFilters, SortKey } from "@songbook/shared";
   import { filterSongs, performers, searchSongs, sortSongs } from "@songbook/shared";
   import BottomSheet from "./BottomSheet.svelte";
@@ -40,9 +40,10 @@
   let sortKey = $state<SortKey>("title");
   let filters = $state<SongFilters>({});
   let selected = $state<Song | null>(null);
-  let filterOpen = $state(false);
+  let chipsExpanded = $state(false);
   let editingSong = $state<Song | null>(null);
   let confirmSignOut = $state(false);
+  let topbarCollapsed = $state(false);
   let lastPerformed = $state<{ performanceId: string; clientRequestId: string; songId: string } | null>(null);
   let undoTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -51,7 +52,7 @@
 
   const requestedTab = $derived(page.url.searchParams.get("tab"));
   const managementTab = $derived<AdminTab | null>(
-    requestedTab === "add" || requestedTab === "songs" || requestedTab === "history" ? requestedTab : null
+    requestedTab === "add" || requestedTab === "songs" ? requestedTab : null
   );
 
   onMount(() => {
@@ -95,6 +96,23 @@
     };
     window.addEventListener("online", onOnline);
     document.addEventListener("visibilitychange", onVisibility);
+
+    // Collapse the topbar when scrolling down; reveal again when scrolling up.
+    let lastScrollY = window.scrollY;
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(() => {
+        const current = window.scrollY;
+        topbarCollapsed = current > 80 && current > lastScrollY;
+        if (current <= 80 || current < lastScrollY) topbarCollapsed = false;
+        lastScrollY = current;
+        ticking = false;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+
     void refreshQueue();
     if (onlineStatus.online) void drainQueue();
 
@@ -104,6 +122,7 @@
       unsubscribe();
       window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("scroll", onScroll);
     };
   });
 
@@ -354,19 +373,19 @@
 
   function managementTitle(tab: AdminTab): string {
     if (tab === "songs") return "곡 관리";
-    if (tab === "history") return "변경 이력";
     return editingSong ? "곡 수정" : "곡 추가";
   }
 </script>
 
 <main class="app-frame">
-  <header class="topbar">
+  <header class="topbar" data-collapsed={topbarCollapsed ? "true" : undefined}>
     <div class="topline">
       <h1 class="brand-title">Songbook</h1>
       <button
         type="button"
         class="account-button"
         data-authenticated={auth.user ? "true" : undefined}
+        data-confirm={confirmSignOut ? "true" : undefined}
         onclick={onAccountClick}
       >
         {#if auth.user}
@@ -388,7 +407,18 @@
       {/if}
     </label>
     <div class="controls-bar">
-      <div class="controls-bar-scroll" role="group" aria-label="빠른 필터">
+      <label class="sort-select">
+        <SlidersHorizontal size={15} />
+        <select bind:value={sortKey}>
+          <option value="title">가나다순</option>
+          <option value="tjNumber">TJ 번호순</option>
+          <option value="recentAdded">최근 추가순</option>
+          <option value="recentUpdated">최근 수정순</option>
+          <option value="recentPerformed">최근 부른 순</option>
+          <option value="performanceCount">많이 부른 순</option>
+        </select>
+      </label>
+      <div class="controls-bar-scroll" class:chips-expanded={chipsExpanded} role="group" aria-label="필터">
         {#each quickFilters as filter (filter.key)}
           {@const pressed =
             filter.key === "favorite" || filter.key === "practicing"
@@ -437,22 +467,16 @@
           >
             {genre}
           </button>
-        {/each}
-        <label class="sort-select">
-          <SlidersHorizontal size={15} />
-          <select bind:value={sortKey}>
-            <option value="title">가나다순</option>
-            <option value="tjNumber">TJ 번호순</option>
-            <option value="recentAdded">최근 추가순</option>
-            <option value="recentUpdated">최근 수정순</option>
-            <option value="recentPerformed">최근 부른 순</option>
-            <option value="performanceCount">많이 부른 순</option>
-          </select>
-        </label>
+          {/each}
       </div>
-      <button type="button" class="chip-toggle filter-open-button" onclick={() => (filterOpen = true)}>
-        <Filter size={15} />
-        필터
+      <button
+        type="button"
+        class="chips-expand-button"
+        aria-expanded={chipsExpanded}
+        aria-label={chipsExpanded ? "필터 접기" : "필터 펼치기"}
+        onclick={() => (chipsExpanded = !chipsExpanded)}
+      >
+        <ChevronDown size={17} />
       </button>
     </div>
     {#if activeFilters.length}
@@ -546,26 +570,6 @@
     </BottomSheet>
   {/if}
 
-  {#if filterOpen}
-    <BottomSheet title="필터" onClose={() => (filterOpen = false)}>
-      <div class="filter-form">
-        {#if activeFilters.length}
-          <div class="chip-toggle-group" role="group" aria-label="활성 필터">
-            {#each activeFilters as filter (filter.key)}
-              <button type="button" class="chip-toggle" data-selected="true" onclick={() => removeFilter(filter.key)}>{filter.label} ×</button>
-            {/each}
-          </div>
-        {:else}
-          <p class="hint">활성화된 필터가 없어요. 칩을 눌러 필터를 고를 수 있어요.</p>
-        {/if}
-        <div class="filter-actions">
-          <button type="button" class="secondary-button" onclick={() => (filters = {})}>모두 초기화</button>
-          <button type="button" class="primary-button" onclick={() => (filterOpen = false)}>닫기</button>
-        </div>
-      </div>
-    </BottomSheet>
-  {/if}
-
   {#if managementTab}
     <BottomSheet title={managementTitle(managementTab)} onClose={closeManagement}>
       {#if auth.user}
@@ -573,10 +577,9 @@
           {#if managementTab !== "add"}
             <nav class="admin-tabs" aria-label="관리 탭">
               <button type="button" aria-current={managementTab === "songs" ? "page" : undefined} onclick={() => openManagement("songs")}>곡 관리</button>
-              <button type="button" aria-current={managementTab === "history" ? "page" : undefined} onclick={() => openManagement("history")}>변경 이력</button>
             </nav>
           {/if}
-          <SongForm tab={managementTab} {songs} editSong={editingSong} {onSongSaved} {onSongDeleted} onRequestTab={(tab) => openManagement(tab)} />
+          <SongForm tab={managementTab} {songs} editSong={editingSong} {onSongSaved} {onSongDeleted} onRequestTab={(tab) => openManagement(tab)} onClose={closeManagement} />
         </div>
       {:else}
         <p class="hint">곡 관리는 로그인한 편집자만 사용할 수 있어요.</p>
