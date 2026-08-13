@@ -1,8 +1,8 @@
 import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Filter, Moon, RotateCcw, Search, SlidersHorizontal, Sun } from "lucide-react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { Filter, LogIn, Moon, Monitor, RefreshCw, RotateCcw, Search, SlidersHorizontal, Sun } from "lucide-react";
 import type { PerformerId, Song, SongFilters, SortKey } from "@songbook/shared";
-import { filterSongs, performerOrder, performers, searchSongs, sortSongs } from "@songbook/shared";
+import { can, filterSongs, performerOrder, performers, searchSongs, sortSongs } from "@songbook/shared";
 import { BottomSheet } from "../components/BottomSheet";
 import { SongCard } from "../components/SongCard";
 import { SongDetail } from "../components/SongDetail";
@@ -12,10 +12,12 @@ import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { usePhysicsMode } from "../hooks/usePhysicsMode";
 import { useTheme } from "../hooks/useTheme";
 import { AuthRequiredError, useAuth } from "../lib/auth/AuthContext";
+import { AdminPage, type AdminTab } from "./AdminPage";
 
 export function PublicPage() {
   const auth = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [songs, setSongs] = useState<Song[]>([]);
   const [query, setQuery] = useState(() => window.localStorage.getItem("songbook:query") ?? "");
   const [sortKey, setSortKey] = useState<SortKey>(() => (window.localStorage.getItem("songbook:sort") as SortKey | null) ?? "title");
@@ -24,6 +26,8 @@ export function PublicPage() {
   const [lastSync, setLastSync] = useState("");
   const [message, setMessage] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [tokenInput, setTokenInput] = useState("");
   const [physicsMode, setPhysicsMode] = useState(false);
   const [physicsResetId, setPhysicsResetId] = useState(0);
   const [theme, setTheme] = useTheme();
@@ -32,6 +36,8 @@ export function PublicPage() {
   const titleToggleRef = useRef(0);
   const online = useOnlineStatus();
   const pendingPerformanceRef = useRef<{ songId: string; clientRequestId: string } | null>(null);
+  const requestedTab = searchParams.get("tab");
+  const managementTab: AdminTab | null = requestedTab === "add" || requestedTab === "songs" || requestedTab === "history" ? requestedTab : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -144,6 +150,18 @@ export function PublicPage() {
         errorMessage: error instanceof Error ? error.message : "기록 실패"
       });
       setMessage("기록에 실패해서 큐에 저장했어.");
+    }
+  }
+
+  async function refreshCatalog() {
+    try {
+      const data = await fetchPublicData();
+      setSongs(data.songs);
+      setLastSync(data.updatedAt);
+      await saveCachedPublicData(data);
+      setMessage("목록을 새로고침했어.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "새로고침하지 못했어.");
     }
   }
 
@@ -265,6 +283,14 @@ export function PublicPage() {
     });
   }
 
+  function toggleBooleanFilter(key: "hasKey" | "favorite" | "practicing") {
+    setFilters((previous) => ({ ...previous, [key]: previous[key] ? undefined : true }));
+  }
+
+  function selectSingleFilter(key: "country" | "genre", value: string) {
+    setFilters((previous) => ({ ...previous, [key]: value || undefined }));
+  }
+
   function removeFilter(key: keyof SongFilters | `performer:${PerformerId}`) {
     if (key.startsWith("performer:")) {
       const id = key.replace("performer:", "") as PerformerId;
@@ -288,6 +314,50 @@ export function PublicPage() {
       ? `${auth.displayInfo.displayName} · 다시 로그인 필요`
       : "비로그인";
 
+  async function loginWithToken() {
+    const token = tokenInput.trim();
+    try {
+      if (!token) await auth.loginWithGoogleButton();
+      else await auth.loginWithCredential(token);
+      setTokenInput("");
+      setMessage("로그인됐어.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "로그인하지 못했어.");
+    }
+  }
+
+  function chooseTheme(next: "system" | "light" | "dark") {
+    setTheme(next);
+  }
+
+  useEffect(() => {
+    if (requestedTab !== "settings") return;
+    const next = new URLSearchParams(searchParams);
+    next.delete("tab");
+    setSearchParams(next, { replace: true });
+  }, [requestedTab, searchParams, setSearchParams]);
+
+  function closeManagement() {
+    const next = new URLSearchParams(searchParams);
+    next.delete("tab");
+    setSearchParams(next, { replace: true });
+  }
+
+  function openManagement(tab: AdminTab) {
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", tab);
+    setAccountOpen(false);
+    setSearchParams(next);
+  }
+
+  const quickFilters: Array<{ key: "marie" | "seongwook" | "yeowool" | "favorite" | "practicing"; label: string }> = [
+    { key: "marie", label: "마리" },
+    { key: "seongwook", label: "성욱" },
+    { key: "yeowool", label: "여울" },
+    { key: "favorite", label: "즐겨찾기" },
+    { key: "practicing", label: "연습 중" }
+  ];
+
   return (
     <main className="app-frame" data-physics-active={physicsMode ? "true" : undefined}>
       <header className="topbar">
@@ -310,6 +380,10 @@ export function PublicPage() {
             </p>
           </div>
           <div className="top-actions">
+            <button type="button" className="account-button" onClick={() => setAccountOpen(true)}>
+              {auth.user ? auth.user.displayName : <LogIn size={17} />}
+              <span className="account-button-label">계정</span>
+            </button>
             <button
               type="button"
               className="icon-button theme-button"
@@ -318,9 +392,6 @@ export function PublicPage() {
             >
               {theme === "dark" ? <Moon size={17} /> : <Sun size={17} />}
             </button>
-            <Link className="admin-link" to="/admin">
-              관리
-            </Link>
           </div>
         </div>
         <label className="search-box">
@@ -344,6 +415,27 @@ export function PublicPage() {
             </select>
           </label>
         </div>
+        {!filterOpen ? <div className="quick-chip-row" role="group" aria-label="빠른 필터">
+          {quickFilters.map((filter) => {
+            const pressed = filter.key === "favorite" || filter.key === "practicing"
+              ? Boolean(filters[filter.key])
+              : Boolean(filters.performerIds?.includes(filter.key));
+            return (
+              <button
+                key={filter.key}
+                type="button"
+                className="chip-toggle quick-chip"
+                aria-pressed={pressed}
+                data-selected={pressed ? "true" : undefined}
+                onClick={() => filter.key === "favorite" || filter.key === "practicing"
+                  ? toggleBooleanFilter(filter.key)
+                  : togglePerformerFilter(filter.key)}
+              >
+                {filter.label}
+              </button>
+            );
+          })}
+        </div> : null}
         {activeFilters.length ? (
           <div className="active-filters" aria-label="활성 필터">
             {activeFilters.map((filter) => (
@@ -401,31 +493,27 @@ export function PublicPage() {
 
       <BottomSheet open={filterOpen} title="필터" onClose={() => setFilterOpen(false)}>
         <div className="filter-form">
-          <label className="field-row">
-            <span>국가</span>
-            <select value={filters.country ?? ""} onChange={(event) => setFilters((prev) => ({ ...prev, country: event.target.value || undefined }))}>
-              <option value="">전체</option>
+          <fieldset className="filter-fieldset">
+            <legend>국가</legend>
+            <div className="chip-toggle-group" role="group" aria-label="국가 필터">
+              <button type="button" className="chip-toggle" aria-pressed={!filters.country} data-selected={!filters.country ? "true" : undefined} onClick={() => selectSingleFilter("country", "")}>전체</button>
               {countries.map((country) => (
-                <option key={country} value={country}>
-                  {country}
-                </option>
+                <button key={country} type="button" className="chip-toggle" aria-pressed={filters.country === country} data-selected={filters.country === country ? "true" : undefined} onClick={() => selectSingleFilter("country", country)}>{country}</button>
               ))}
-            </select>
-          </label>
-          <label className="field-row">
-            <span>장르</span>
-            <select value={filters.genre ?? ""} onChange={(event) => setFilters((prev) => ({ ...prev, genre: event.target.value || undefined }))}>
-              <option value="">전체</option>
+            </div>
+          </fieldset>
+          <fieldset className="filter-fieldset">
+            <legend>장르</legend>
+            <div className="chip-toggle-group" role="group" aria-label="장르 필터">
+              <button type="button" className="chip-toggle" aria-pressed={!filters.genre} data-selected={!filters.genre ? "true" : undefined} onClick={() => selectSingleFilter("genre", "")}>전체</button>
               {genres.map((genre) => (
-                <option key={genre} value={genre}>
-                  {genre}
-                </option>
+                <button key={genre} type="button" className="chip-toggle" aria-pressed={filters.genre === genre} data-selected={filters.genre === genre ? "true" : undefined} onClick={() => selectSingleFilter("genre", genre)}>{genre}</button>
               ))}
-            </select>
-          </label>
+            </div>
+          </fieldset>
           <fieldset className="filter-fieldset">
             <legend>부를 사람</legend>
-            <div className="chip-toggle-group">
+            <div className="chip-toggle-group" role="group" aria-label="부를 사람 필터">
               {performerOrder.map((id) => (
                 <button
                   key={id}
@@ -440,20 +528,20 @@ export function PublicPage() {
               ))}
             </div>
           </fieldset>
-          <div className="checkbox-group">
-            <label className="checkbox-row">
-              <input type="checkbox" checked={Boolean(filters.hasKey)} onChange={(event) => setFilters((prev) => ({ ...prev, hasKey: event.target.checked || undefined }))} />
-              <span>추천 키 있음</span>
-            </label>
-            <label className="checkbox-row">
-              <input type="checkbox" checked={Boolean(filters.favorite)} onChange={(event) => setFilters((prev) => ({ ...prev, favorite: event.target.checked || undefined }))} />
-              <span>즐겨찾기</span>
-            </label>
-            <label className="checkbox-row">
-              <input type="checkbox" checked={Boolean(filters.practicing)} onChange={(event) => setFilters((prev) => ({ ...prev, practicing: event.target.checked || undefined }))} />
-              <span>연습 중</span>
-            </label>
-          </div>
+          <fieldset className="filter-fieldset">
+            <legend>상태</legend>
+            <div className="chip-toggle-group" role="group" aria-label="상태 필터">
+              {([
+                ["hasKey", "추천 키 있음"],
+                ["favorite", "즐겨찾기"],
+                ["practicing", "연습 중"]
+              ] as const).map(([key, label]) => (
+                <button key={key} type="button" className="chip-toggle" aria-pressed={Boolean(filters[key])} data-selected={filters[key] ? "true" : undefined} onClick={() => toggleBooleanFilter(key)}>{label}</button>
+              ))}
+            </div>
+            <label className="sr-only" htmlFor="has-key-filter">추천 키 있음</label>
+            <input id="has-key-filter" className="sr-only" type="checkbox" checked={Boolean(filters.hasKey)} onChange={() => toggleBooleanFilter("hasKey")} />
+          </fieldset>
           <div className="filter-actions">
             <button type="button" className="secondary-button" onClick={() => setFilters({})}>
               초기화
@@ -463,6 +551,59 @@ export function PublicPage() {
             </button>
           </div>
         </div>
+      </BottomSheet>
+
+      <BottomSheet open={accountOpen} title="계정 및 환경설정" onClose={() => setAccountOpen(false)}>
+        <div className="account-surface">
+          <section className="account-section" aria-labelledby="account-status-heading">
+            <h3 id="account-status-heading">로그인</h3>
+            <p className="hint">{auth.user ? `${auth.user.displayName} · ${auth.user.role}` : auth.status === "reauthRequired" ? "다시 로그인이 필요해." : "카탈로그는 로그인 없이 사용할 수 있어."}</p>
+            {!auth.user ? (
+              <div className="inline-form">
+                <input value={tokenInput} onChange={(event) => setTokenInput(event.target.value)} placeholder="ID token 또는 Google 버튼" aria-label="Google ID token" />
+                <button type="button" className="primary-button" onClick={() => void loginWithToken()}><LogIn size={17} /> 로그인</button>
+              </div>
+            ) : (
+              <button type="button" className="secondary-button" onClick={() => { auth.signOut(); setMessage("로그아웃했어."); }}>로그아웃</button>
+            )}
+          </section>
+          <section className="account-section" aria-labelledby="theme-heading">
+            <h3 id="theme-heading">테마</h3>
+            <div className="theme-options" role="group" aria-label="테마 선택">
+              <button type="button" className="chip-toggle" aria-pressed={theme === "system"} data-selected={theme === "system" ? "true" : undefined} onClick={() => chooseTheme("system")}><Monitor size={16} /> 시스템</button>
+              <button type="button" className="chip-toggle" aria-pressed={theme === "light"} data-selected={theme === "light" ? "true" : undefined} onClick={() => chooseTheme("light")}><Sun size={16} /> 밝게</button>
+              <button type="button" className="chip-toggle" aria-pressed={theme === "dark"} data-selected={theme === "dark" ? "true" : undefined} onClick={() => chooseTheme("dark")}><Moon size={16} /> 어둡게</button>
+            </div>
+          </section>
+          <section className="account-section" aria-labelledby="sync-heading">
+            <h3 id="sync-heading">동기화</h3>
+            <p className="hint">{online ? "온라인" : "오프라인"} · 마지막 동기화 {lastSync ? new Date(lastSync).toLocaleString() : "없음"}</p>
+            <button type="button" className="secondary-button" onClick={() => void refreshCatalog()}><RefreshCw size={17} /> 목록 새로고침</button>
+          </section>
+          {auth.user ? (
+            <section className="account-section" aria-labelledby="management-heading">
+              <h3 id="management-heading">관리</h3>
+              <div className="account-management-links">
+                <button type="button" className="secondary-button" disabled={!can(auth.user.role, "song:create")} onClick={() => openManagement("add")}>곡 추가</button>
+                <button type="button" className="secondary-button" disabled={!can(auth.user.role, "song:update")} onClick={() => openManagement("songs")}>곡 관리</button>
+                <button type="button" className="secondary-button" disabled={!can(auth.user.role, "changeLog:read")} onClick={() => openManagement("history")}>변경 이력</button>
+              </div>
+            </section>
+          ) : null}
+        </div>
+      </BottomSheet>
+
+      <BottomSheet open={Boolean(managementTab)} title={managementTab === "songs" ? "곡 관리" : managementTab === "history" ? "변경 이력" : "곡 추가"} onClose={closeManagement}>
+        {managementTab ? (
+          <AdminPage
+            embedded
+            surfaceTab={managementTab}
+            onSongSaved={(saved) => setSongs((previous) => {
+              const existing = previous.some((song) => song.id === saved.id);
+              return existing ? previous.map((song) => song.id === saved.id ? saved : song) : [saved, ...previous];
+            })}
+          />
+        ) : null}
       </BottomSheet>
     </main>
   );

@@ -60,6 +60,7 @@ function renderPublic(path = "/") {
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/" element={<PublicPage />} />
+        <Route path="/admin" element={<PublicPage />} />
         <Route path="/other" element={<div>다른 화면</div>} />
       </Routes>
     </MemoryRouter>
@@ -183,5 +184,38 @@ describe("PublicPage", () => {
     await user.click(screen.getByRole("button", { name: "여울" }));
     await user.click(screen.getByRole("button", { name: "성욱" }));
     await waitFor(() => expect(screen.queryByText(migrated!.title)).not.toBeInTheDocument());
+  });
+
+  it("exposes quick filters as pressed chips", async () => {
+    const user = userEvent.setup();
+    renderPublic();
+    await screen.findByText("レーゾンデートル");
+
+    const quickFilters = screen.getByRole("group", { name: "빠른 필터" });
+    const marie = within(quickFilters).getByRole("button", { name: "마리" });
+    expect(marie).toHaveAttribute("aria-pressed", "false");
+    await user.click(marie);
+    expect(marie).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("opens legacy admin tab links in the unified page and drops settings", async () => {
+    renderPublic("/admin?tab=songs");
+    expect(await screen.findByRole("dialog", { name: "곡 관리" })).toBeInTheDocument();
+
+    cleanup();
+    renderPublic("/admin?tab=settings");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("contains focus and restores it when a sheet closes", async () => {
+    const user = userEvent.setup();
+    renderPublic();
+    await screen.findByText("レーゾンデートル");
+    const filterButton = screen.getByRole("button", { name: "필터" });
+    await user.click(filterButton);
+    expect(screen.getByRole("button", { name: "닫기" })).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(filterButton).toHaveFocus();
   });
 });

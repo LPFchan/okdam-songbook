@@ -127,6 +127,18 @@ h2 {
   font-size: 1.05rem;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .topline p,
 .hint,
 .result-count {
@@ -653,6 +665,20 @@ pre {
   flex-shrink: 0;
 }
 
+.account-button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.account-button-label {
+  font-size: 0.82rem;
+}
+
 .brand-title {
   width: fit-content;
   cursor: default;
@@ -870,7 +896,7 @@ pre {
 
 .chip-toggle,
 .performer-chip {
-  min-height: 36px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -879,6 +905,89 @@ pre {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 999px;
+}
+
+.quick-chip-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0 2px;
+  scrollbar-width: none;
+}
+
+.quick-chip-row::-webkit-scrollbar {
+  display: none;
+}
+
+.quick-chip {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.account-surface {
+  display: grid;
+  gap: 18px;
+}
+
+.account-section {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.account-section:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.account-section h3 {
+  margin: 0;
+  font-size: 0.96rem;
+}
+
+.theme-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.account-management-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.theme-options .chip-toggle {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.admin-surface {
+  min-width: 0;
+}
+
+.admin-surface .admin-panel {
+  margin-bottom: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.admin-surface .admin-panel h2 {
+  display: none;
+}
+
+.admin-surface .admin-action-bar {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.admin-surface .snackbar {
+  position: static;
+  width: auto;
+  margin-top: 12px;
+  transform: none;
 }
 
 .chip-toggle[data-selected="true"] {

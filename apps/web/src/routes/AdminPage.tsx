@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useSearchParams } from "react-router-dom";
-import { Download, FileJson, Image, ListMusic, LogIn, Search, Upload, Wand2, Youtube } from "lucide-react";
+import { Image, ListMusic, LogIn, Search, Wand2, Youtube } from "lucide-react";
 import type { PerformerId, Song, TjSearchType, TjSongCandidate } from "@songbook/shared";
 import { can, performerOrder, performers, sampleSongs } from "@songbook/shared";
 import { addTjSong, analyzeYouTube, fetchPublicData, generateReading, isApiAuthError, lookupTjSong, mockMode, restoreSong, searchTjSongs, upsertSong } from "../lib/api";
@@ -9,7 +9,7 @@ import { useAuth, AuthRequiredError } from "../lib/auth/AuthContext";
 
 const googleScriptSrc = "https://accounts.google.com/gsi/client";
 
-type AdminTab = "add" | "songs" | "history" | "settings";
+export type AdminTab = "add" | "songs" | "history";
 
 function tjCandidateKey(candidate: TjSongCandidate): string {
   return `${candidate.tjNumber}:${candidate.title}:${candidate.artist}`;
@@ -18,9 +18,14 @@ function tjCandidateKey(candidate: TjSongCandidate): string {
 const tabs: Array<{ id: AdminTab; label: string }> = [
   { id: "add", label: "곡 추가" },
   { id: "songs", label: "곡 관리" },
-  { id: "history", label: "변경 이력" },
-  { id: "settings", label: "고급 설정" }
+  { id: "history", label: "변경 이력" }
 ];
+
+interface AdminPageProps {
+  embedded?: boolean;
+  surfaceTab?: AdminTab;
+  onSongSaved?: (song: Song) => void;
+}
 
 function loadGoogleIdentityScript(): Promise<void> {
   if (window.google?.accounts.id) return Promise.resolve();
@@ -42,12 +47,12 @@ function loadGoogleIdentityScript(): Promise<void> {
   });
 }
 
-export function AdminPage() {
+export function AdminPage({ embedded = false, surfaceTab, onSongSaved }: AdminPageProps) {
   const auth = useAuth();
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab") as AdminTab | null;
-  const activeTab: AdminTab = requestedTab && tabs.some((tab) => tab.id === requestedTab) ? requestedTab : "add";
+  const activeTab: AdminTab = surfaceTab ?? (requestedTab && tabs.some((tab) => tab.id === requestedTab) ? requestedTab : "add");
   const [tokenInput, setTokenInput] = useState("");
   const [message, setMessage] = useState("");
   const [draft, setDraft] = useState<Partial<Song>>({ title: "", artist: "", tjNumber: "", status: "active", country: "일본", performerIds: [] });
@@ -278,6 +283,7 @@ export function AdminPage() {
     try {
       const saved = await upsertSong(draft, idToken, crypto.randomUUID());
       setDraft(saved);
+      onSongSaved?.(saved);
       setMessage("저장했어. editor 곡도 즉시 공개 목록에 반영돼.");
     } catch (error) {
       if (!handleAuthError(error)) setMessage(error instanceof Error ? error.message : "저장 실패");
@@ -333,8 +339,8 @@ export function AdminPage() {
       : "미인증";
 
   return (
-    <main className="admin-frame">
-      <header className="admin-header">
+    <div className={embedded ? "admin-surface" : "admin-frame"}>
+      {!embedded ? <header className="admin-header">
         <div>
           <h1>Songbook 관리</h1>
           <p>Google 로그인 토큰은 서버에서 다시 검증돼. mock 모드는 로컬 확인용이야.</p>
@@ -342,9 +348,9 @@ export function AdminPage() {
         <Link className="admin-link" to="/">
           공개 화면
         </Link>
-      </header>
+      </header> : null}
 
-      <section className="admin-panel">
+      {!embedded ? <section className="admin-panel">
         <h2>로그인</h2>
         {mockMode() ? (
           <p className="hint">mock 모드 — 아무 토큰이나 사용 가능해.</p>
@@ -367,9 +373,9 @@ export function AdminPage() {
             로그아웃
           </button>
         ) : null}
-      </section>
+      </section> : null}
 
-      <nav className="admin-tabs" aria-label="관리 탭">
+      {!embedded ? <nav className="admin-tabs" aria-label="관리 탭">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -380,7 +386,7 @@ export function AdminPage() {
             {tab.label}
           </button>
         ))}
-      </nav>
+      </nav> : null}
 
       {activeTab === "add" ? (
         <section className="admin-panel admin-form-panel">
@@ -416,7 +422,6 @@ export function AdminPage() {
               </select>
               <button type="button" className="secondary-button" disabled={!auth.user || tjSearchLoading} onClick={() => void runTjSearch()}><Search size={17} />{tjSearchLoading ? "검색 중…" : "TJ 검색"}</button>
             </div>
-            {tjSearchMessage ? <p className="hint">{tjSearchMessage}</p> : null}
             {tjRestoreCandidate ? <div className="tj-restore-action"><span>삭제된 곡: {tjRestoreCandidate.title}</span>{auth.user?.role === "owner" ? <button type="button" className="secondary-button" disabled={tjRestorePending} onClick={() => void restoreTjCandidate()}>{tjRestorePending ? "복구 중…" : "기존 곡 복구"}</button> : <span className="hint">기존 곡을 열었어. 복구는 소유자만 할 수 있어.</span>}</div> : null}
             {tjCandidates.length ? <div className="tj-results" aria-label="TJ 검색 결과">{tjCandidates.map((candidate) => {
               const duplicate = songs.find((song) => song.tjNumber === candidate.tjNumber || (song.title.trim().toLocaleLowerCase() === candidate.title.trim().toLocaleLowerCase() && song.artist.trim().toLocaleLowerCase() === candidate.artist.trim().toLocaleLowerCase()));
@@ -516,28 +521,7 @@ export function AdminPage() {
         </section>
       ) : null}
 
-      {activeTab === "settings" ? (
-        <section className="admin-panel">
-          <h2>고급 설정</h2>
-          <div className="ops-grid">
-            <button type="button" disabled={!auth.user || !can(auth.user.role, "csv:import")}>
-              <Upload size={18} />
-              CSV 가져오기
-            </button>
-            <button type="button" disabled={!auth.user || !can(auth.user.role, "csv:export")}>
-              <Download size={18} />
-              CSV 내보내기
-            </button>
-            <button type="button" disabled={!auth.user || !can(auth.user.role, "backup:json")}>
-              <FileJson size={18} />
-              JSON 백업
-            </button>
-          </div>
-          <p className="hint">서버 설정 상태, 동기화 진단, PWA 캐시 초기화는 Apps Script 연결 뒤 확장하면 돼.</p>
-        </section>
-      ) : null}
-
       {message ? <div className="snackbar">{message}</div> : null}
-    </main>
+    </div>
   );
 }
