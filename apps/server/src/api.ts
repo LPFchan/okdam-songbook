@@ -41,6 +41,7 @@ import {
 
 export interface BrowserPrincipal extends RequestActor {
   id?: string;
+  expiresAt?: string | number | Date;
 }
 
 export type BrowserSessionResolver = (request: Request) => Promise<BrowserPrincipal | null>;
@@ -78,7 +79,11 @@ function envelope(c: Context, data: unknown, now: () => string): Response {
 }
 
 function failure(c: Context, error: unknown, now: () => string, status?: number): Response {
-  const mapped = toApiError(error);
+  const zodError = error && typeof error === "object" && "flatten" in error && typeof error.flatten === "function";
+  const details = zodError ? (error as { flatten: () => unknown }).flatten() : null;
+  const mapped = zodError || error instanceof SyntaxError
+    ? toApiError(new DomainError("VALIDATION_ERROR", "입력 형식이 올바르지 않아.", details))
+    : toApiError(error);
   const codeStatus: Record<string, number> = {
     BAD_REQUEST: 400, VALIDATION_ERROR: 400, UNAUTHORIZED: 401, FORBIDDEN: 403,
     NOT_FOUND: 404, CONFLICT: 409, DUPLICATE_TJ_NUMBER: 409,
@@ -116,9 +121,9 @@ function publicMcpMetadata(origin: string): Record<string, unknown> {
   const issuer = `${origin}/api/auth`;
   return {
     issuer,
-    authorization_endpoint: `${origin}/mcp/authorize`,
-    token_endpoint: `${origin}/mcp/token`,
-    registration_endpoint: `${origin}/mcp/register`,
+    authorization_endpoint: `${issuer}/mcp/authorize`,
+    token_endpoint: `${issuer}/mcp/token`,
+    registration_endpoint: `${issuer}/mcp/register`,
     jwks_uri: `${origin}/api/auth/mcp/jwks`,
     scopes_supported: ["openid", "profile", "email", "offline_access", ...PUBLIC_MCP_SCOPES],
     response_types_supported: ["code"],
@@ -133,7 +138,7 @@ function publicMcpMetadata(origin: string): Record<string, unknown> {
 function protectedResourceMetadata(origin: string): Record<string, unknown> {
   return {
     resource: `${origin}/mcp`,
-    authorization_servers: [origin],
+    authorization_servers: [`${origin}/api/auth`],
     jwks_uri: `${origin}/api/auth/mcp/jwks`,
     scopes_supported: PUBLIC_MCP_SCOPES,
     bearer_methods_supported: ["header"],
@@ -171,7 +176,7 @@ function staticResponse(root: string | undefined, pathname: string): Response | 
 async function authSession(auth: BrowserAuth, request: Request): Promise<BrowserPrincipal | null> {
   const session = await auth.api.getSession({ headers: request.headers, query: { disableCookieCache: true } });
   if (!session) return null;
-  return { id: session.user.id, email: session.user.email, displayName: session.user.name };
+  return { id: session.user.id, email: session.user.email, displayName: session.user.name, expiresAt: session.session.expiresAt };
 }
 
 function currentUser(principal: BrowserPrincipal, roleResolver: RoleResolver): CurrentUser | null {
@@ -250,7 +255,7 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     if (!principal) return failure(c, new DomainError("UNAUTHORIZED", "로그인 세션이 없어."), now);
     const user = currentUser(principal, roleResolver);
     if (!user) return failure(c, new DomainError("UNAUTHORIZED", "허용된 계정이 필요해."), now);
-    return envelope(c, { user: { id: principal.id ?? principal.email, ...user }, session: { id: principal.id ?? principal.email } }, now);
+    return envelope(c, { user: { id: principal.id ?? principal.email, email: user.email, name: user.displayName, role: user.role }, session: { id: principal.id ?? principal.email, expiresAt: principal.expiresAt ?? now() } }, now);
   });
 
   app.post("/api/performances", (c) => mutate(c, async (actor) => {
@@ -344,6 +349,7 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
   app.all("/mcp", async (c) => {
     const checked = await mcpAuth.verifyRequest(c.req.raw, ["songbook:read"]);
     if (!checked.ok) return checked.response;
+    if (!roleResolver.resolve(checked.principal.actor)) return failure(c, new DomainError("UNAUTHORIZED", "로그인 또는 허용된 계정이 필요해."), now);
     return c.json({ error: "MCP tools are mounted by the MCP application package." }, 501);
   });
 

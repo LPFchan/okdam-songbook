@@ -88,9 +88,14 @@ export interface McpTokenBinding {
   expiresAt: string;
 }
 
+export interface McpPrincipal {
+  userId: string;
+  actor: RequestActor;
+}
+
 export interface McpAuthAdapter {
   captureToken(response: Response, request: Request): Promise<void>;
-  verifyRequest(request: Request, requiredScopes: McpScope[]): Promise<{ ok: true; token: McpTokenBinding; session: unknown } | { ok: false; response: Response }>;
+  verifyRequest(request: Request, requiredScopes: McpScope[]): Promise<{ ok: true; token: McpTokenBinding; session: unknown; principal: McpPrincipal } | { ok: false; response: Response }>;
 }
 
 function unauthorized(message: string, resource: string): Response {
@@ -140,9 +145,27 @@ export function createMcpAuthAdapter(options: { auth?: BrowserAuth; database: So
       const authHeaders = new Headers(request.headers);
       authHeaders.set("Authorization", `Bearer ${token}`);
       const getMcpSession = (options.auth.api as unknown as { getMcpSession: (input: { headers: Headers; asResponse: false }) => Promise<unknown> }).getMcpSession;
-      const session = await getMcpSession({ headers: authHeaders, asResponse: false });
+      let session: unknown;
+      try {
+        session = await getMcpSession({ headers: authHeaders, asResponse: false });
+      } catch {
+        return { ok: false, response: unauthorized("Invalid or expired token", canonical) };
+      }
       if (!session) return { ok: false, response: unauthorized("Invalid or expired token", canonical) };
-      return { ok: true, token: { accessToken: row.access_token, resource: row.resource, scopes, expiresAt: row.expires_at }, session };
+      const userId = typeof session === "object" && session !== null && "userId" in session && typeof session.userId === "string" ? session.userId : "";
+      if (!userId) return { ok: false, response: unauthorized("Token has no authoritative user", canonical) };
+      let user: { email?: unknown; name?: unknown } | null;
+      try {
+        const context = await options.auth.$context;
+        const internalAdapter = context.internalAdapter as unknown as { findUserById?: (id: string) => Promise<{ email?: unknown; name?: unknown } | null> };
+        user = typeof internalAdapter.findUserById === "function" ? await internalAdapter.findUserById(userId) : null;
+      } catch {
+        user = null;
+      }
+      const email = normalizeEmail(typeof user?.email === "string" ? user.email : "");
+      if (!email) return { ok: false, response: unauthorized("Token user cannot be resolved", canonical) };
+      const displayName = typeof user?.name === "string" && user.name.trim() ? user.name.trim() : email;
+      return { ok: true, token: { accessToken: row.access_token, resource: row.resource, scopes, expiresAt: row.expires_at }, session, principal: { userId, actor: { email, displayName } } };
     }
   };
 }

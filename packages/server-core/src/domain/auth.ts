@@ -16,6 +16,7 @@ export interface RoleResolver {
   resolve(actor: RequestActor): ResolvedActor | null;
 }
 
-export const allowAllRoleResolver: RoleResolver = {
-  resolve: (actor) => ({ email: actor.email, displayName: actor.displayName ?? actor.email, role: "owner" })
+/** The safe default for callers that have not wired admission configuration yet. */
+export const denyAllRoleResolver: RoleResolver = {
+  resolve: () => null
 };

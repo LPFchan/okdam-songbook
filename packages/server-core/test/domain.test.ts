@@ -39,6 +39,11 @@ afterEach(() => {
 });
 
 describe("songbook domain services", () => {
+  it("fails closed when no role resolver is configured", () => {
+    const service = createSongbookService(database);
+    expect(() => service.createSong(owner, songInput())).toThrowError(/로그인 또는 허용된 계정/);
+  });
+
   it("resolves the current role for each protected request", () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
     expect(() => service.createSong(owner, songInput())).not.toThrow();

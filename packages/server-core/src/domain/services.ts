@@ -4,7 +4,7 @@ import type { SongbookDatabase } from "../db/connection.js";
 import { createAuditRepository, createIdempotencyRepository, createPerformanceRepository, createSongRepository, IdempotencyMismatchError, type AuditRepository, type IdempotencyRepository, type PerformanceRepository, type SongRepository } from "../db/repositories.js";
 import { DomainError } from "./errors.js";
 import { requestHash } from "./hash.js";
-import { allowAllRoleResolver, type RequestActor, type ResolvedActor, type RoleResolver } from "./auth.js";
+import { denyAllRoleResolver, type RequestActor, type ResolvedActor, type RoleResolver } from "./auth.js";
 
 export interface ServiceOptions {
   roleResolver?: RoleResolver;
@@ -105,7 +105,7 @@ export function createSongbookService(database: SongbookDatabase, options: Servi
   const performances = options.performanceRepository ?? createPerformanceRepository(database.sqlite);
   const audit = options.auditRepository ?? createAuditRepository(database.sqlite);
   const idempotency = options.idempotencyRepository ?? createIdempotencyRepository(database.sqlite);
-  const roleResolver = options.roleResolver ?? allowAllRoleResolver;
+  const roleResolver = options.roleResolver ?? denyAllRoleResolver;
   const now = options.now ?? (() => new Date().toISOString());
   const idFactory = options.idFactory ?? (() => crypto.randomUUID());
 
