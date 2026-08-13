@@ -1,0 +1,20 @@
+[Unit]
+Description=Songbook SQLite backup
+After=local-fs.target
+ConditionPathExists=/var/lib/songbook/songbook.sqlite
+
+[Service]
+Type=oneshot
+User=songbook
+Group=songbook
+EnvironmentFile=-/etc/songbook/backup.env
+ExecStart=/opt/songbook/scripts/ops/backup-sqlite.sh
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/songbook /var/backups/songbook
+LockPersonality=yes
+RestrictSUIDSGID=yes
+StandardOutput=journal
+StandardError=journal

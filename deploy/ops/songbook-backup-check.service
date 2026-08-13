@@ -1,0 +1,20 @@
+[Unit]
+Description=Check Songbook SQLite backup freshness
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=songbook
+Group=songbook
+EnvironmentFile=-/etc/songbook/backup.env
+ExecStart=/opt/songbook/scripts/ops/check-backup.sh --json
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadOnlyPaths=/var/lib/songbook
+ReadWritePaths=/var/backups/songbook
+LockPersonality=yes
+RestrictSUIDSGID=yes
+StandardOutput=journal
+StandardError=journal

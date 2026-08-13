@@ -1,0 +1,11 @@
+[Unit]
+Description=Check Songbook SQLite backup freshness every 15 minutes
+
+[Timer]
+OnBootSec=10m
+OnUnitActiveSec=15m
+Persistent=true
+Unit=songbook-backup-check.service
+
+[Install]
+WantedBy=timers.target
