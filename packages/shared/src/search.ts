@@ -1,8 +1,8 @@
-import type { Song } from "./schemas";
-import { formatKeyCandidate } from "./key";
-import { getHangulChoseong, includesAllTokens, normalizeNumber, normalizeText } from "./normalize";
-import { performerSearchText, type PerformerId } from "./performers";
-import { isPublicSongStatus } from "./permissions";
+import type { Song } from "./schemas.js";
+import { formatKeyCandidate } from "./key.js";
+import { getHangulChoseong, includesAllTokens, normalizeNumber, normalizeText } from "./normalize.js";
+import { performerSearchText, type PerformerId } from "./performers.js";
+import { isPublicSongStatus } from "./permissions.js";
 
 export type SortKey = "title" | "tjNumber" | "recentAdded" | "recentUpdated" | "recentPerformed" | "performanceCount";
 

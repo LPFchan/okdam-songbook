@@ -10,7 +10,11 @@ coverage/
 apps-script/.clasp.json
 apps/web/.vite/
 apps/web/dist/
+apps/server/dist/
 packages/*/dist/
+packages/*/.output/
+*.sqlite
+*.sqlite-*
+backups/
 work/
 outputs/
-

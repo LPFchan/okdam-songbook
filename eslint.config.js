@@ -51,5 +51,22 @@ export default [
       "no-unused-vars": "off",
       "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }]
     }
+  },
+  {
+    files: ["apps/server/**/*.ts", "packages/server-core/**/*.ts", "packages/songbook-mcp/**/*.ts", "packages/songbook-admin/**/*.ts"],
+    languageOptions: {
+      globals: {
+        Buffer: "readonly",
+        NodeJS: "readonly",
+        console: "readonly",
+        process: "readonly",
+        setImmediate: "readonly",
+        setInterval: "readonly",
+        setTimeout: "readonly",
+        clearImmediate: "readonly",
+        clearInterval: "readonly",
+        clearTimeout: "readonly"
+      }
+    }
   }
 ];

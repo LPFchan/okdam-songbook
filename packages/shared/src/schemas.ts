@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { performerOrder } from "./performers";
+import { performerOrder } from "./performers.js";
 
 export const songStatusSchema = z.enum([
   "active",

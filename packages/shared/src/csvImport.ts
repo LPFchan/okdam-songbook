@@ -1,6 +1,6 @@
-import { parseCsvKey } from "./key";
-import { mergePerformerIds, migratePerformerMemo, normalizePerformerIds } from "./performers";
-import type { KeyCandidate, Song } from "./schemas";
+import { parseCsvKey } from "./key.js";
+import { mergePerformerIds, migratePerformerMemo, normalizePerformerIds } from "./performers.js";
+import type { KeyCandidate, Song } from "./schemas.js";
 
 const GENRE_BY_COUNTRY: Record<string, string> = {
   "한국": "K-POP",

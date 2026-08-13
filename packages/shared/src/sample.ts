@@ -1,7 +1,7 @@
 // AUTO-GENERATED from scripts/import-csv.mjs on 2026-07-01T08:45:05.500Z.
 // Do not edit by hand; rerun the importer to refresh this file with the latest
 // CSV data from /Users/marie/Downloads/개인 페이지 & 공유된 페이지.
-import type { Song } from "./schemas";
+import type { Song } from "./schemas.js";
 
 export const sampleSongs: Song[] = [
   {

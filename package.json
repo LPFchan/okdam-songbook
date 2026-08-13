@@ -2,11 +2,18 @@
   "name": "songbook",
   "private": true,
   "version": "0.1.0",
+  "engines": {
+    "node": ">=22"
+  },
   "type": "module",
   "workspaces": [
     "apps/web",
     "packages/shared",
-    "integrations/chatgpt-proxy"
+    "integrations/chatgpt-proxy",
+    "apps/server",
+    "packages/server-core",
+    "packages/songbook-mcp",
+    "packages/songbook-admin"
   ],
   "scripts": {
     "dev": "npm run dev -w @songbook/web",
@@ -20,6 +27,7 @@
     "@typescript-eslint/parser": "^7.18.0",
     "eslint": "^8.57.1",
     "eslint-plugin-react-hooks": "^4.6.2",
+    "@types/node": "^22.10.2",
     "tsx": "^4.19.2",
     "typescript": "^5.5.4",
     "vitest": "^4.1.9"

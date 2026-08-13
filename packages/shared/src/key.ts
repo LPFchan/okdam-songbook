@@ -1,4 +1,4 @@
-import type { KeyCandidate } from "./schemas";
+import type { KeyCandidate } from "./schemas.js";
 
 export function formatKeyCandidate(candidate?: KeyCandidate | null): string {
   if (!candidate) return "";

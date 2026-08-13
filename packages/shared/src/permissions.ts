@@ -1,4 +1,4 @@
-import type { SongStatus, UserRole } from "./schemas";
+import type { SongStatus, UserRole } from "./schemas.js";
 
 export type PermissionAction =
   | "song:create"
@@ -44,4 +44,3 @@ export function can(role: UserRole | null | undefined, action: PermissionAction)
 export function isPublicSongStatus(status: SongStatus): boolean {
   return status !== "deletion_candidate" && status !== "deleted";
 }
-

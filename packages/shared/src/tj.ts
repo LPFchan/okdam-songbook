@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { songSchema } from "./schemas";
+import { songSchema } from "./schemas.js";
 
 export const tjSearchTypeSchema = z.enum(["all", "title", "artist", "lyricist", "composer", "number", "medley"]);
 export const tjNationSchema = z.enum(["", "KOR", "ENG", "JPN"]);

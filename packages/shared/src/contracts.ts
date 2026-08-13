@@ -1,0 +1,258 @@
+import { z } from "zod";
+import {
+  currentUserSchema,
+  performanceSchema,
+  publicDataSchema,
+  songSchema,
+  userRoleSchema
+} from "./schemas.js";
+import {
+  tjAddResultSchema,
+  tjLookupRequestSchema,
+  tjLookupResultSchema,
+  tjSearchRequestSchema,
+  tjSearchResultSchema,
+  tjSongCandidateSchema
+} from "./tj.js";
+
+/** The public-read policy for the single-origin application. */
+export const publicReadPolicy = "anonymous" as const;
+
+export const apiErrorCodeSchema = z.enum([
+  "BAD_REQUEST",
+  "UNAUTHORIZED",
+  "FORBIDDEN",
+  "NOT_FOUND",
+  "CONFLICT",
+  "DUPLICATE_TJ_NUMBER",
+  "VALIDATION_ERROR",
+  "RATE_LIMITED",
+  "EXTERNAL_API_ERROR",
+  "TJ_UPSTREAM_ERROR",
+  "TJ_PARSER_ERROR",
+  "TJ_RATE_LIMITED",
+  "AI_NOT_CONFIGURED",
+  "SHEET_SCHEMA_ERROR",
+  "INTERNAL_ERROR"
+]);
+
+export const apiErrorContractSchema = z.object({
+  code: apiErrorCodeSchema,
+  message: z.string().min(1),
+  details: z.unknown().nullable().default(null)
+});
+
+export const apiEnvelopeSchema = z.object({
+  ok: z.boolean(),
+  data: z.unknown().nullable(),
+  error: apiErrorContractSchema.nullable(),
+  requestId: z.string().min(1),
+  serverTime: z.string().datetime({ offset: true })
+});
+
+export const apiSuccessSchema = <T extends z.ZodTypeAny>(data: T) => z.object({
+  ok: z.literal(true),
+  data,
+  error: z.null(),
+  requestId: z.string().min(1),
+  serverTime: z.string().datetime({ offset: true })
+});
+
+export const apiFailureSchema = z.object({
+  ok: z.literal(false),
+  data: z.null(),
+  error: apiErrorContractSchema,
+  requestId: z.string().min(1),
+  serverTime: z.string().datetime({ offset: true })
+});
+
+export type ApiErrorCode = z.infer<typeof apiErrorCodeSchema>;
+export type ApiErrorContract = z.infer<typeof apiErrorContractSchema>;
+export type ApiEnvelope = z.infer<typeof apiEnvelopeSchema>;
+
+export const catalogResponseSchema = apiSuccessSchema(publicDataSchema);
+export const currentUserResponseSchema = apiSuccessSchema(currentUserSchema);
+
+export const catalogRouteSchema = z.object({
+  method: z.literal("GET"),
+  path: z.literal("/api/catalog"),
+  authentication: z.literal("anonymous")
+});
+
+export const currentUserRouteSchema = z.object({
+  method: z.literal("GET"),
+  path: z.literal("/api/me"),
+  authentication: z.literal("browser-session")
+});
+
+const protectedBrowserRoute = z.literal("browser-session");
+
+export const performanceCreateRouteSchema = z.object({
+  method: z.literal("POST"),
+  path: z.literal("/api/performances"),
+  authentication: protectedBrowserRoute
+});
+
+export const performanceCancelRouteSchema = z.object({
+  method: z.literal("DELETE"),
+  path: z.literal("/api/performances/:id"),
+  authentication: protectedBrowserRoute
+});
+
+export const songCreateRouteSchema = z.object({
+  method: z.literal("POST"),
+  path: z.literal("/api/songs"),
+  authentication: protectedBrowserRoute
+});
+
+export const songUpdateRouteSchema = z.object({
+  method: z.literal("PATCH"),
+  path: z.literal("/api/songs/:id"),
+  authentication: protectedBrowserRoute
+});
+
+export const songRestoreRouteSchema = z.object({
+  method: z.literal("POST"),
+  path: z.literal("/api/songs/:id/restore"),
+  authentication: z.literal("owner-session")
+});
+
+export const performanceCreateRequestSchema = z.object({
+  songId: z.string().min(1),
+  performedAt: z.string().datetime({ offset: true }).optional(),
+  keySelection: performanceSchema.shape.keySelection,
+  memo: z.string().trim().max(1000).default(""),
+  clientRequestId: z.string().uuid(),
+  expectedVersion: z.number().int().nonnegative().optional()
+});
+
+export const performanceCancelRequestSchema = z.object({
+  performanceId: z.string().min(1),
+  clientRequestId: z.string().uuid(),
+  expectedVersion: z.number().int().nonnegative().optional()
+});
+
+export const songCreateRequestSchema = songSchema.innerType().omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  deletedAt: true,
+  version: true,
+  lastPerformedAt: true,
+  performanceCount: true
+}).extend({
+  clientRequestId: z.string().uuid()
+});
+
+export const songUpdateRequestSchema = songCreateRequestSchema.partial().extend({
+  id: z.string().min(1),
+  expectedVersion: z.number().int().nonnegative(),
+  clientRequestId: z.string().uuid()
+});
+
+export const songRestoreRequestSchema = z.object({
+  songId: z.string().min(1),
+  expectedVersion: z.number().int().nonnegative().optional(),
+  clientRequestId: z.string().uuid()
+});
+
+export const tjLookupRouteSchema = z.object({
+  method: z.literal("POST"),
+  path: z.literal("/api/tj/lookup"),
+  authentication: z.literal("browser-session")
+});
+
+export const tjSearchRouteSchema = z.object({
+  method: z.literal("POST"),
+  path: z.literal("/api/tj/search"),
+  authentication: z.literal("browser-session")
+});
+
+export const tjAddRouteSchema = z.object({
+  method: z.literal("POST"),
+  path: z.literal("/api/tj/add"),
+  authentication: z.literal("editor-session")
+});
+
+export const apiRouteContractSchema = z.discriminatedUnion("path", [
+  catalogRouteSchema,
+  currentUserRouteSchema,
+  performanceCreateRouteSchema,
+  performanceCancelRouteSchema,
+  songCreateRouteSchema,
+  songUpdateRouteSchema,
+  songRestoreRouteSchema,
+  tjLookupRouteSchema,
+  tjSearchRouteSchema,
+  tjAddRouteSchema
+]);
+
+export const apiActionContractSchema = z.object({
+  performanceCreate: performanceCreateRequestSchema,
+  performanceCancel: performanceCancelRequestSchema,
+  songCreate: songCreateRequestSchema,
+  songUpdate: songUpdateRequestSchema,
+  songRestore: songRestoreRequestSchema,
+  tjLookup: tjLookupRequestSchema,
+  tjSearch: tjSearchRequestSchema,
+  tjAdd: z.object({
+    candidate: tjSongCandidateSchema,
+    clientRequestId: z.string().uuid()
+  })
+});
+
+export type PerformanceCreateRequest = z.infer<typeof performanceCreateRequestSchema>;
+export type PerformanceCancelRequest = z.infer<typeof performanceCancelRequestSchema>;
+export type SongCreateRequest = z.infer<typeof songCreateRequestSchema>;
+export type SongUpdateRequest = z.infer<typeof songUpdateRequestSchema>;
+export type SongRestoreRequest = z.infer<typeof songRestoreRequestSchema>;
+
+export const idempotencyKeySchema = z.string().uuid();
+export const expectedVersionSchema = z.number().int().nonnegative();
+export const idempotencyContractSchema = z.object({
+  clientRequestId: idempotencyKeySchema,
+  expectedVersion: expectedVersionSchema.optional()
+});
+
+export const conflictDetailsSchema = z.object({
+  reason: z.enum(["idempotency-replay", "version-mismatch"]),
+  currentVersion: z.number().int().nonnegative().optional(),
+  requestVersion: z.number().int().nonnegative().optional()
+});
+
+export const mcpScopeSchema = z.enum(["songbook:read", "songbook:write", "songbook:admin"]);
+export const mcpScopeSetSchema = z.array(mcpScopeSchema).min(1).transform((scopes) => Array.from(new Set(scopes)));
+export const mcpAudienceSchema = z.literal("songbook-mcp");
+
+export const mcpProtocolRevisionSchema = z.enum(["2025-06-18", "2026-07-28"]);
+export const mcpNegotiationSchema = z.object({
+  requestedRevision: mcpProtocolRevisionSchema,
+  negotiatedRevision: mcpProtocolRevisionSchema,
+  stateless: z.literal(true)
+});
+
+export const bearerMcpMountOptionsSchema = z.object({
+  path: z.literal("/mcp"),
+  audience: mcpAudienceSchema,
+  bearerOnly: z.literal(true),
+  stateless: z.literal(true),
+  validateAudience: z.function().args(z.string()).returns(z.union([z.boolean(), z.promise(z.boolean())]))
+});
+
+export interface BearerMcpMountOptions {
+  path: "/mcp";
+  audience: "songbook-mcp";
+  bearerOnly: true;
+  stateless: true;
+  validateAudience(token: string): boolean | Promise<boolean>;
+}
+
+export type McpScope = z.infer<typeof mcpScopeSchema>;
+export type McpNegotiation = z.infer<typeof mcpNegotiationSchema>;
+export type McpProtocolRevision = z.infer<typeof mcpProtocolRevisionSchema>;
+export type UserRoleContract = z.infer<typeof userRoleSchema>;
+export type CatalogResponse = z.infer<typeof catalogResponseSchema>;
+export type CurrentUserResponse = z.infer<typeof currentUserResponseSchema>;
+export type TjLookupResponse = z.infer<typeof tjLookupResultSchema>;
+export type TjSearchResponse = z.infer<typeof tjSearchResultSchema>;
+export type TjAddResponse = z.infer<typeof tjAddResultSchema>;

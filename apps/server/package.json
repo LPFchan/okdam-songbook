@@ -1,0 +1,27 @@
+{
+  "name": "@songbook/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint \"src/**/*.ts\" \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@better-auth/mcp": "^1.4.17",
+    "@songbook/admin": "file:../../packages/songbook-admin",
+    "@songbook/mcp": "file:../../packages/songbook-mcp",
+    "@songbook/server-core": "file:../../packages/server-core",
+    "@songbook/shared": "file:../../packages/shared",
+    "better-auth": "^1.6.27",
+    "hono": "^4.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.5.4",
+    "vitest": "^4.1.9"
+  }
+}
