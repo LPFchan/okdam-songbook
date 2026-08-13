@@ -454,6 +454,78 @@ mark.hit {
   margin-bottom: 12px;
 }
 
+.tj-tools {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 18px;
+  padding: 12px;
+  background: var(--surface-strong);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.tj-number-field {
+  display: grid;
+  flex: 1;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.tj-number-field input,
+.tj-tools select {
+  min-height: 40px;
+  padding: 8px 10px;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.tj-results {
+  display: grid;
+  gap: 8px;
+}
+
+.tj-restore-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.tj-result-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 6px 10px;
+  align-items: center;
+  padding: 10px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.tj-result-row strong,
+.tj-result-row small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tj-result-row small,
+.tj-result-row em {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.tj-result-row a {
+  color: var(--primary);
+  font-size: 0.82rem;
+}
+
 .admin-form-panel {
   padding-bottom: 76px;
 }
@@ -935,6 +1007,23 @@ pre {
 }
 
 @media (max-width: 430px) {
+  .tj-tools .inline-form {
+    flex-wrap: wrap;
+  }
+
+  .tj-result-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .tj-result-row small {
+    grid-column: 2 / -1;
+  }
+
+  .tj-result-row a,
+  .tj-result-row button {
+    grid-column: 1 / -1;
+  }
+
   .song-card {
     grid-template-columns: 1fr 34px;
     grid-template-areas:

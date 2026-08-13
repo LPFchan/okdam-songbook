@@ -1,7 +1,28 @@
-import { publicDataSchema, sampleSongs, type CurrentUser, type PublicData, type Song } from "@songbook/shared";
+import {
+  publicDataSchema,
+  sampleSongs,
+  songSchema,
+  tjAddResultSchema,
+  tjLookupResultSchema,
+  tjSearchResultSchema,
+  type CurrentUser,
+  type PublicData,
+  type Song,
+  type TjAddResult,
+  type TjSongCandidate,
+  type TjLookupRequest,
+  type TjLookupResult,
+  type TjSearchRequest,
+  type TjSearchResult
+} from "@songbook/shared";
 import { betterAuthApiUrl, betterAuthConfigured, getBetterAuthSession } from "./auth/client";
 
 const apiUrl = import.meta.env.VITE_APPS_SCRIPT_API_URL as string | undefined;
+const mockTjAdds = new Map<string, TjAddResult>();
+
+function normalizeTjDuplicateText(value: string): string {
+  return value.normalize("NFKC").toLocaleLowerCase().replace(/[\s\p{P}\p{S}]+/gu, "");
+}
 function readMockMode(): boolean {
   return (import.meta.env.VITE_ENABLE_MOCK_API ?? "true") === "true";
 }
@@ -11,7 +32,7 @@ export function mockMode(): boolean {
   return readMockMode();
 }
 export function productionMisconfigured(): boolean {
-  return !readMockMode() && !apiUrl;
+  return !readMockMode() && !apiUrl && !betterAuthConfigured();
 }
 
 function missingApiUrl(): never {
@@ -169,6 +190,102 @@ export async function upsertSong(song: Partial<Song>, idToken: string, clientReq
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify({ idToken, song, clientRequestId: encodeClientRequestId(clientRequestId) })
+  });
+  return parseWriteResponse(response, (data) => songSchema.parse(data));
+}
+
+export async function lookupTjSong(input: TjLookupRequest, idToken: string): Promise<TjLookupResult> {
+  if (mockMode()) {
+    const candidate = sampleSongs.find((song) => song.tjNumber === input.tjNumber);
+    return tjLookupResultSchema.parse({
+      query: input.tjNumber,
+      candidate: candidate ? { tjNumber: candidate.tjNumber, title: candidate.title, artist: candidate.artist, lyricist: "", composer: "", sourceUrl: `https://www.tjmedia.com/song/accompaniment_search?searchTxt=${candidate.tjNumber}` } : null,
+      candidates: candidate ? [{ tjNumber: candidate.tjNumber, title: candidate.title, artist: candidate.artist, lyricist: "", composer: "", sourceUrl: `https://www.tjmedia.com/song/accompaniment_search?searchTxt=${candidate.tjNumber}` }] : [],
+      sourceUrl: "https://www.tjmedia.com/song/accompaniment_search"
+    });
+  }
+  if (betterAuthConfigured()) return protectedBrowserAction("lookupTjSong", input) as Promise<TjLookupResult>;
+  if (productionMisconfigured()) missingApiUrl();
+  const response = await fetch(`${apiUrl}?action=lookupTjSong`, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ idToken, ...input })
+  });
+  return parseWriteResponse(response, (data) => tjLookupResultSchema.parse(data));
+}
+
+export async function searchTjSongs(input: TjSearchRequest, idToken: string): Promise<TjSearchResult> {
+  if (mockMode()) {
+    const query = input.query.toLocaleLowerCase();
+    const candidates = sampleSongs.filter((song) => `${song.title} ${song.artist}`.toLocaleLowerCase().includes(query)).map((song) => ({
+      tjNumber: song.tjNumber,
+      title: song.title,
+      artist: song.artist,
+      lyricist: "",
+      composer: "",
+      sourceUrl: `https://www.tjmedia.com/song/accompaniment_search?searchTxt=${encodeURIComponent(input.query)}`
+    }));
+    return tjSearchResultSchema.parse({ query: input.query, searchType: input.searchType ?? "all", nation: input.nation ?? "", page: input.page ?? 1, pageSize: input.pageSize ?? 15, hasMore: false, candidates, sourceUrl: "https://www.tjmedia.com/song/accompaniment_search" });
+  }
+  if (betterAuthConfigured()) return protectedBrowserAction("searchTjSongs", input) as Promise<TjSearchResult>;
+  if (productionMisconfigured()) missingApiUrl();
+  const response = await fetch(`${apiUrl}?action=searchTjSongs`, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ idToken, ...input })
+  });
+  return parseWriteResponse(response, (data) => tjSearchResultSchema.parse(data));
+}
+
+export async function addTjSong(candidate: TjSongCandidate, idToken: string, clientRequestId: string): Promise<TjAddResult> {
+  if (mockMode()) {
+    const replay = mockTjAdds.get(clientRequestId);
+    if (replay) return replay;
+    const duplicate = sampleSongs.find((song) => song.tjNumber === candidate.tjNumber || (
+      normalizeTjDuplicateText(song.title) === normalizeTjDuplicateText(candidate.title)
+      && normalizeTjDuplicateText(song.artist) === normalizeTjDuplicateText(candidate.artist)
+    ));
+    if (duplicate) {
+      const result = tjAddResultSchema.parse({ outcome: duplicate.status === "deleted" ? "deleted" : "duplicate", song: null, existing: duplicate, duplicateKind: duplicate.tjNumber === candidate.tjNumber ? "tjNumber" : "titleArtist", canRestore: false, canOpen: true });
+      mockTjAdds.set(clientRequestId, result);
+      return result;
+    }
+    const song = await upsertSong({
+      tjNumber: candidate.tjNumber,
+      title: candidate.title,
+      artist: candidate.artist,
+      status: "active",
+      country: "",
+      performerIds: [],
+      sourceType: "tjmedia",
+      sourceReference: candidate.sourceUrl
+    }, idToken, clientRequestId);
+    const result = tjAddResultSchema.parse({ outcome: "created", song, existing: null, duplicateKind: null, canRestore: false, canOpen: true });
+    mockTjAdds.set(clientRequestId, result);
+    return result;
+  }
+  if (betterAuthConfigured()) return protectedBrowserAction("addTjSong", { candidate, clientRequestId: encodeClientRequestId(clientRequestId) }) as Promise<TjAddResult>;
+  if (productionMisconfigured()) missingApiUrl();
+  const response = await fetch(`${apiUrl}?action=addTjSong`, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ idToken, candidate, clientRequestId: encodeClientRequestId(clientRequestId) })
+  });
+  return parseWriteResponse(response, (data) => tjAddResultSchema.parse(data));
+}
+
+export async function restoreSong(songId: string, idToken: string, clientRequestId: string): Promise<Song> {
+  if (mockMode()) {
+    const existing = sampleSongs.find((song) => song.id === songId);
+    if (!existing) throw new Error("복구할 곡을 찾지 못했어.");
+    return { ...existing, status: "active" };
+  }
+  if (betterAuthConfigured()) return protectedBrowserAction("restoreSong", { songId, clientRequestId: encodeClientRequestId(clientRequestId) }) as Promise<Song>;
+  if (productionMisconfigured()) missingApiUrl();
+  const response = await fetch(`${apiUrl}?action=restoreSong`, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ idToken, songId, clientRequestId: encodeClientRequestId(clientRequestId) })
   });
   return parseWriteResponse(response, (data) => data as Song);
 }

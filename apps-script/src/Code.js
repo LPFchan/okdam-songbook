@@ -103,6 +103,10 @@ function routeRequest(e, method) {
     if (action === "createPerformance") return jsonResponse(ok(createPerformance(body, e), requestId));
     if (action === "cancelPerformance") return jsonResponse(ok(cancelPerformance(body, e), requestId));
     if (action === "upsertSong") return jsonResponse(ok(upsertSong(body, requestId, e), requestId));
+    if (action === "lookupTjSong") return jsonResponse(ok(lookupTjSong(body, e), requestId));
+    if (action === "searchTjSongs") return jsonResponse(ok(searchTjSongs(body, e), requestId));
+    if (action === "addTjSong") return jsonResponse(ok(addTjSong(body, requestId, e), requestId));
+    if (action === "restoreSong") return jsonResponse(ok(restoreSong(body, e), requestId));
     if (action === "analyzeYouTube") return jsonResponse(ok(analyzeYouTube(body, e), requestId));
     if (action === "generateReading") return jsonResponse(ok(generateReading(body, e), requestId));
     if (action === "schema") return jsonResponse(ok(validateSpreadsheetSchema(), requestId));
@@ -704,11 +708,233 @@ function verifyGoogleIdToken(idToken) {
 
 function requirePermission(user, action) {
   const ownerOnly = ["song:softDelete", "song:restore", "song:hardDelete", "changeLog:restore", "settings:read"];
-  const editorAllowed = ["song:create", "song:update", "song:markDeletionCandidate", "performance:create", "performance:cancel", "changeLog:read", "csv:export"];
+  const editorAllowed = ["song:create", "song:update", "song:markDeletionCandidate", "performance:create", "performance:cancel", "changeLog:read", "csv:export", "tj:read"];
   if (user.role === "owner") return;
   if (ownerOnly.indexOf(action) !== -1 || editorAllowed.indexOf(action) === -1) {
     throw publicError("FORBIDDEN", "이 작업을 수행할 권한이 없어.");
   }
+}
+
+const TJ_HOST = "https://www.tjmedia.com";
+const TJ_SEARCH_PATH = "/song/accompaniment_search";
+const TJ_SEARCH_TYPES = { all: "0", title: "1", artist: "2", lyricist: "4", composer: "8", number: "16", medley: "32" };
+const TJ_NATIONS = ["", "KOR", "ENG", "JPN"];
+
+function tjRequest(body, lookup) {
+  const input = body || {};
+  const rawNumber = String(input.tjNumber || "").trim();
+  const query = lookup ? rawNumber : String(input.query || "").trim();
+  if (lookup && !/^\d{1,8}$/.test(query)) throw publicError("VALIDATION_ERROR", "TJ 번호는 숫자 1~8자리로 입력해줘.");
+  if (!lookup && (!query || query.length > 120)) throw publicError("VALIDATION_ERROR", "TJ 검색어를 1~120자로 입력해줘.");
+  const nation = String(input.nation || "");
+  if (TJ_NATIONS.indexOf(nation) === -1) throw publicError("VALIDATION_ERROR", "지원하지 않는 TJ 국가 필터야.");
+  const searchType = lookup ? "number" : String(input.searchType || "all");
+  if (!TJ_SEARCH_TYPES[searchType]) throw publicError("VALIDATION_ERROR", "지원하지 않는 TJ 검색 방식이야.");
+  const pageValue = input.page === undefined ? 1 : Number(input.page);
+  const pageSizeValue = input.pageSize === undefined ? 15 : Number(input.pageSize);
+  if (!Number.isInteger(pageValue) || !Number.isInteger(pageSizeValue)) throw publicError("VALIDATION_ERROR", "TJ 페이지 값이 올바르지 않아.");
+  const page = lookup ? 1 : Math.max(1, Math.min(10, pageValue));
+  const pageSize = Math.max(1, Math.min(30, pageSizeValue));
+  const sourceUrl = TJ_HOST + TJ_SEARCH_PATH;
+  const params = [
+    "pageNo=" + encodeURIComponent(page),
+    "pageRowCnt=" + encodeURIComponent(pageSize),
+    "strSotrGubun=ASC",
+    "strSortType=" + encodeURIComponent(lookup ? "pro" : ""),
+    "nationType=" + encodeURIComponent(nation),
+    "strType=" + encodeURIComponent(TJ_SEARCH_TYPES[searchType]),
+    "searchTxt=" + encodeURIComponent(query.replace(/\s/g, "")),
+    "strWord=Y"
+  ];
+  return { query, nation, searchType, page, pageSize, url: sourceUrl + "?" + params.join("&"), sourceUrl };
+}
+
+function tjText(value) {
+  return String(value || "")
+    .replace(/&#x([\da-f]+);/gi, function (_, code) { return String.fromCodePoint(parseInt(code, 16)); })
+    .replace(/&#(\d+);/g, function (_, code) { return String.fromCodePoint(Number(code)); })
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/[\u00a0\t\r\n ]+/g, " ")
+    .trim();
+}
+
+function tjFirstText(row, pattern) {
+  const match = pattern.exec(row);
+  return match ? tjText(match[1]) : "";
+}
+
+function tjTitleText(row) {
+  const match = /<li\b[^>]*\btitle3\b[^>]*>([\s\S]*?)(?=<li\b[^>]*\btitle4\b)/i.exec(row);
+  if (!match) return "";
+  const values = [];
+  const pattern = /<p\b[^>]*>([\s\S]*?)<\/p>/gi;
+  let value;
+  while ((value = pattern.exec(match[1]))) {
+    const cleaned = tjText(value[1]);
+    if (cleaned) values.push(cleaned);
+  }
+  return values.length ? values[values.length - 1] : "";
+}
+
+function parseTjHtml(html, sourceUrl) {
+  const text = String(html || "");
+  if (/검색\s*결과를\s*찾을\s*수\s*없습니다/.test(text)) return [];
+  const rows = [];
+  const rowPattern = /<ul\b[^>]*class\s*=\s*["'][^"']*\bgrid-container\b[^"']*\blist\b[^"']*["'][^>]*>[\s\S]*?<\/ul>\s*<\/li>/gi;
+  let match;
+  while ((match = rowPattern.exec(text))) rows.push(match[0]);
+  const candidates = rows.map(function (row) {
+    return {
+      tjNumber: tjFirstText(row, /class\s*=\s*["'][^"']*\bnum2\b[^"']*["'][^>]*>([\s\S]*?)<\/span>/i).replace(/\D/g, ""),
+      title: tjTitleText(row),
+      artist: tjFirstText(row, /class\s*=\s*["'][^"']*\btitle4\b[^"']*\bsinger\b[^"']*[\s\S]*?<p\b[^>]*>([\s\S]*?)<\/p>/i),
+      lyricist: tjFirstText(row, /class\s*=\s*["'][^"']*\btitle5\b[^"']*[\s\S]*?<p\b[^>]*>([\s\S]*?)<\/p>/i),
+      composer: tjFirstText(row, /class\s*=\s*["'][^"']*\btitle6\b[^"']*[\s\S]*?<p\b[^>]*>([\s\S]*?)<\/p>/i),
+      sourceUrl: sourceUrl
+    };
+  }).filter(function (candidate) { return candidate.tjNumber && candidate.title && candidate.artist; });
+  const seen = {};
+  const unique = candidates.filter(function (candidate) {
+    if (seen[candidate.tjNumber]) return false;
+    seen[candidate.tjNumber] = true;
+    return true;
+  });
+  if (!unique.length && !/<ul\b[^>]*\bgrid-container\b/i.test(text)) throw publicError("TJ_PARSER_ERROR", "TJ 검색 결과 형식이 바뀌었어.");
+  return unique;
+}
+
+function fetchTjPage(request) {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = "tj:" + simpleHash(request.url);
+  const cached = cache.get(cacheKey);
+  if (cached) return JSON.parse(cached);
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) throw publicError("TJ_RATE_LIMITED", "TJ 검색이 잠시 몰리고 있어. 잠깐 후 다시 시도해줘.");
+  try {
+    const last = Number(PropertiesService.getScriptProperties().getProperty("TJ_LAST_FETCH_MS") || 0);
+    if (Date.now() - last < 500) throw publicError("TJ_RATE_LIMITED", "TJ 검색을 너무 자주 요청했어. 잠깐 후 다시 시도해줘.");
+    PropertiesService.getScriptProperties().setProperty("TJ_LAST_FETCH_MS", String(Date.now()));
+    const response = UrlFetchApp.fetch(request.url, { method: "get", muteHttpExceptions: true, followRedirects: true });
+    const status = response.getResponseCode();
+    if (status >= 300) throw publicError("TJ_UPSTREAM_ERROR", "TJ 검색 서버가 응답하지 않았어.");
+    const html = response.getContentText();
+    const candidates = parseTjHtml(html, request.url);
+    const result = { candidates, hasMore: /class\s*=\s*["'][^"']*\bmore-btn\b/i.test(html) };
+    cache.put(cacheKey, JSON.stringify(result), 30);
+    return result;
+  } catch (error) {
+    if (error && error.code) throw error;
+    throw publicError("TJ_UPSTREAM_ERROR", "TJ 검색을 불러오지 못했어.");
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function lookupTjSong(body, e) {
+  const user = requireRequestUser(body, e);
+  requirePermission(user, "tj:read");
+  const request = tjRequest(body, true);
+  const result = fetchTjPage(request);
+  const exact = result.candidates.filter(function (candidate) { return candidate.tjNumber === request.query; });
+  return { query: request.query, candidate: exact.length === 1 ? exact[0] : null, candidates: exact, sourceUrl: request.url };
+}
+
+function searchTjSongs(body, e) {
+  const user = requireRequestUser(body, e);
+  requirePermission(user, "tj:read");
+  const request = tjRequest(body, false);
+  const result = fetchTjPage(request);
+  return { query: request.query, searchType: request.searchType, nation: request.nation, page: request.page, pageSize: request.pageSize, hasMore: result.hasMore, candidates: result.candidates, sourceUrl: request.url };
+}
+
+function normalizedTjDuplicateText(value) {
+  return String(value || "").normalize("NFKC").toLowerCase().replace(/[\s\p{P}\p{S}]+/gu, "");
+}
+
+function addTjSong(body, requestId, e) {
+  const user = requireRequestUser(body, e);
+  requirePermission(user, "song:create");
+  const candidate = body.candidate || {};
+  const number = normalizeTjNumber(candidate.tjNumber);
+  const title = String(candidate.title || "").trim();
+  const artist = String(candidate.artist || "").trim();
+  const sourceUrl = String(candidate.sourceUrl || "");
+  if (!/^\d{1,8}$/.test(number) || !title || !artist || !new RegExp("^" + TJ_HOST.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + TJ_SEARCH_PATH.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?:\\?|$)").test(sourceUrl)) {
+    throw publicError("VALIDATION_ERROR", "TJ 후보가 올바르지 않아.");
+  }
+  return withScriptLock(function () {
+    const clientRequestId = String(body.clientRequestId || Utilities.getUuid());
+    const replay = findChangeByClientRequestId(clientRequestId);
+    if (replay && replay.afterJson) {
+      const replayRow = JSON.parse(replay.afterJson);
+      return { outcome: "created", song: serializeSong(replayRow, performanceStats()), existing: null, duplicateKind: null, canRestore: false, canOpen: true };
+    }
+    const table = readTable("Songs");
+    const numberDuplicate = table.rows.find(function (row) { return String(row.values.tjNumber || "") === number; });
+    const titleKey = normalizedTjDuplicateText(title);
+    const artistKey = normalizedTjDuplicateText(artist);
+    const textDuplicate = table.rows.find(function (row) {
+      return normalizedTjDuplicateText(row.values.title) === titleKey && normalizedTjDuplicateText(row.values.artist) === artistKey;
+    });
+    const duplicate = numberDuplicate || textDuplicate;
+    if (duplicate) {
+      const existing = serializeSong(duplicate.values, performanceStats());
+      if (String(duplicate.values.status || "") === "deleted") return { outcome: "deleted", song: null, existing: existing, duplicateKind: numberDuplicate ? "tjNumber" : "titleArtist", canRestore: user.role === "owner", canOpen: true };
+      return { outcome: "duplicate", song: null, existing: existing, duplicateKind: numberDuplicate ? "tjNumber" : "titleArtist", canRestore: false, canOpen: true };
+    }
+    const incoming = normalizeSongInput({ tjNumber: number, title: title, artist: artist, status: "active", country: "", performerIds: [], sourceType: "tjmedia", sourceReference: sourceUrl });
+    const row = Object.assign(incoming, {
+      id: Utilities.getUuid(),
+      createdByEmail: user.email,
+      createdByName: user.displayName,
+      createdAt: new Date().toISOString(),
+      updatedByEmail: user.email,
+      updatedByName: user.displayName,
+      updatedAt: new Date().toISOString(),
+      deletedAt: "",
+      deletedByEmail: "",
+      version: 1
+    });
+    appendRows("Songs", [row]);
+    appendChange("Song", row.id, "create", null, row, user, clientRequestId, 0, 1);
+    return { outcome: "created", song: serializeSong(row, performanceStats()), existing: null, duplicateKind: null, canRestore: false, canOpen: true };
+  });
+}
+
+function restoreSong(body, e) {
+  const user = requireRequestUser(body, e);
+  requirePermission(user, "song:restore");
+  const songId = String(body.songId || "");
+  if (!songId) throw publicError("BAD_REQUEST", "복구할 곡 ID가 필요해.");
+  return withScriptLock(function () {
+    const clientRequestId = String(body.clientRequestId || Utilities.getUuid());
+    const replay = findChangeByClientRequestId(clientRequestId);
+    if (replay && replay.afterJson) return serializeSong(JSON.parse(replay.afterJson), performanceStats());
+    const table = readTable("Songs");
+    const target = table.rows.find(function (entry) { return String(entry.values.id || "") === songId; });
+    if (!target) throw publicError("NOT_FOUND", "복구할 곡을 찾지 못했어.");
+    if (String(target.values.status || "") !== "deleted") return serializeSong(target.values, performanceStats());
+    preventDuplicateTj(table.rows, Object.assign({}, target.values, { tjNumber: String(target.values.tjNumber || "") }), songId);
+    const before = Object.assign({}, target.values);
+    const next = Object.assign({}, target.values, {
+      status: "active",
+      deletedAt: "",
+      deletedByEmail: "",
+      updatedByEmail: user.email,
+      updatedByName: user.displayName,
+      updatedAt: new Date().toISOString(),
+      version: Number(target.values.version || 1) + 1
+    });
+    updateRow("Songs", target.rowNumber, next);
+    appendChange("Song", songId, "restore", before, next, user, clientRequestId, Number(before.version || 1), next.version);
+    return serializeSong(next, performanceStats());
+  });
 }
 
 function createPerformance(body, e) {

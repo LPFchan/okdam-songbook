@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useSearchParams } from "react-router-dom";
-import { Download, FileJson, Image, ListMusic, LogIn, Upload, Wand2, Youtube } from "lucide-react";
-import type { PerformerId, Song } from "@songbook/shared";
+import { Download, FileJson, Image, ListMusic, LogIn, Search, Upload, Wand2, Youtube } from "lucide-react";
+import type { PerformerId, Song, TjSearchType, TjSongCandidate } from "@songbook/shared";
 import { can, performerOrder, performers, sampleSongs } from "@songbook/shared";
-import { analyzeYouTube, fetchPublicData, generateReading, isApiAuthError, mockMode, upsertSong } from "../lib/api";
+import { addTjSong, analyzeYouTube, fetchPublicData, generateReading, isApiAuthError, lookupTjSong, mockMode, restoreSong, searchTjSongs, upsertSong } from "../lib/api";
 import { useAuth, AuthRequiredError } from "../lib/auth/AuthContext";
 
 const googleScriptSrc = "https://accounts.google.com/gsi/client";
 
 type AdminTab = "add" | "songs" | "history" | "settings";
+
+function tjCandidateKey(candidate: TjSongCandidate): string {
+  return `${candidate.tjNumber}:${candidate.title}:${candidate.artist}`;
+}
 
 const tabs: Array<{ id: AdminTab; label: string }> = [
   { id: "add", label: "곡 추가" },
@@ -50,6 +54,17 @@ export function AdminPage() {
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [songs, setSongs] = useState<Song[]>(() => (mockMode() ? sampleSongs : []));
   const [songsError, setSongsError] = useState("");
+  const [tjLookupLoading, setTjLookupLoading] = useState(false);
+  const [tjLookupMessage, setTjLookupMessage] = useState("");
+  const [tjSearchQuery, setTjSearchQuery] = useState("");
+  const [tjSearchType, setTjSearchType] = useState<TjSearchType>("all");
+  const [tjSearchLoading, setTjSearchLoading] = useState(false);
+  const [tjSearchMessage, setTjSearchMessage] = useState("");
+  const [tjCandidates, setTjCandidates] = useState<TjSongCandidate[]>([]);
+  const [tjAddPending, setTjAddPending] = useState<Record<string, boolean>>({});
+  const [tjAddRequestIds, setTjAddRequestIds] = useState<Record<string, string>>({});
+  const [tjRestoreCandidate, setTjRestoreCandidate] = useState<Song | null>(null);
+  const [tjRestorePending, setTjRestorePending] = useState(false);
 
   useEffect(() => {
     if (mockMode()) return;
@@ -149,6 +164,106 @@ export function AdminPage() {
     } catch (error) {
       handleAuthError(error);
       throw error;
+    }
+  }
+
+  async function lookupTjNumber() {
+    const tjNumber = String(draft.tjNumber || "").replace(/\D/g, "");
+    if (!tjNumber) {
+      setTjLookupMessage("TJ 번호를 입력해줘.");
+      return;
+    }
+    let idToken: string;
+    try { idToken = await requireWriteCredential(); } catch { return; }
+    setTjLookupLoading(true);
+    setTjLookupMessage("");
+    try {
+      const result = await lookupTjSong({ tjNumber, nation: "", pageSize: 15 }, idToken);
+      if (!result.candidate) {
+        setTjLookupMessage(result.candidates.length > 1 ? "같은 번호의 결과가 여러 개라 직접 골라줘." : "TJ에서 해당 번호를 찾지 못했어. 아래 수동 입력을 계속 사용할 수 있어.");
+        return;
+      }
+      const candidate = result.candidate;
+      setDraft((previous) => ({
+        ...previous,
+        tjNumber: candidate.tjNumber,
+        title: previous.title?.trim() ? previous.title : candidate.title,
+        artist: previous.artist?.trim() ? previous.artist : candidate.artist,
+        sourceType: "tjmedia",
+        sourceReference: candidate.sourceUrl
+      }));
+      setTjLookupMessage("TJ 후보를 채웠어. 저장 전에 자유롭게 고쳐도 돼.");
+    } catch (error) {
+      if (!handleAuthError(error)) setTjLookupMessage(error instanceof Error ? error.message : "TJ 조회에 실패했어. 수동 입력을 사용해줘.");
+    } finally {
+      setTjLookupLoading(false);
+    }
+  }
+
+  async function runTjSearch() {
+    if (!tjSearchQuery.trim()) {
+      setTjSearchMessage("검색어를 입력해줘.");
+      return;
+    }
+    let idToken: string;
+    try { idToken = await requireWriteCredential(); } catch { return; }
+    setTjSearchLoading(true);
+    setTjSearchMessage("");
+    try {
+      const result = await searchTjSongs({ query: tjSearchQuery, searchType: tjSearchType, nation: "", page: 1, pageSize: 15 }, idToken);
+      setTjCandidates(result.candidates);
+      setTjSearchMessage(result.candidates.length ? `${result.candidates.length}개 결과를 찾았어.` : "검색 결과가 없어. 수동 입력을 계속 사용할 수 있어.");
+    } catch (error) {
+      if (!handleAuthError(error)) setTjSearchMessage(error instanceof Error ? error.message : "TJ 검색에 실패했어. 수동 입력을 사용해줘.");
+      setTjCandidates([]);
+    } finally {
+      setTjSearchLoading(false);
+    }
+  }
+
+  async function addTjCandidate(candidate: TjSongCandidate) {
+    const key = tjCandidateKey(candidate);
+    if (tjAddPending[key]) return;
+    let idToken: string;
+    try { idToken = await requireWriteCredential(); } catch { return; }
+    const requestId = tjAddRequestIds[key] || crypto.randomUUID();
+    if (!tjAddRequestIds[key]) setTjAddRequestIds((previous) => ({ ...previous, [key]: requestId }));
+    setTjAddPending((previous) => ({ ...previous, [key]: true }));
+    try {
+      const result = await addTjSong(candidate, idToken, requestId);
+      if (result.outcome === "created" && result.song) {
+        const saved = result.song as Song;
+        setSongs((previous) => [...previous.filter((song) => song.id !== saved.id), saved]);
+        setDraft(saved);
+        setMessage("곡을 바로 추가했어. 필요하면 아래 폼에서 이어서 편집해줘.");
+      } else if (result.existing) {
+        const existing = result.existing as Song;
+        setDraft(existing);
+        setTjRestoreCandidate(result.outcome === "deleted" ? existing : null);
+        setMessage(result.outcome === "deleted" ? "삭제된 같은 곡이 있어. 기존 곡을 열어 복구 여부를 확인해줘." : "같은 TJ 번호 또는 제목·아티스트의 곡이 이미 있어. 덮어쓰지 않았어.");
+      }
+    } catch (error) {
+      if (!handleAuthError(error)) setMessage(error instanceof Error ? error.message : "곡 추가에 실패했어. 다시 눌러도 안전해.");
+    } finally {
+      setTjAddPending((previous) => ({ ...previous, [key]: false }));
+    }
+  }
+
+  async function restoreTjCandidate() {
+    if (!tjRestoreCandidate || tjRestorePending) return;
+    let idToken: string;
+    try { idToken = await requireWriteCredential(); } catch { return; }
+    setTjRestorePending(true);
+    try {
+      const restored = await restoreSong(tjRestoreCandidate.id, idToken, crypto.randomUUID());
+      setSongs((previous) => [...previous.filter((song) => song.id !== restored.id), restored]);
+      setDraft(restored);
+      setTjRestoreCandidate(null);
+      setMessage("기존 곡을 복구했어.");
+    } catch (error) {
+      if (!handleAuthError(error)) setMessage(error instanceof Error ? error.message : "곡 복구에 실패했어.");
+    } finally {
+      setTjRestorePending(false);
     }
   }
 
@@ -285,6 +400,34 @@ export function AdminPage() {
           <div className="inline-form import-row">
             <input value={youtubeUrl} onChange={(event) => setYoutubeUrl(event.target.value)} placeholder="https://youtu.be/... 후보 가져오기" />
           </div>
+          <section className="tj-tools" aria-label="TJ 검색">
+            <div className="inline-form">
+              <label className="tj-number-field">
+                TJ 번호 자동 조회
+                <input value={draft.tjNumber ?? ""} onChange={(event) => setDraft((prev) => ({ ...prev, tjNumber: event.target.value }))} inputMode="numeric" />
+              </label>
+              <button type="button" className="secondary-button" disabled={!auth.user || tjLookupLoading} onClick={() => void lookupTjNumber()}>{tjLookupLoading ? "조회 중…" : "번호 조회"}</button>
+            </div>
+            {tjLookupMessage ? <p className="hint">{tjLookupMessage}</p> : null}
+            <div className="inline-form">
+              <input value={tjSearchQuery} onChange={(event) => setTjSearchQuery(event.target.value)} placeholder="TJ 곡명·가수 검색 (Unicode 가능)" />
+              <select aria-label="TJ 검색 방식" value={tjSearchType} onChange={(event) => setTjSearchType(event.target.value as TjSearchType)}>
+                <option value="all">통합</option><option value="title">곡명</option><option value="artist">가수</option><option value="number">번호</option>
+              </select>
+              <button type="button" className="secondary-button" disabled={!auth.user || tjSearchLoading} onClick={() => void runTjSearch()}><Search size={17} />{tjSearchLoading ? "검색 중…" : "TJ 검색"}</button>
+            </div>
+            {tjSearchMessage ? <p className="hint">{tjSearchMessage}</p> : null}
+            {tjRestoreCandidate ? <div className="tj-restore-action"><span>삭제된 곡: {tjRestoreCandidate.title}</span>{auth.user?.role === "owner" ? <button type="button" className="secondary-button" disabled={tjRestorePending} onClick={() => void restoreTjCandidate()}>{tjRestorePending ? "복구 중…" : "기존 곡 복구"}</button> : <span className="hint">기존 곡을 열었어. 복구는 소유자만 할 수 있어.</span>}</div> : null}
+            {tjCandidates.length ? <div className="tj-results" aria-label="TJ 검색 결과">{tjCandidates.map((candidate) => {
+              const duplicate = songs.find((song) => song.tjNumber === candidate.tjNumber || (song.title.trim().toLocaleLowerCase() === candidate.title.trim().toLocaleLowerCase() && song.artist.trim().toLocaleLowerCase() === candidate.artist.trim().toLocaleLowerCase()));
+              return <div className="tj-result-row" key={candidate.tjNumber}>
+                <span>{candidate.tjNumber}</span><strong>{candidate.title}</strong><small>{candidate.artist}</small>
+                {duplicate ? <em>{duplicate.status === "deleted" ? "삭제됨" : "이미 있음"}</em> : null}
+                <a href={candidate.sourceUrl} target="_blank" rel="noreferrer">TJ 원본</a>
+                <button type="button" className="secondary-button" disabled={Boolean(tjAddPending[tjCandidateKey(candidate)])} onClick={() => void addTjCandidate(candidate)}>{tjAddPending[tjCandidateKey(candidate)] ? "추가 중…" : duplicate ? "기존 곡 열기" : "바로 추가"}</button>
+              </div>;
+            })}</div> : null}
+          </section>
           <div className="form-grid">
             <label>
               TJ 번호

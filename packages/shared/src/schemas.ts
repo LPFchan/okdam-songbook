@@ -100,6 +100,9 @@ export const apiErrorSchema = z.object({
     "RATE_LIMITED",
     "AI_NOT_CONFIGURED",
     "EXTERNAL_API_ERROR",
+    "TJ_UPSTREAM_ERROR",
+    "TJ_PARSER_ERROR",
+    "TJ_RATE_LIMITED",
     "SHEET_SCHEMA_ERROR",
     "INTERNAL_ERROR"
   ]),
