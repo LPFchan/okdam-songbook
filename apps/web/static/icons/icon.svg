@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Songbook">
-  <rect width="512" height="512" rx="96" fill="#3f5fb7"/>
-  <path d="M145 132h222v248H145z" fill="#fff"/>
-  <path d="M185 190h142M185 244h142M185 298h92" stroke="#3f5fb7" stroke-width="28" stroke-linecap="round"/>
-</svg>
-

@@ -8,7 +8,7 @@ function pwaPlugin(base: string) {
     registerType: "prompt",
     scope: base,
     base,
-    includeAssets: ["robots.txt", "icons/icon.svg"],
+    includeAssets: ["robots.txt", "icons/*.png"],
     manifest: {
       name: "Songbook",
       short_name: "Songbook",
@@ -20,10 +20,22 @@ function pwaPlugin(base: string) {
       theme_color: "#3f5fb7",
       icons: [
         {
-          src: `${base}icons/icon.svg`,
-          sizes: "any",
-          type: "image/svg+xml",
-          purpose: "any maskable"
+          src: `${base}icons/icon-192.png`,
+          sizes: "192x192",
+          type: "image/png",
+          purpose: "any"
+        },
+        {
+          src: `${base}icons/icon-512.png`,
+          sizes: "512x512",
+          type: "image/png",
+          purpose: "any"
+        },
+        {
+          src: `${base}icons/icon-maskable-512.png`,
+          sizes: "512x512",
+          type: "image/png",
+          purpose: "maskable"
         }
       ]
     },
