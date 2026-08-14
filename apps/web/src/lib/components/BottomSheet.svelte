@@ -257,13 +257,19 @@
       // Stay out of the way until the gesture is clearly a vertical pull.
       if (Math.abs(dy) < 8 || Math.abs(dx) > Math.abs(dy)) return;
       if (dy > 0) {
-        if (grabLead > 0) return; // content is scrolled; let it scroll back first
+        // Take capture even when the content is scrolled: we drive the scroll
+        // back to the top ourselves so the gesture never transfers to the
+        // browser's native scroller (which would strand the sheet).
         panel?.setPointerCapture(event.pointerId);
         // Only treat this as catching the entrance while it is still visibly
         // moving; once it has essentially arrived, the finger owns the sheet.
         settling = motion.entrance !== null && Math.abs(liveOffset) > 6;
       } else if (scroller && scroller.scrollHeight > scroller.clientHeight + 1) {
-        return; // content can scroll up; the browser owns this
+        // Pulling up: only let the browser scroll when the content is not yet
+        // at its bottom. At the bottom edge we capture and rubber-band.
+        const atBottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1;
+        if (!atBottom) return;
+        panel?.setPointerCapture(event.pointerId);
       } else {
         panel?.setPointerCapture(event.pointerId);
       }
@@ -281,6 +287,17 @@
       velocity = velocity * 0.75 + ((event.clientY - lastY) / dt) * 0.25;
       lastY = event.clientY;
       lastAt = now;
+    }
+
+    // On a downward pull with the content still scrolled, scroll it toward
+    // the top in step with the finger; only once it reaches the top does the
+    // panel itself start to follow.
+    if (dy > 0 && scroller && scroller.scrollTop > 0) {
+      const remaining = Math.max(0, grabLead - dy);
+      scroller.scrollTop = remaining;
+      motion.drag = 0;
+      ensureDriver();
+      return;
     }
 
     let next = dy - grabLead;

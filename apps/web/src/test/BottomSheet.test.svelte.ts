@@ -82,4 +82,44 @@ describe("BottomSheet motion", () => {
     }
     expect(Math.abs(offset)).toBeLessThan(5); // settled back to rest
   });
+
+  it("drives scrolled content to the top, then drags the sheet, on a downward pull", { timeout: 15000 }, async () => {
+    render(BottomSheet, {
+      props: { title: "Test", onClose: vi.fn(), children: body }
+    });
+    const sheet = document.querySelector(".bottom-sheet") as HTMLElement;
+    const scroller = document.querySelector(".sheet-scroll") as HTMLElement;
+    await new Promise((r) => setTimeout(r, 1500)); // entrance settle
+    Object.defineProperty(sheet, "offsetHeight", { value: 600, configurable: true });
+    // Simulate content that can scroll, currently scrolled down 120px.
+    Object.defineProperty(scroller, "scrollHeight", { value: 1200, configurable: true });
+    Object.defineProperty(scroller, "clientHeight", { value: 600, configurable: true });
+    let scrollTop = 120;
+    Object.defineProperty(scroller, "scrollTop", {
+      get: () => scrollTop,
+      set: (v) => { scrollTop = v; },
+      configurable: true
+    });
+
+    sheet.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 1, clientX: 200, clientY: 300, bubbles: true }));
+    // Pull down 80px: less than the 120px scroll, so the sheet should NOT move
+    // yet — the content should scroll up toward 0 instead.
+    for (let i = 1; i <= 4; i++) {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 200, clientY: 300 + i * 20, bubbles: true }));
+      await new Promise((r) => setTimeout(r, 30));
+    }
+    expect(scrollTop).toBeLessThan(120); // content scrolled back toward top
+    const sheetOffsetDuringScroll = parseFloat((sheet.style.transform || "0").replace(/[^0-9.\-]/g, "")) || 0;
+    expect(sheetOffsetDuringScroll).toBeLessThan(40); // sheet mostly stayed put
+
+    // Keep pulling past the top: now the sheet itself should follow the finger.
+    for (let i = 5; i <= 9; i++) {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 200, clientY: 300 + i * 20, bubbles: true }));
+      await new Promise((r) => setTimeout(r, 30));
+    }
+    expect(scrollTop).toBe(0);
+    const sheetOffsetAfterTop = parseFloat((sheet.style.transform || "0").replace(/[^0-9.\-]/g, "")) || 0;
+    expect(sheetOffsetAfterTop).toBeGreaterThan(0); // sheet now dragging down
+    cleanup();
+  });
 });
