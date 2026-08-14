@@ -8,6 +8,8 @@ export interface SpringConfig {
 export const SNAPPY: SpringConfig = { stiffness: 420, damping: 34 };
 export const GENTLE: SpringConfig = { stiffness: 170, damping: 24 };
 export const BOUNCY: SpringConfig = { stiffness: 320, damping: 22 };
+/** Calm, non-overshooting settle — used for releasing a drag back to rest. */
+export const SETTLE: SpringConfig = { stiffness: 140, damping: 32 };
 
 export interface Spring {
   /** Current value. */

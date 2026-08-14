@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, type Snippet } from "svelte";
   import { X } from "@lucide/svelte";
-  import { createSpring } from "../spring";
+  import { createSpring, SETTLE } from "../spring";
 
   interface Props {
     title: string;
@@ -82,7 +82,7 @@
   let lastMoveAt = 0;
   let dragVelocity = 0;
   let dragPointerId: number | null = null;
-  const sheetSpring = createSpring(0, { stiffness: 180, damping: 30 }, (value) => {
+  const sheetSpring = createSpring(0, SETTLE, (value) => {
     dragOffset = value;
   });
   // Live offset during a drag, kept in a plain let so end-of-gesture reads
