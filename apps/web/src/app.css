@@ -73,7 +73,7 @@ mark.hit{background:transparent;color:var(--color-primary);font-weight:700}
 .sheet-handle{width:36px;height:4px;border-radius:999px;background:var(--color-line);margin:4px auto 8px}
 .sheet-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
 .sheet-header h2{margin:0;font-size:18px}
-.sheet-scroll{flex:1;min-height:0;overflow-y:auto;padding:0 16px calc(20px + env(safe-area-inset-bottom));touch-action:pan-y;overscroll-behavior:contain;user-select:text;-webkit-user-select:text}
+.sheet-scroll{flex:1;min-height:0;overflow-y:auto;padding:0 16px calc(20px + env(safe-area-inset-bottom));touch-action:none;overscroll-behavior:contain;user-select:text;-webkit-user-select:text}
 .icon-button{border:0;background:transparent;color:var(--color-muted);padding:6px;border-radius:8px;transition:color 160ms ease,transform 120ms ease}
 .icon-button:active{transform:scale(0.88)}
 @keyframes snackbar-pop{from{transform:translate(-50%,12px);opacity:0}to{transform:translate(-50%,0);opacity:1}}

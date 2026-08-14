@@ -80,9 +80,10 @@
   let lastY = 0;
   let lastAt = 0;
   let velocity = 0; // px per ms, positive = downward
-  // During a drag, how far below the finger the panel hangs — the scroll
-  // offset captured when the gesture took over.
-  let grabLead = 0;
+  // The sheet's offset from rest, tracked continuously across the gesture so
+  // the move handler can be incremental. Positive = pulled down, negative =
+  // rubber-banded up.
+  let panelOffset = 0;
 
   // One inline spring, integrated by the driver loop, powers entrance,
   // settle-back, and dismiss. Keeping the physics in this loop (rather than
@@ -134,6 +135,15 @@
   function rubberBand(raw: number) {
     const max = maxRubberBand();
     return -(max * (1 - Math.exp(raw / max)));
+  }
+
+  // Inverse of rubberBand: given a (negative) banded offset, recover how far
+  // the finger has logically traveled past the edge, so continued pulls keep
+  // accumulating smoothly instead of jumping.
+  function rubberBandInverse(banded: number) {
+    const max = maxRubberBand();
+    const ratio = Math.min(0.9999, -banded / max);
+    return max * Math.log(1 - ratio); // <= 0
   }
 
   function dismissDistance() {
@@ -242,7 +252,7 @@
     lastY = event.clientY;
     lastAt = performance.now();
     velocity = 0;
-    grabLead = scroller?.scrollTop ?? 0;
+    panelOffset = liveOffset;
     window.addEventListener("pointermove", onDragMove);
     window.addEventListener("pointerup", onDragEnd);
     window.addEventListener("pointercancel", onDragEnd);
@@ -250,72 +260,71 @@
 
   function onDragMove(event: PointerEvent) {
     if (pointerId === null || event.pointerId !== pointerId) return;
-    const dy = event.clientY - startY;
-    const dx = event.clientX - startX;
+    const totalDy = event.clientY - startY;
+    const totalDx = event.clientX - startX;
 
     if (!dragging) {
       // Stay out of the way until the gesture is clearly a vertical pull.
-      if (Math.abs(dy) < 8 || Math.abs(dx) > Math.abs(dy)) return;
-      if (dy > 0) {
-        // Take capture even when the content is scrolled: we drive the scroll
-        // back to the top ourselves so the gesture never transfers to the
-        // browser's native scroller (which would strand the sheet).
-        panel?.setPointerCapture(event.pointerId);
-        // Only treat this as catching the entrance while it is still visibly
-        // moving; once it has essentially arrived, the finger owns the sheet.
-        settling = motion.entrance !== null && Math.abs(liveOffset) > 6;
-      } else if (scroller && scroller.scrollHeight > scroller.clientHeight + 1) {
-        // Pulling up: only let the browser scroll when the content is not yet
-        // at its bottom. At the bottom edge we capture and rubber-band.
-        const atBottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1;
-        if (!atBottom) return;
-        panel?.setPointerCapture(event.pointerId);
-      } else {
-        panel?.setPointerCapture(event.pointerId);
-      }
+      if (Math.abs(totalDy) < 8 || Math.abs(totalDx) > Math.abs(totalDy)) return;
+      panel?.setPointerCapture(event.pointerId);
+      // Only treat this as catching the entrance while it is still visibly
+      // moving; once it has essentially arrived, the finger owns the sheet.
+      settling = motion.entrance !== null && Math.abs(liveOffset) > 6;
       dragging = true;
       inline.running = false;
       motion.settle = null;
       if (!settling) motion.entrance = null;
+      panelOffset = liveOffset;
+      lastY = event.clientY;
       window.getSelection()?.removeAllRanges();
     }
 
     const now = performance.now();
     const dt = now - lastAt;
+    // Per-event finger travel (positive = finger moved down).
+    const step = event.clientY - lastY;
     if (dt > 0) {
       // Heavy smoothing so a sparse final event can't fake a huge fling.
-      velocity = velocity * 0.75 + ((event.clientY - lastY) / dt) * 0.25;
-      lastY = event.clientY;
-      lastAt = now;
+      velocity = velocity * 0.75 + (step / dt) * 0.25;
+    }
+    lastY = event.clientY;
+    lastAt = now;
+
+    // The scroller has touch-action:none, so the browser never scrolls it —
+    // every pixel of vertical travel is ours to route. Finger moving up
+    // (step<0) scrolls content down while any remains; finger moving down
+    // (step>0) scrolls content back toward the top. Whatever is left over
+    // after the content hits its edge moves the sheet.
+    let remaining = step;
+    if (scroller && remaining !== 0) {
+      const maxScroll = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+      const current = scroller.scrollTop;
+      const wanted = Math.min(Math.max(current - remaining, 0), maxScroll);
+      scroller.scrollTop = wanted;
+      // The content absorbed (current - wanted) pixels; the rest moves the sheet.
+      remaining = remaining - (current - wanted);
     }
 
-    // On a downward pull with the content still scrolled, scroll it toward
-    // the top in step with the finger; only once it reaches the top does the
-    // panel itself start to follow.
-    if (dy > 0 && scroller && scroller.scrollTop > 0) {
-      const remaining = Math.max(0, grabLead - dy);
-      scroller.scrollTop = remaining;
-      motion.drag = 0;
-      ensureDriver();
-      return;
-    }
-
-    let next = dy - grabLead;
-    if (settling) {
-      if (next <= 0) {
-        // The spring finished its run; the finger owns the panel from here.
-        settling = false;
-        motion.entrance = null;
-        inline.running = false;
-      } else {
-        inline.value = next;
-        inline.target = next;
+    // Whatever the content could not absorb moves the sheet. Upward past the
+    // top rubber-bands; downward is free.
+    if (remaining !== 0) {
+      let next = panelOffset + remaining;
+      if (next < 0) next = panelOffset >= 0 ? rubberBand(remaining) : rubberBand(rubberBandInverse(panelOffset) + remaining);
+      panelOffset = next;
+      if (settling) {
+        if (next <= 0) {
+          // The entrance spring finished its run; the finger owns the panel.
+          settling = false;
+          motion.entrance = null;
+          inline.running = false;
+        } else {
+          inline.value = next;
+          inline.target = next;
+        }
       }
-    } else if (next < 0) {
-      next = rubberBand(next);
+      motion.drag = next;
+      ensureDriver();
     }
-    motion.drag = next;
-    ensureDriver();
   }
 
   function onDragEnd(event: PointerEvent) {
@@ -326,7 +335,7 @@
     window.removeEventListener("pointercancel", onDragEnd);
     if (!dragging) return;
     dragging = false;
-    const released = liveOffset;
+    const released = panelOffset;
     const fling = velocity;
     motion.drag = null;
     if (settling) {
@@ -348,13 +357,6 @@
       return;
     }
     startInline("settle", released, fling * 1000, target);
-  }
-
-  function onScroll() {
-    // A downward drag grabbed while the content was mid-scroll ends here:
-    // once the content reaches the top, the panel follows the finger.
-    if (pointerId === null || dragging || grabLead <= 0) return;
-    grabLead = scroller?.scrollTop ?? 0;
   }
 
   onMount(() => {
@@ -408,7 +410,7 @@
         </button>
       </header>
     </div>
-    <div class="sheet-scroll" bind:this={scroller} onscroll={onScroll}>
+    <div class="sheet-scroll" bind:this={scroller}>
       {@render children()}
     </div>
   </div>
