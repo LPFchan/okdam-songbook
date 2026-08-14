@@ -134,9 +134,10 @@
       requestClose();
       return;
     }
-    // Spring back to rest, carrying the release velocity so it feels physical.
+    // Spring back to rest. Keep only a whisper of the release velocity so a
+    // hard fling doesn't bounce the sheet back up jarringly.
     sheetSpring.settle(dragOffset);
-    sheetSpring.kick(velocity * 1000);
+    sheetSpring.kick(Math.max(Math.min(velocity * 160, 120), -120));
     sheetSpring.setTarget(0);
   }
 

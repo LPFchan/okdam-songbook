@@ -111,12 +111,15 @@
     });
     let lastScrollY = window.scrollY;
     let pulled = 0;
-    let settleTimer: ReturnType<typeof setTimeout> | undefined;
+    // Once the pull crosses the commit threshold the bar is handed to the
+    // spring and no longer tracks the finger until it comes fully back.
+    let committed = false;
     const onScroll = () => {
       const current = window.scrollY;
       const height = topbarHeight || 150;
       if (current <= 4) {
         pulled = 0;
+        committed = false;
         topbarSpring.setTarget(0);
         lastScrollY = current;
         return;
@@ -125,20 +128,39 @@
       lastScrollY = current;
       if (delta === 0) return;
 
-      // Follow the finger exactly while the scroll is moving.
+      if (committed) {
+        // The spring owns the bar now; keep the spring's current value as
+        // the baseline so re-entry below the threshold doesn't jump.
+        pulled = topbarSpring.value;
+        return;
+      }
+
+      // Follow the finger exactly until the pull crosses the threshold.
       pulled = Math.min(Math.max(pulled + delta, 0), height);
       topbarSpring.stop();
       topbarShift = pulled;
 
-      // Once scrolling pauses, commit: past the threshold hides the bar,
-      // below it bounces back to shown.
-      if (settleTimer !== undefined) clearTimeout(settleTimer);
-      settleTimer = setTimeout(() => {
-        const hidden = pulled > height * 0.45;
+      if (pulled <= 0) {
+        // Back at rest — reattach cleanly.
+        committed = false;
+        pulled = 0;
+        topbarShift = 0;
+        return;
+      }
+      if (pulled >= height) {
+        pulled = height;
+        return;
+      }
+      // Crossed the commit threshold either way — hand off to the spring and
+      // let it finish on its own. Coming back down below the threshold while
+      // uncommitted re-attaches by definition (committed is only set here).
+      const threshold = height * 0.45;
+      const crossing = (delta > 0 && pulled > threshold) || (delta < 0 && pulled < threshold && topbarShift > threshold);
+      if (crossing) {
+        committed = true;
         topbarSpring.settle(pulled);
-        topbarSpring.setTarget(hidden ? height : 0);
-        pulled = hidden ? height : 0;
-      }, 120);
+        topbarSpring.setTarget(delta > 0 ? height : 0);
+      }
     };
     window.addEventListener("scroll", onScroll, { passive: true });
 
@@ -160,7 +182,6 @@
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("scroll", onScroll);
       topbarSpring.stop();
-      if (settleTimer !== undefined) clearTimeout(settleTimer);
       observer.disconnect();
     };
   });
