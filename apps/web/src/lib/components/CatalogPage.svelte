@@ -31,6 +31,7 @@
   import { auth, AuthRequiredError } from "../auth.svelte";
   import { onlineStatus } from "../online.svelte";
   import { snackbar } from "../snackbar.svelte";
+  import { createSpring, GENTLE } from "../spring";
 
   type QueueItem = Awaited<ReturnType<typeof queueItems>>[number];
 
@@ -43,7 +44,8 @@
   let chipsExpanded = $state(false);
   let editingSong = $state<Song | null>(null);
   let confirmSignOut = $state(false);
-  let topbarReveal = $state(1);
+  // Pixels the topbar is currently pushed off-screen (0 = fully visible).
+  let topbarShift = $state(0);
   let topbarEl = $state<HTMLElement | null>(null);
   let topbarHeight = $state(0);
   let lastPerformed = $state<{ performanceId: string; clientRequestId: string; songId: string } | null>(null);
@@ -99,25 +101,44 @@
     window.addEventListener("online", onOnline);
     document.addEventListener("visibilitychange", onVisibility);
 
-    // Slide the topbar with the scroll delta, pixel for pixel, so it follows
-    // the finger instead of snapping in and out.
+    // Slide the topbar with the scroll delta, pixel for pixel, and drive it
+    // through a spring so motion stays smooth at 60/120fps. Like Safari's
+    // bottom bar collapse: the bar follows the finger freely, and when the
+    // scroll settles it commits to hidden or shown based on a threshold —
+    // below the threshold it springs back to its previous state.
+    const topbarSpring = createSpring(0, GENTLE, (value) => {
+      topbarShift = Math.round(value * 10) / 10;
+    });
     let lastScrollY = window.scrollY;
-    let ticking = false;
+    let pulled = 0;
+    let settleTimer: ReturnType<typeof setTimeout> | undefined;
     const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      window.requestAnimationFrame(() => {
-        const current = window.scrollY;
-        const height = topbarHeight || 150;
-        if (current <= 4) {
-          topbarReveal = 1;
-        } else {
-          const delta = current - lastScrollY;
-          topbarReveal = Math.min(1, Math.max(0, topbarReveal - delta / height));
-        }
+      const current = window.scrollY;
+      const height = topbarHeight || 150;
+      if (current <= 4) {
+        pulled = 0;
+        topbarSpring.setTarget(0);
         lastScrollY = current;
-        ticking = false;
-      });
+        return;
+      }
+      const delta = current - lastScrollY;
+      lastScrollY = current;
+      if (delta === 0) return;
+
+      // Follow the finger exactly while the scroll is moving.
+      pulled = Math.min(Math.max(pulled + delta, 0), height);
+      topbarSpring.stop();
+      topbarShift = pulled;
+
+      // Once scrolling pauses, commit: past the threshold hides the bar,
+      // below it bounces back to shown.
+      if (settleTimer !== undefined) clearTimeout(settleTimer);
+      settleTimer = setTimeout(() => {
+        const hidden = pulled > height * 0.45;
+        topbarSpring.settle(pulled);
+        topbarSpring.setTarget(hidden ? height : 0);
+        pulled = hidden ? height : 0;
+      }, 120);
     };
     window.addEventListener("scroll", onScroll, { passive: true });
 
@@ -138,6 +159,8 @@
       window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("scroll", onScroll);
+      topbarSpring.stop();
+      if (settleTimer !== undefined) clearTimeout(settleTimer);
       observer.disconnect();
     };
   });
@@ -416,7 +439,7 @@
   <header
     class="topbar"
     bind:this={topbarEl}
-    style:transform={`translate(-50%, -${(1 - topbarReveal) * 105}%)`}
+    style:transform={`translate(-50%, -${topbarShift}px)`}
   >
     <div class="topline">
       <h1 class="brand-title">Songbook</h1>

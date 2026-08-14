@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy, type Snippet } from "svelte";
   import { X } from "@lucide/svelte";
+  import { createSpring, BOUNCY } from "../spring";
 
   interface Props {
     title: string;
@@ -64,7 +65,7 @@
   function requestClose() {
     if (closing) return;
     closing = true;
-    window.setTimeout(onClose, 190);
+    window.setTimeout(onClose, 250);
   }
 
   // Vertical drag: pull down past a threshold (or fling) to dismiss,
@@ -77,7 +78,13 @@
   let dragStartY = 0;
   let dragStartX = 0;
   let dragStartAt = 0;
+  let lastMoveY = 0;
+  let lastMoveAt = 0;
+  let dragVelocity = 0;
   let dragPointerId: number | null = null;
+  const sheetSpring = createSpring(0, BOUNCY, (value) => {
+    dragOffset = Math.max(value, -20);
+  });
 
   function onDragStart(event: PointerEvent) {
     if (event.pointerType === "mouse" && event.button !== 0) return;
@@ -100,6 +107,16 @@
       dragging = true;
       panel?.setPointerCapture(event.pointerId);
       window.getSelection()?.removeAllRanges();
+      lastMoveY = event.clientY;
+      lastMoveAt = performance.now();
+      dragVelocity = 0;
+    }
+    const now = performance.now();
+    const dt = now - lastMoveAt;
+    if (dt > 0) {
+      dragVelocity = (event.clientY - lastMoveY) / dt;
+      lastMoveY = event.clientY;
+      lastMoveAt = now;
     }
     dragOffset = raw >= 0 ? raw : raw * 0.25;
   }
@@ -110,16 +127,22 @@
     if (!dragging) return;
     dragging = false;
     dragPointerId = null;
-    const elapsed = performance.now() - dragStartAt;
-    const velocity = elapsed > 0 ? dragOffset / elapsed : 0;
-    const shouldDismiss = dragOffset > 110 || (dragOffset > 48 && velocity > 0.45);
+    const velocity = dragVelocity;
+    const shouldDismiss = dragOffset > 110 || (dragOffset > 48 && velocity > 0.4);
     if (shouldDismiss) {
       dragOffset = 0;
       requestClose();
       return;
     }
-    dragOffset = 0;
+    // Spring back to rest, carrying the release velocity so it feels physical.
+    sheetSpring.settle(dragOffset);
+    sheetSpring.kick(velocity * 1000);
+    sheetSpring.setTarget(0);
   }
+
+  onDestroy(() => {
+    sheetSpring.stop();
+  });
 </script>
 
 <div
@@ -135,7 +158,7 @@
     aria-label={title}
     class="bottom-sheet"
     class:sheet-dragging={dragging}
-    style:transform={dragging ? `translateY(${dragOffset}px)` : undefined}
+    style:transform={dragging || sheetSpring.active ? `translateY(${dragOffset}px)` : undefined}
     bind:this={panel}
     role="dialog"
     tabindex="-1"
