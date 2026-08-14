@@ -20,10 +20,18 @@ export interface Spring {
   readonly active: boolean;
   /** Impulse: add to the spring's velocity (e.g. a fling on release). */
   kick(amount: number): void;
+  /** Replace the spring's velocity without touching its position. */
+  setVelocity(amount: number): void;
   /** Aim the spring at a new target, keeping current position and velocity. */
   setTarget(target: number): void;
   /** Jump straight to a value and stop. */
   settle(value: number): void;
+  /**
+   * Sync the spring's state with a value written around it (e.g. the driver
+   * moved the sheet to follow a finger). No callbacks, no restart — the next
+   * step continues from exactly here.
+   */
+  sync(value: number, velocity: number): void;
   stop(): void;
 }
 
@@ -89,6 +97,9 @@ export function createSpring(initial: number, config: SpringConfig, onUpdate: (v
       velocity += amount;
       ensureRunning();
     },
+    setVelocity(amount: number) {
+      velocity = amount;
+    },
     setTarget(next: number) {
       if (next === target) return;
       target = next;
@@ -103,6 +114,10 @@ export function createSpring(initial: number, config: SpringConfig, onUpdate: (v
         frame = 0;
       }
       onUpdate(value);
+    },
+    sync(next: number, nextVelocity: number) {
+      value = next;
+      velocity = nextVelocity;
     },
     stop() {
       if (frame !== 0) {
