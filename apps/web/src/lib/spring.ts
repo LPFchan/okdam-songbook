@@ -75,11 +75,10 @@ export function createSpring(initial: number, config: SpringConfig, onUpdate: (v
 
   function ensureRunning() {
     if (frame === 0) {
-      lastTime = 0;
-      frame = requestAnimationFrame((time) => {
-        lastTime = time;
-        frame = requestAnimationFrame(step);
-      });
+      // Seed lastTime with "now" so the first step uses one frame's dt
+      // instead of a wall-clock gap or a zero; then step every frame.
+      lastTime = performance.now();
+      frame = requestAnimationFrame(step);
     }
   }
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount, type Snippet } from "svelte";
   import { X } from "@lucide/svelte";
-  import { createSpring, SETTLE, SNAPPY } from "../spring";
+  import { SETTLE, SNAPPY } from "../spring";
 
   interface Props {
     title: string;
@@ -84,8 +84,46 @@
   // offset captured when the gesture took over.
   let grabLead = 0;
 
-  const sheetSpring = createSpring(0, SNAPPY, () => {});
-  const settleSpring = createSpring(0, SETTLE, () => {});
+  // One inline spring, integrated by the driver loop, powers entrance,
+  // settle-back, and dismiss. Keeping the physics in this loop (rather than
+  // an external rAF-driven spring) means the sheet's motion can never be
+  // orphaned by component lifecycle timing.
+  const inline = {
+    value: 0,
+    velocity: 0,
+    target: 0,
+    running: false,
+    kind: null as "entrance" | "settle" | "dismiss" | null,
+    stiffness: SNAPPY.stiffness,
+    damping: SNAPPY.damping
+  };
+
+  function startInline(kind: "entrance" | "settle" | "dismiss", from: number, velocityPxPerSec: number, target: number) {
+    const config = kind === "settle" ? SETTLE : SNAPPY;
+    inline.value = from;
+    inline.velocity = velocityPxPerSec;
+    inline.target = target;
+    inline.kind = kind;
+    inline.stiffness = config.stiffness;
+    inline.damping = config.damping;
+    inline.running = true;
+    motion[kind] = from;
+    ensureDriver();
+  }
+
+  function inlineStep(dt: number) {
+    const displacement = inline.value - inline.target;
+    const acceleration = -inline.stiffness * displacement - inline.damping * inline.velocity;
+    inline.velocity += acceleration * dt;
+    inline.value += inline.velocity * dt;
+    const done = Math.abs(inline.value - inline.target) < 1 && Math.abs(inline.velocity) < 25;
+    if (done) {
+      inline.value = inline.target;
+      inline.velocity = 0;
+      inline.running = false;
+    }
+    return inline.value;
+  }
 
   const FLING_VELOCITY = 0.5; // px/ms
 
@@ -125,10 +163,32 @@
   }
 
   let driverFrame = 0;
+  let driverLastAt = 0;
   function ensureDriver() {
     if (driverFrame === 0) {
-      driverFrame = requestAnimationFrame(() => {
+      driverLastAt = performance.now();
+      driverFrame = requestAnimationFrame(function tick(now) {
         driverFrame = 0;
+        // Advance the inline entrance/dismiss spring before composing, so the
+        // channel value it writes this frame is the one we render.
+        if (inline.running) {
+          const dt = Math.min((now - driverLastAt) / 1000 || 1 / 60, 1 / 30);
+          driverLastAt = now;
+          const value = inlineStep(dt);
+          if (inline.running) {
+            motion[inline.kind ?? "entrance"] = value;
+          } else {
+            // Spring came to rest: clear its channel and freeze the offset at
+            // the settled value so the sheet never lingers a fraction of a
+            // pixel off its rest position.
+            motion[inline.kind ?? "entrance"] = null;
+            if (inline.kind !== "dismiss") {
+              liveOffset = inline.target;
+              offset = inline.target;
+              backdropOpacity = Math.max(0, 1 - inline.target / 400);
+            }
+          }
+        }
         applyMotion();
         if (motion.entrance !== null || motion.drag !== null || motion.settle !== null || motion.dismiss !== null) {
           ensureDriver();
@@ -162,9 +222,9 @@
       detach();
       return;
     }
-    sheetSpring.sync(liveOffset, 0);
-    sheetSpring.setVelocity(velocityPxPerMs * 1000);
-    sheetSpring.setTarget(dismissDistance());
+    motion.entrance = null;
+    motion.drag = null;
+    startInline("dismiss", liveOffset, velocityPxPerMs * 1000, dismissDistance());
   }
 
   function requestClose() {
@@ -199,14 +259,16 @@
       if (dy > 0) {
         if (grabLead > 0) return; // content is scrolled; let it scroll back first
         panel?.setPointerCapture(event.pointerId);
-        settling = true;
+        // Only treat this as catching the entrance while it is still visibly
+        // moving; once it has essentially arrived, the finger owns the sheet.
+        settling = motion.entrance !== null && Math.abs(liveOffset) > 6;
       } else if (scroller && scroller.scrollHeight > scroller.clientHeight + 1) {
         return; // content can scroll up; the browser owns this
       } else {
         panel?.setPointerCapture(event.pointerId);
       }
       dragging = true;
-      settleSpring.stop();
+      inline.running = false;
       motion.settle = null;
       if (!settling) motion.entrance = null;
       window.getSelection()?.removeAllRanges();
@@ -227,10 +289,10 @@
         // The spring finished its run; the finger owns the panel from here.
         settling = false;
         motion.entrance = null;
-        sheetSpring.stop();
+        inline.running = false;
       } else {
-        sheetSpring.sync(next, 0);
-        sheetSpring.setTarget(next);
+        inline.value = next;
+        inline.target = next;
       }
     } else if (next < 0) {
       next = rubberBand(next);
@@ -268,10 +330,7 @@
       motion.settle = null;
       return;
     }
-    settleSpring.sync(released, fling * 1000);
-    settleSpring.setTarget(target);
-    motion.settle = 0;
-    ensureDriver();
+    startInline("settle", released, fling * 1000, target);
   }
 
   function onScroll() {
@@ -289,15 +348,10 @@
     const start = window.innerHeight;
     liveOffset = start;
     offset = start;
-    motion.entrance = start;
-    ensureDriver();
-    sheetSpring.sync(start, 0);
-    sheetSpring.setTarget(0);
+    startInline("entrance", start, 0, 0);
   });
 
   onDestroy(() => {
-    sheetSpring.stop();
-    settleSpring.stop();
     stopDriver();
     window.clearTimeout(detachTimer);
     window.removeEventListener("pointermove", onDragMove);
@@ -305,16 +359,6 @@
     window.removeEventListener("pointercancel", onDragEnd);
   });
 
-  $effect(() => {
-    motion.entrance = closing ? motion.dismiss : sheetSpring.active ? sheetSpring.value : null;
-    if (closing) motion.dismiss = sheetSpring.active ? sheetSpring.value : motion.dismiss;
-    ensureDriver();
-  });
-
-  $effect(() => {
-    motion.settle = settleSpring.active ? settleSpring.value : null;
-    ensureDriver();
-  });
 </script>
 
 <div
