@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, type Snippet } from "svelte";
   import { X } from "@lucide/svelte";
-  import { createSpring, BOUNCY } from "../spring";
+  import { createSpring } from "../spring";
 
   interface Props {
     title: string;
@@ -82,8 +82,8 @@
   let lastMoveAt = 0;
   let dragVelocity = 0;
   let dragPointerId: number | null = null;
-  const sheetSpring = createSpring(0, BOUNCY, (value) => {
-    dragOffset = Math.max(value, -20);
+  const sheetSpring = createSpring(0, { stiffness: 180, damping: 30 }, (value) => {
+    dragOffset = value;
   });
 
   function onDragStart(event: PointerEvent) {
@@ -134,10 +134,9 @@
       requestClose();
       return;
     }
-    // Spring back to rest. Keep only a whisper of the release velocity so a
-    // hard fling doesn't bounce the sheet back up jarringly.
-    sheetSpring.settle(dragOffset);
-    sheetSpring.kick(Math.max(Math.min(velocity * 160, 120), -120));
+    // Settle back to rest. No velocity kick — a soft, critically-damped
+    // return reads calmer than a bounce for an overscroll release.
+    sheetSpring.stop();
     sheetSpring.setTarget(0);
   }
 

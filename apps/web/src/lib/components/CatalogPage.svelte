@@ -112,27 +112,35 @@
     let lastScrollY = window.scrollY;
     let pulled = 0;
     // Once the pull crosses the commit threshold the bar is handed to the
-    // spring and no longer tracks the finger until it comes fully back.
+    // spring and finishes on its own. Scrolling back the other way past the
+    // threshold re-attaches and reverses it.
     let committed = false;
     const onScroll = () => {
       const current = window.scrollY;
       const height = topbarHeight || 150;
+      const delta = current - lastScrollY;
+      lastScrollY = current;
+
       if (current <= 4) {
         pulled = 0;
         committed = false;
-        topbarSpring.setTarget(0);
-        lastScrollY = current;
+        topbarSpring.stop();
+        topbarShift = 0;
         return;
       }
-      const delta = current - lastScrollY;
-      lastScrollY = current;
       if (delta === 0) return;
 
+      const threshold = height * 0.45;
+
       if (committed) {
-        // The spring owns the bar now; keep the spring's current value as
-        // the baseline so re-entry below the threshold doesn't jump.
-        pulled = topbarSpring.value;
-        return;
+        // While the spring owns the bar, a clear scroll the other way past
+        // the threshold hands it back and reverses the animation.
+        if (delta < 0 && topbarSpring.value > height - threshold) {
+          committed = false;
+          pulled = topbarSpring.value;
+        } else {
+          return;
+        }
       }
 
       // Follow the finger exactly until the pull crosses the threshold.
@@ -141,25 +149,19 @@
       topbarShift = pulled;
 
       if (pulled <= 0) {
-        // Back at rest — reattach cleanly.
         committed = false;
         pulled = 0;
-        topbarShift = 0;
         return;
       }
       if (pulled >= height) {
         pulled = height;
+        committed = true;
         return;
       }
-      // Crossed the commit threshold either way — hand off to the spring and
-      // let it finish on its own. Coming back down below the threshold while
-      // uncommitted re-attaches by definition (committed is only set here).
-      const threshold = height * 0.45;
-      const crossing = (delta > 0 && pulled > threshold) || (delta < 0 && pulled < threshold && topbarShift > threshold);
-      if (crossing) {
+      if (pulled > threshold) {
         committed = true;
         topbarSpring.settle(pulled);
-        topbarSpring.setTarget(delta > 0 ? height : 0);
+        topbarSpring.setTarget(height);
       }
     };
     window.addEventListener("scroll", onScroll, { passive: true });
