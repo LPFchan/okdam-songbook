@@ -5,53 +5,69 @@ Recorded by agent: codex-orchestrator
 
 ## Snapshot
 
-- Last updated: 2026-08-13.
-- Overall posture: `OCI single-server source complete; release gates pending`.
-- Integrated source baseline: commits through `c8bb6b1` (`Order clean-checkout
-  verification`).
+- Last updated: 2026-08-14.
+- Overall posture: `live in production on OCI single-server`.
+- Production baseline: commit `86dd9b3` (`Tame sheet release bounce and enable
+  iOS standalone PWA`), running as `songbook:local` (ARM64) on oci-ubuntu.
+- Public URL: https://okdam.lost.plus via the Cloudflare Tunnel
+  (`obsidian-sync` tunnel, hostname `okdam.lost.plus` → `localhost:3010`).
 - Current product shape: one catalog-first main surface whose search input
   returns saved songs first and debounced TJ candidates second. Manage/history
   remain contextual utilities; `/admin` is a compatibility alias.
-- Current production reality: no OCI cutover has been attempted. Existing
-  external services remain untouched until the release gates and operator
-  authorization are complete.
-- Verification on the integrated source: clean `npm ci`, all 200 workspace
-  tests, root typecheck, lint, ordered production builds, server
-  start/health/shutdown smoke, and a complete read-only amd64 container health
-  smoke pass.
+- Scheduled backups run daily at 03:15 UTC via `songbook-backup.timer`
+  (systemd, user `opc`, script `/opt/songbook/scripts/ops/backup-sqlite.sh`),
+  writing checksummed SQLite archives to `/var/backups/songbook` with a
+  completed restore drill on 2026-08-13.
+- The legacy GitHub Pages/Apps Script/Worker stack remains retired: the Pages
+  workflow is a manual-dispatch redirect stub and the OCI server is the only
+  production path.
 
-## Integrated Source
+## Production Deployment
+
+- Host: `oci-ubuntu` (Oracle Cloud always-free ARM64).
+- Compose: `compose.yaml` plus the host-local override
+  `deploy/container/compose.oci.yaml` (publishes `127.0.0.1:3010:3000`;
+  the override and `deploy/container/songbook.env` live on the host only).
+- Database: `/var/lib/songbook/songbook.sqlite` bind-mounted into the
+  container, with WAL sidecars managed by the backup script.
+- Ingress: Cloudflare Tunnel `obsidian-sync` routes `okdam.lost.plus` to
+  `http://localhost:3010`; the container port is localhost-only.
+- Health: `/healthz` returns `{"ok":true}` locally and through the public
+  hostname; the container healthcheck passes.
+- Recent motion fixes: topbar spring commit behavior and bottom-sheet release
+  overscroll are calm in production (commits `d7cc3ca`…`86dd9b3`); the
+  release-path CSS transform transition that fought the return spring is gone,
+  and iOS Add-to-Home-Screen opens standalone via the new meta tags.
+
+## Product Surface
 
 ### Unified web surface
 
-- `apps/web/src/routes/PublicPage.tsx` owns the catalog omnibar, quick filters,
-  account preferences, role-aware management entry points, and contextual
-  management sheets.
-- `apps/web/src/components/TjOmnibarResults.tsx` owns the debounced TJ
+- `apps/web/src/lib/components/CatalogPage.svelte` owns the catalog omnibar,
+  quick filters, account preferences, role-aware management entry points, and
+  contextual management sheets (`BottomSheet.svelte` with spring-driven drag).
+- `apps/web/src/lib/components/TjOmnibar.svelte` owns the debounced TJ
   continuation, local duplicate resolution, and inline immediate add state.
-- `apps/web/src/routes/AdminPage.tsx` supplies add/manage/history content to
-  the main surface. It is no longer a separate page composition.
-- `/admin?tab=settings` is normalized away because the former Settings tab had
-  no implemented operations.
+- `/admin` supplies add/manage/history content to the main surface as a
+  compatibility alias rather than a separate page composition.
 
 ### TJ-assisted entry
 
-- `packages/shared/src/tj.ts` defines bounded lookup/search/candidate contracts
-  and parsing helpers.
+- `packages/shared/src/tj.ts` defines bounded lookup/search/candidate
+  contracts and parsing helpers.
 - The single-server TJ adapter implements fixed-host fetching, bounded cache,
   throttling, parser-drift/upstream errors, exact lookup, and bounded search.
 - Same-origin authenticated actions provide duplicate-safe immediate add and
   owner restore through the SQLite domain service. Manual add/edit remains
   available.
-- Live TJ behavior through the final OCI hostname has not been smoke-tested.
 
 ### OCI single-server foundation
 
 - One executable Hono server serves the built PWA, anonymous catalog API,
   protected browser API, Better Auth, health checks, and `/mcp`.
-- SQLite owns domain, audit, idempotency, Better Auth, and MCP resource-binding
-  state. Import/reconciliation, CSV recovery, backup, integrity-check, and
-  guarded restore tools are checked in.
+- SQLite owns domain, audit, idempotency, Better Auth, and MCP
+  resource-binding state. Import/reconciliation, CSV recovery, backup,
+  integrity-check, and guarded restore tools are checked in.
 - Browser access uses same-origin HTTP-only sessions, exact-origin mutation
   checks, JSON-only bodies, and a per-request owner/editor allowlist.
 - The offline performance queue drains on startup, reconnect, visibility, and
@@ -64,41 +80,37 @@ Recorded by agent: codex-orchestrator
   SQLite bind mount, localhost-only published port, bounded logs/resources,
   and an application-owned `/healthz` check.
 
-## Release Gates
+## Deploying Changes
 
-1. Build and start the image natively on the OCI ARM64 host and pass `/healthz`;
-   the successful local amd64 build is not ARM64 evidence.
-2. Configure the final origin, Google callback, strong Better Auth secret, and
-   non-empty owner/editor allowlist without committing their values.
-3. Import the source Sheet repeatedly into a staging SQLite database, reconcile
-   counts/relations/duplicates, export recovery CSV, and obtain operator
-   acceptance before the production import.
-4. Run an integrity-checked backup and restore drill using production-shaped
-   paths and retention.
-5. Complete a real external MCP client flow: discovery, dynamic registration
-   where required, PKCE authorization, token issuance/resource binding,
-   initialize, tool listing, read call, scoped write, revocation, and restart.
-6. Prepare and verify the old GitHub Pages service-worker cleanup and redirect
-   artifact before removing Pages or its legacy data paths.
-7. Run browser, TJ, offline replay, cache, auth, and MCP smoke tests through the
-   final Cloudflare Tunnel hostname.
-8. Perform deployment, tunnel/DNS changes, and cutover only with explicit
-   operator authorization. Retain the legacy source and rollback route during
-   the observation window.
+1. Commit and push to `main` (provenance-gated `LOG-*` commits).
+2. On `oci-ubuntu`: `cd ~/okdam-songbook && git pull --ff-only`.
+3. `docker compose -f compose.yaml -f deploy/container/compose.oci.yaml build
+   songbook && docker compose -f compose.yaml -f deploy/container/compose.oci.yaml
+   up -d songbook`.
+4. Verify `curl http://127.0.0.1:3010/healthz` and
+  `curl https://okdam.lost.plus/healthz` both return `{"ok":true}`.
+
+## Remaining Verification
+
+- Real external MCP client flow (discovery, dynamic registration where
+  required, PKCE, token issuance/resource binding, initialize, tool listing,
+  read call, scoped write, revocation, restart) through the public hostname.
+- Live TJ lookup/search behavior through `okdam.lost.plus` beyond local
+  adapter tests.
+- Offline replay and multi-tab queue behavior on real devices.
 
 ## Rollback
 
-- Restore the last integrity-checked SQLite backup into a stopped service, then
-  start and verify locally before restoring public traffic.
-- Keep the previous container image and Cloudflare Tunnel route available
-  during the observation window.
-- Preserve the legacy external source for at least the accepted observation
-  period; do not delete it as part of initial cutover.
+- Re-run the compose deploy with the previous image tag or checkout, then
+  verify `/healthz` before considering the rollback complete.
+- For data recovery, restore the latest integrity-checked archive from
+  `/var/backups/songbook` into a stopped service per
+  `deploy/ops/README.md`, verifying no `-wal`/`-shm` sidecars remain.
 
 ## Evidence
 
+- Cutover decision: `DEC-20260814-001`.
 - Architecture decision: `DEC-20260813-005`.
 - Reviewed refactor plan: `RSH-20260813-002`.
-- OAuth compatibility spike and remaining external-client gate:
-  `RSH-20260813-003`.
 - OCI packaging and host procedure: `deploy/container/README.md`.
+- Backup/restore procedure: `deploy/ops/README.md`.

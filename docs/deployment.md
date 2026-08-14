@@ -1,82 +1,58 @@
 # Deployment
 
-The integrated source is not the same thing as an enabled production path.
-Do not enable Better Auth or TJ actions until the dated operator checklist has
-been completed and the browser smoke matrix passes.
+Production is the OCI single server at https://okdam.lost.plus. The legacy
+GitHub Pages / Apps Script / Cloudflare Worker stack is retired: the Pages
+workflow is a manual-dispatch redirect stub and nothing deploys automatically.
 
-## Existing production components
+## Current production components
 
-- GitHub Pages hosts the static app at the repository's configured Pages URL.
-- Apps Script and its private Sheet remain the operational data boundary.
-- The Cloudflare Worker keeps the existing ChatGPT OAuth Action routes.
-- The new Better Auth browser routes are disabled by default.
-- The new TJ Apps Script source is not yet pushed or deployed.
+- `oci-ubuntu` (Oracle Cloud always-free ARM64) runs the Dockerized app as
+  container `okdam-songbook-songbook-1`, image `songbook:local`.
+- The repo checkout lives at `/home/ubuntu/okdam-songbook` on the host.
+- `deploy/container/compose.oci.yaml` (host-local, untracked) overrides the
+  published port to `127.0.0.1:3010:3000`; `deploy/container/songbook.env`
+  (host-local, untracked) carries the origin, Google OAuth client, Better
+  Auth secret, and owner/editor allowlist.
+- Cloudflare Tunnel `obsidian-sync` routes `okdam.lost.plus` to
+  `http://localhost:3010` via `/etc/cloudflared/config.yml`; the container
+  port is localhost-only.
+- SQLite lives at `/var/lib/songbook/songbook.sqlite` on the host, bind
+  mounted into the container.
+- `songbook-backup.timer` (systemd, user `opc`) runs
+  `/opt/songbook/scripts/ops/backup-sqlite.sh` daily at 03:15 UTC, writing
+  checksummed archives to `/var/backups/songbook`. A restore drill completed
+  on 2026-08-13; see `deploy/ops/README.md`.
 
-## GitHub Pages
+## Deploying a change
 
-1. Set Pages source to GitHub Actions.
-2. Set Actions variables `VITE_APPS_SCRIPT_API_URL` and
-   `VITE_GOOGLE_CLIENT_ID` for the existing GIS/direct Apps Script path.
-3. Keep `VITE_APP_BASE_PATH=/okdam-songbook/`.
-4. For Better Auth rollout, set `VITE_AUTH_ENABLED=true`,
-   `VITE_AUTH_BASE_URL=<exact Worker or custom auth origin>`, and keep
-   `VITE_AUTH_LEGACY_GIS_FALLBACK=true` during migration.
-5. Run the Pages workflow only after the corresponding Worker and Apps Script
-   smoke checks pass.
+1. Commit on `main` using the provenance-gated `LOG-*` message flow and
+   push to `origin`.
+2. On the host: `cd ~/okdam-songbook && git pull --ff-only`.
+3. Rebuild and restart:
+   ```
+   docker compose -f compose.yaml -f deploy/container/compose.oci.yaml build songbook
+   docker compose -f compose.yaml -f deploy/container/compose.oci.yaml up -d songbook
+   ```
+4. Verify `curl http://127.0.0.1:3010/healthz` and
+   `curl https://okdam.lost.plus/healthz` both return `{"ok":true}`, and
+   that `docker ps` reports the container healthy.
 
-The build runs lint, typecheck, tests, and build before publishing
-`apps/web/dist`. Never put a client secret, D1 id, allowlist, or internal proxy
-secret in Pages variables.
-
-## Apps Script
-
-1. Create or select the private Sheet and configure `.clasp.json` locally.
-2. Set Script Properties from `apps-script/README.md`, including
-   `SPREADSHEET_ID`, `GOOGLE_OAUTH_CLIENT_ID`, `ALLOWED_USERS_JSON`,
-   `ALLOWED_ORIGINS`, `APP_ENV`, and the internal proxy secret used by the
-   Worker. Keep AI/provider keys in Script Properties only.
-3. Push the current source with `clasp push`.
-4. Run `setupSpreadsheet()` and `validateSpreadsheetSchema()`.
-5. Deploy the Web App as execute-as-owner with access suitable for the existing
-   internal-secret boundary. Copy the `/exec` URL to the Pages variable.
-6. Smoke public reads, GIS rollback writes, Better Auth actor-gateway writes,
-   TJ lookup/search/add/restore, and ChangeLog entries before enabling the new
-   browser path.
-
-The updated TJ adapter is a fixed-host Apps Script fetch. It is not live until
-this source is pushed and the exact-number, Unicode, no-result, upstream,
-throttle, and parser-drift cases are checked.
-
-## Better Auth Worker and D1
-
-1. Provision a Cloudflare D1 database for the Worker and bind it as `AUTH_DB`.
-2. Apply `integrations/chatgpt-proxy/migrations/0001_better_auth.sql` to the
-   remote database.
-3. Store a strong random `BETTER_AUTH_SECRET` in Worker secrets.
-4. Create a dedicated Google OAuth web client for browser sessions. Register
-   the exact callback:
-   `https://<auth-origin>/api/auth/callback/google`.
-5. Set Worker vars `BETTER_AUTH_URL`, `AUTH_TRUSTED_ORIGINS`,
-   `AUTH_SESSION_EXPIRES_IN_SECONDS=1209600`,
-   `AUTH_SESSION_UPDATE_AGE_SECONDS=86400`, and leave
-   `BETTER_AUTH_ENABLED=false` while testing.
-6. Keep the existing ChatGPT OAuth Google client/callback and GPT secrets
-   separate from the Better Auth client/secret.
-7. Deploy the Worker, then test credentialed CORS, HTTP-only cookie behavior,
-   reload/restart, renewal, logout, allowlist removal, and protected gateway
-   admission from the actual Pages origin.
-8. Set `BETTER_AUTH_ENABLED=true` only after those checks and the Pages build
-   is ready.
-
-`workers.dev` and `github.io` are different sites. The configured
-`SameSite=None; Secure` cookie and exact CORS/origin list must be tested in the
-supported browsers. A custom domain can reduce this cross-site risk, but it
-must be chosen before registering the final Google callback and production
-origin values.
+The image builds natively on the ARM64 host; never push an amd64-built image
+to production.
 
 ## Rollback
 
-Set `BETTER_AUTH_ENABLED=false`, rebuild Pages with GIS fallback enabled, and
-leave Apps Script's legacy ID-token path available. Do not alter the separate
-ChatGPT `/authorize`, `/token`, or `/api/gpt*` protocol during browser-auth
-rollback.
+Redeploy the previous checkout or image with the same compose commands, then
+verify `/healthz` before considering the rollback complete. For data
+recovery, restore the latest integrity-checked archive from
+`/var/backups/songbook` into a stopped service per `deploy/ops/README.md`,
+verifying no `-wal`/`-shm` sidecars remain.
+
+## Retired legacy path (reference only)
+
+The GitHub Pages static app, Apps Script private Sheet, and Cloudflare Worker
+ChatGPT OAuth Action were the production topology before 2026-08-13. The
+setup steps that used to live here (Pages variables, clasp Script Properties,
+D1/Worker secrets) no longer apply to production. Keep the legacy source
+available for the observation window recorded in `DEC-20260813-005`; removal
+is a separate operator decision.
