@@ -43,7 +43,7 @@
   let chipsExpanded = $state(false);
   let editingSong = $state<Song | null>(null);
   let confirmSignOut = $state(false);
-  let topbarCollapsed = $state(false);
+  let topbarReveal = $state(1);
   let topbarEl = $state<HTMLElement | null>(null);
   let topbarHeight = $state(0);
   let lastPerformed = $state<{ performanceId: string; clientRequestId: string; songId: string } | null>(null);
@@ -99,7 +99,8 @@
     window.addEventListener("online", onOnline);
     document.addEventListener("visibilitychange", onVisibility);
 
-    // Collapse the topbar when scrolling down; reveal again when scrolling up.
+    // Slide the topbar with the scroll delta, pixel for pixel, so it follows
+    // the finger instead of snapping in and out.
     let lastScrollY = window.scrollY;
     let ticking = false;
     const onScroll = () => {
@@ -107,8 +108,13 @@
       ticking = true;
       window.requestAnimationFrame(() => {
         const current = window.scrollY;
-        topbarCollapsed = current > 80 && current > lastScrollY;
-        if (current <= 80 || current < lastScrollY) topbarCollapsed = false;
+        const height = topbarHeight || 150;
+        if (current <= 4) {
+          topbarReveal = 1;
+        } else {
+          const delta = current - lastScrollY;
+          topbarReveal = Math.min(1, Math.max(0, topbarReveal - delta / height));
+        }
         lastScrollY = current;
         ticking = false;
       });
@@ -407,7 +413,11 @@
 </script>
 
 <main class="app-frame" style:padding-top={topbarHeight ? `calc(${topbarHeight}px + env(safe-area-inset-top, 0px))` : undefined}>
-  <header class="topbar" bind:this={topbarEl} data-collapsed={topbarCollapsed ? "true" : undefined}>
+  <header
+    class="topbar"
+    bind:this={topbarEl}
+    style:transform={`translate(-50%, -${(1 - topbarReveal) * 105}%)`}
+  >
     <div class="topline">
       <h1 class="brand-title">Songbook</h1>
       <button

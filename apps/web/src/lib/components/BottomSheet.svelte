@@ -69,31 +69,45 @@
 
   // Vertical drag: pull down past a threshold (or fling) to dismiss,
   // otherwise the sheet springs back. Dragging up just stretches slightly.
+  // The gesture only takes over after a clear vertical pull, so taps and
+  // text selection keep working untouched.
   let dragOffset = $state(0);
+  let dragArmed = false;
   let dragging = $state(false);
   let dragStartY = 0;
+  let dragStartX = 0;
   let dragStartAt = 0;
   let dragPointerId: number | null = null;
 
   function onDragStart(event: PointerEvent) {
     if (event.pointerType === "mouse" && event.button !== 0) return;
     if ((event.target as HTMLElement).closest("button, a, input, select, textarea")) return;
-    dragging = true;
+    dragArmed = true;
     dragPointerId = event.pointerId;
     dragStartY = event.clientY;
+    dragStartX = event.clientX;
     dragStartAt = performance.now();
     dragOffset = 0;
-    panel?.setPointerCapture(event.pointerId);
   }
 
   function onDragMove(event: PointerEvent) {
-    if (!dragging || event.pointerId !== dragPointerId) return;
+    if (!dragArmed || event.pointerId !== dragPointerId) return;
     const raw = event.clientY - dragStartY;
+    if (!dragging) {
+      // Stay out of the way until the gesture is clearly a vertical pull.
+      const horizontal = Math.abs(event.clientX - dragStartX);
+      if (Math.abs(raw) < 10 || horizontal > Math.abs(raw)) return;
+      dragging = true;
+      panel?.setPointerCapture(event.pointerId);
+      window.getSelection()?.removeAllRanges();
+    }
     dragOffset = raw >= 0 ? raw : raw * 0.25;
   }
 
   function onDragEnd(event: PointerEvent) {
-    if (!dragging || event.pointerId !== dragPointerId) return;
+    if (!dragArmed || event.pointerId !== dragPointerId) return;
+    dragArmed = false;
+    if (!dragging) return;
     dragging = false;
     dragPointerId = null;
     const elapsed = performance.now() - dragStartAt;
@@ -129,6 +143,9 @@
     onpointermove={onDragMove}
     onpointerup={onDragEnd}
     onpointercancel={onDragEnd}
+    onselectstart={(event) => {
+      if (dragging) event.preventDefault();
+    }}
   >
     <div class="sheet-handle" aria-hidden="true"></div>
     <header class="sheet-header">
