@@ -106,15 +106,16 @@
     // bottom bar collapse: the bar follows the finger freely, and when the
     // scroll settles it commits to hidden or shown based on a threshold —
     // below the threshold it springs back to its previous state.
+    let committedTarget: "shown" | "hidden" | null = null;
     const topbarSpring = createSpring(0, GENTLE, (value) => {
-      topbarShift = Math.round(value * 10) / 10;
+      // Ignore stale spring frames while the finger owns the bar.
+      if (committedTarget) topbarShift = Math.round(value * 10) / 10;
     });
     let lastScrollY = window.scrollY;
     let pulled = 0;
     // Once the pull crosses the commit threshold the bar is handed to the
-    // spring and finishes on its own. Scrolling back the other way past the
-    // threshold re-attaches and reverses it.
-    let committed = false;
+    // spring and finishes on its own. Remember which edge owns it so a scroll
+    // in the opposite direction can re-attach even after the spring settles.
     const onScroll = () => {
       const current = window.scrollY;
       const height = topbarHeight || 150;
@@ -123,49 +124,37 @@
 
       if (current <= 4) {
         pulled = 0;
-        committed = false;
-        topbarSpring.stop();
-        topbarShift = 0;
+        committedTarget = "shown";
+        topbarSpring.setTarget(0);
         return;
       }
       if (delta === 0) return;
 
       const threshold = height * 0.45;
 
-      if (committed) {
-        // The spring owns the bar while it finishes. A genuine reversal —
-        // several frames of scrolling the other way — hands control back.
-        if (topbarSpring.active && ((delta < 0 && topbarSpring.value > height - threshold) || (delta > 0 && topbarSpring.value < threshold))) {
-          committed = false;
-          pulled = topbarSpring.value;
-          // Fall through to finger tracking below.
-        } else {
-          return;
-        }
+      if (committedTarget) {
+        const reversing =
+          (committedTarget === "hidden" && delta < 0) || (committedTarget === "shown" && delta > 0);
+        if (!reversing) return;
+
+        pulled = Math.min(Math.max(topbarSpring.value, 0), height);
+        committedTarget = null;
       }
 
       // Follow the finger exactly until the pull crosses the threshold.
+      const previousPulled = pulled;
       pulled = Math.min(Math.max(pulled + delta, 0), height);
-      topbarSpring.stop();
       topbarShift = pulled;
 
-      if (pulled <= 0) {
-        committed = false;
-        pulled = 0;
-        return;
-      }
-      if (pulled >= height) {
-        pulled = height;
-        committed = true;
-        return;
-      }
       // Hand off to the spring exactly once per crossing. Note: settle()
       // zeroes velocity, so do it before setTarget() and only on the frame
       // that crosses, not on every scroll event.
-      if (!committed && ((delta > 0 && pulled > threshold) || (delta < 0 && pulled < threshold && pulled + delta > pulled))) {
-        committed = true;
+      const crossedTowardHidden = delta > 0 && previousPulled <= threshold && pulled > threshold;
+      const crossedTowardShown = delta < 0 && previousPulled >= threshold && pulled < threshold;
+      if (crossedTowardHidden || crossedTowardShown) {
+        committedTarget = crossedTowardHidden ? "hidden" : "shown";
         topbarSpring.settle(pulled);
-        topbarSpring.setTarget(delta > 0 ? height : 0);
+        topbarSpring.setTarget(crossedTowardHidden ? height : 0);
       }
     };
     window.addEventListener("scroll", onScroll, { passive: true });

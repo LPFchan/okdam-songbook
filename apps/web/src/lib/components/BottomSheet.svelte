@@ -166,7 +166,7 @@
     aria-label={title}
     class="bottom-sheet"
     class:sheet-dragging={dragging}
-    style:transform={dragging || sheetSpring.active ? `translateY(${dragOffset}px)` : undefined}
+    style:transform={`translateY(${dragOffset}px)`}
     bind:this={panel}
     role="dialog"
     tabindex="-1"
