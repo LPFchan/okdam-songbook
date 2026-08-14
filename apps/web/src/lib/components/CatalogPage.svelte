@@ -133,11 +133,12 @@
       const threshold = height * 0.45;
 
       if (committed) {
-        // While the spring owns the bar, a clear scroll the other way past
-        // the threshold hands it back and reverses the animation.
-        if (delta < 0 && topbarSpring.value > height - threshold) {
+        // The spring owns the bar while it finishes. A genuine reversal —
+        // several frames of scrolling the other way — hands control back.
+        if (topbarSpring.active && ((delta < 0 && topbarSpring.value > height - threshold) || (delta > 0 && topbarSpring.value < threshold))) {
           committed = false;
           pulled = topbarSpring.value;
+          // Fall through to finger tracking below.
         } else {
           return;
         }
@@ -158,10 +159,13 @@
         committed = true;
         return;
       }
-      if (pulled > threshold) {
+      // Hand off to the spring exactly once per crossing. Note: settle()
+      // zeroes velocity, so do it before setTarget() and only on the frame
+      // that crosses, not on every scroll event.
+      if (!committed && ((delta > 0 && pulled > threshold) || (delta < 0 && pulled < threshold && pulled + delta > pulled))) {
         committed = true;
         topbarSpring.settle(pulled);
-        topbarSpring.setTarget(height);
+        topbarSpring.setTarget(delta > 0 ? height : 0);
       }
     };
     window.addEventListener("scroll", onScroll, { passive: true });

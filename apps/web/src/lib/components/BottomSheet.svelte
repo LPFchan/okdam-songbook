@@ -85,6 +85,9 @@
   const sheetSpring = createSpring(0, { stiffness: 180, damping: 30 }, (value) => {
     dragOffset = value;
   });
+  // Live offset during a drag, kept in a plain let so end-of-gesture reads
+  // are never a stale Svelte snapshot.
+  let liveOffset = 0;
 
   function onDragStart(event: PointerEvent) {
     if (event.pointerType === "mouse" && event.button !== 0) return;
@@ -94,7 +97,9 @@
     dragStartY = event.clientY;
     dragStartX = event.clientX;
     dragStartAt = performance.now();
+    liveOffset = 0;
     dragOffset = 0;
+    sheetSpring.stop();
   }
 
   function onDragMove(event: PointerEvent) {
@@ -118,7 +123,8 @@
       lastMoveY = event.clientY;
       lastMoveAt = now;
     }
-    dragOffset = raw >= 0 ? raw : raw * 0.25;
+    liveOffset = raw >= 0 ? raw : raw * 0.25;
+    dragOffset = liveOffset;
   }
 
   function onDragEnd(event: PointerEvent) {
@@ -128,15 +134,17 @@
     dragging = false;
     dragPointerId = null;
     const velocity = dragVelocity;
-    const shouldDismiss = dragOffset > 110 || (dragOffset > 48 && velocity > 0.4);
+    const shouldDismiss = liveOffset > 110 || (liveOffset > 48 && velocity > 0.4);
     if (shouldDismiss) {
+      liveOffset = 0;
       dragOffset = 0;
       requestClose();
       return;
     }
     // Settle back to rest. No velocity kick — a soft, critically-damped
     // return reads calmer than a bounce for an overscroll release.
-    sheetSpring.stop();
+    sheetSpring.settle(liveOffset);
+    liveOffset = 0;
     sheetSpring.setTarget(0);
   }
 
