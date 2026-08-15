@@ -12,7 +12,7 @@ workflow is a manual-dispatch redirect stub and nothing deploys automatically.
 - `deploy/container/compose.oci.yaml` (host-local, untracked) overrides the
   published port to `127.0.0.1:3010:3000`; `deploy/container/songbook.env`
   (host-local, untracked) carries the origin, Google OAuth client, Better
-  Auth secret, and owner/editor allowlist.
+  Auth secret, and JSON email allowlist.
 - Cloudflare Tunnel `obsidian-sync` routes `okdam.lost.plus` to
   `http://localhost:3010` via `/etc/cloudflared/config.yml`; the container
   port is localhost-only.

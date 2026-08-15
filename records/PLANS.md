@@ -30,15 +30,16 @@ Recorded by agent: codex-orchestrator
 - One OCI-hosted Node/Hono process serves the PWA, API, Better Auth, SQLite,
   TJ integration, health checks, and stateless MCP.
 - Browser sessions and MCP bearer identity share Better Auth and recheck the
-  current owner/editor allowlist for every protected request.
+  current email allowlist for every protected request. Every admitted account
+  has the same `allowed` role and mutation permissions.
 - Related ids: DEC-20260813-001, DEC-20260813-005, DEC-20260814-001.
 
 ## Rollout Sequence (Completed 2026-08-13/14)
 
 1. ~~Native OCI ARM64 image build, start, database health, disk-space gate.~~
    Done — image `songbook:local` (ARM64) healthy on oci-ubuntu.
-2. ~~Final origin, Google callback, Better Auth secret, owner/editor
-   allowlist.~~ Done — configured via host-only `deploy/container/songbook.env`.
+2. ~~Final origin, Google callback, Better Auth secret, and email allowlist.~~
+   Done — configured via host-only `deploy/container/songbook.env`.
 3. ~~Sheet snapshot import and reconciliation into SQLite.~~ Done — production
    `/var/lib/songbook/songbook.sqlite` imported and serving.
 4. ~~Scheduled backup, integrity checks, retention, guarded restore.~~ Done —

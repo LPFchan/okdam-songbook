@@ -44,7 +44,7 @@ mkdir -p "$data_dir/backups"
 chmod 700 "$data_dir"
 cat >"$env_file" <<'EOF'
 ORIGIN=http://127.0.0.1:3000
-ALLOWED_USERS_JSON={"owner@example.invalid":"owner"}
+ALLOWED_USERS_JSON=["allowed@example.invalid"]
 BETTER_AUTH_SECRET=container-smoke-secret-012345678901234567890123
 EOF
 chmod 600 "$env_file"

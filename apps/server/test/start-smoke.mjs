@@ -14,7 +14,7 @@ const child = spawn(process.execPath, ["dist/main.js"], {
     PORT: "0",
     ORIGIN: "http://127.0.0.1",
     BETTER_AUTH_SECRET: "smoke-secret-smoke-secret-smoke-secret-1234",
-    ALLOWED_USERS_JSON: JSON.stringify({ "owner@example.com": "owner" }),
+    ALLOWED_USERS_JSON: JSON.stringify(["allowed@example.com"]),
     DATABASE_PATH: databasePath,
     ASSETS_ROOT: directory
   },

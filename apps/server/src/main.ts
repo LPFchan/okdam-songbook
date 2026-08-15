@@ -2,6 +2,8 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { serve } from "@hono/node-server";
 import { createTjAdapter } from "@songbook/server-core";
+import { normalizeEmail } from "@songbook/shared";
+import { z } from "zod";
 import { createConfiguredServer } from "./api.js";
 
 function required(name: string): string {
@@ -16,15 +18,17 @@ function port(): number {
   return value;
 }
 
-function allowedUsers(): Record<string, "owner" | "editor"> {
-  const raw = required("ALLOWED_USERS_JSON");
+const allowedUsersSchema = z.array(z.string().trim().email()).min(1);
+
+export function parseAllowedUsers(raw: string | undefined): string[] {
+  if (!raw?.trim()) throw new Error("ALLOWED_USERS_JSON is required");
   let parsed: unknown;
   try { parsed = JSON.parse(raw); } catch { throw new Error("ALLOWED_USERS_JSON must be valid JSON"); }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) || Object.keys(parsed).length === 0) throw new Error("ALLOWED_USERS_JSON must be a non-empty email-to-role object");
-  for (const [email, role] of Object.entries(parsed)) {
-    if (!email.includes("@") || (role !== "owner" && role !== "editor")) throw new Error("ALLOWED_USERS_JSON entries must map email addresses to owner/editor roles");
-  }
-  return parsed as Record<string, "owner" | "editor">;
+  const result = allowedUsersSchema.safeParse(parsed);
+  if (!result.success) throw new Error("ALLOWED_USERS_JSON must be a non-empty JSON array of email strings");
+  const normalized = result.data.map(normalizeEmail);
+  if (new Set(normalized).size !== normalized.length) throw new Error("ALLOWED_USERS_JSON must not contain duplicate email addresses");
+  return normalized;
 }
 
 export async function startFromEnvironment() {
@@ -33,7 +37,7 @@ export async function startFromEnvironment() {
   if (secret.length < 32) throw new Error("BETTER_AUTH_SECRET must be at least 32 characters");
   const dbPath = resolve(process.env.DATABASE_PATH?.trim() || "/var/lib/songbook/songbook.sqlite");
   mkdirSync(dirname(dbPath), { recursive: true });
-  const users = allowedUsers();
+  const users = parseAllowedUsers(process.env.ALLOWED_USERS_JSON);
   const database = (await import("@songbook/server-core")).openDatabase({ filename: dbPath });
   const server = await createConfiguredServer({
     database,

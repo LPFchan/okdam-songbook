@@ -5,10 +5,10 @@ Recorded by agent: codex-orchestrator
 
 ## Snapshot
 
-- Last updated: 2026-08-14.
+- Last updated: 2026-08-15.
 - Overall posture: `live in production on OCI single-server`.
-- Production baseline: commit `86dd9b3` (`Tame sheet release bounce and enable
-  iOS standalone PWA`), running as `songbook:local` (ARM64) on oci-ubuntu.
+- Production baseline: current `main` with single-role allowlist authorization,
+  running as `songbook:local` (ARM64) on oci-ubuntu.
 - Public URL: https://okdam.lost.plus via the Cloudflare Tunnel
   (`obsidian-sync` tunnel, hostname `okdam.lost.plus` → `localhost:3010`).
 - Current product shape: one catalog-first main surface whose search input
@@ -57,9 +57,8 @@ Recorded by agent: codex-orchestrator
   contracts and parsing helpers.
 - The single-server TJ adapter implements fixed-host fetching, bounded cache,
   throttling, parser-drift/upstream errors, exact lookup, and bounded search.
-- Same-origin authenticated actions provide duplicate-safe immediate add and
-  owner restore through the SQLite domain service. Manual add/edit remains
-  available.
+- Same-origin authenticated actions provide duplicate-safe immediate add
+  through the SQLite domain service. Manual add/edit remains available.
 
 ### OCI single-server foundation
 
@@ -69,7 +68,8 @@ Recorded by agent: codex-orchestrator
   resource-binding state. Import/reconciliation, CSV recovery, backup,
   integrity-check, and guarded restore tools are checked in.
 - Browser access uses same-origin HTTP-only sessions, exact-origin mutation
-  checks, JSON-only bodies, and a per-request owner/editor allowlist.
+  checks, JSON-only bodies, and a per-request email allowlist. Every admitted
+  user has the same `allowed` role and may delete songs.
 - The offline performance queue drains on startup, reconnect, visibility, and
   authentication recovery, with bounded retry, dead letters, and preserved
   write identities.

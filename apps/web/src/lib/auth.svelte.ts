@@ -6,7 +6,7 @@ export type AuthStatus = "unknown" | "anonymous" | "authenticating" | "authentic
 export interface AuthUser {
   email: string;
   displayName: string;
-  role: "owner" | "editor";
+  role: "allowed";
   expiresAt: number | null;
 }
 
@@ -49,7 +49,7 @@ class AuthStore {
   displayInfo = $state<{ email: string; displayName: string } | null>(readSessionDisplay());
   forceUpdateToken = $state(0);
 
-  private adoptServerUser(current: { email: string; displayName: string; role: "owner" | "editor" }): AuthUser {
+  private adoptServerUser(current: { email: string; displayName: string; role: "allowed" }): AuthUser {
     const next: AuthUser = { ...current, expiresAt: null };
     this.user = next;
     this.displayInfo = { email: next.email, displayName: next.displayName };
@@ -71,7 +71,7 @@ class AuthStore {
 
   async loginWithGoogleButton(): Promise<AuthUser> {
     if (mockMode()) {
-      return this.adoptServerUser({ email: "owner@example.com", displayName: "마리", role: "owner" });
+      return this.adoptServerUser({ email: "allowed@example.com", displayName: "마리", role: "allowed" });
     }
     this.status = "authenticating";
     try {

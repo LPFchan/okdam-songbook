@@ -29,7 +29,7 @@ describe("auth store", () => {
   it("loads the authenticated user from the same-origin session", async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ ok: true, data: { email: "marie@example.com", displayName: "마리", role: "owner" } })
+      json: () => Promise.resolve({ ok: true, data: { email: "allowed@example.com", displayName: "마리", role: "allowed" } })
     });
     await auth.requireValidCredential();
     expect(auth.status).toBe("authenticated");
@@ -78,7 +78,7 @@ describe("auth store", () => {
   it("signOut clears the credential and display info", async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ ok: true, data: { email: "marie@example.com", displayName: "마리", role: "owner" } })
+      json: () => Promise.resolve({ ok: true, data: { email: "allowed@example.com", displayName: "마리", role: "allowed" } })
     });
     await auth.requireValidCredential();
     expect(auth.status).toBe("authenticated");

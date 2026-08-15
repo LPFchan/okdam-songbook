@@ -82,10 +82,10 @@ export const catalogRouteSchema = z.object({
 export const currentUserRouteSchema = z.object({
   method: z.literal("GET"),
   path: z.literal("/api/me"),
-  authentication: z.literal("browser-session")
+  authentication: z.literal("allowed-session")
 });
 
-const protectedBrowserRoute = z.literal("browser-session");
+const protectedBrowserRoute = z.literal("allowed-session");
 
 export const performanceCreateRouteSchema = z.object({
   method: z.literal("POST"),
@@ -114,13 +114,13 @@ export const songUpdateRouteSchema = z.object({
 export const songDeleteRouteSchema = z.object({
   method: z.literal("DELETE"),
   path: z.literal("/api/songs/:id"),
-  authentication: z.literal("owner-session")
+  authentication: protectedBrowserRoute
 });
 
 export const songDeleteActionRouteSchema = z.object({
   method: z.literal("DELETE"),
   path: z.literal("/api/songs/:id/delete"),
-  authentication: z.literal("owner-session")
+  authentication: protectedBrowserRoute
 });
 
 export const performanceCreateRequestSchema = z.object({
@@ -165,19 +165,19 @@ export const songDeleteRequestSchema = z.object({
 export const tjLookupRouteSchema = z.object({
   method: z.literal("POST"),
   path: z.literal("/api/tj/lookup"),
-  authentication: z.literal("browser-session")
+  authentication: protectedBrowserRoute
 });
 
 export const tjSearchRouteSchema = z.object({
   method: z.literal("POST"),
   path: z.literal("/api/tj/search"),
-  authentication: z.literal("browser-session")
+  authentication: protectedBrowserRoute
 });
 
 export const tjAddRouteSchema = z.object({
   method: z.literal("POST"),
   path: z.literal("/api/tj/add"),
-  authentication: z.literal("editor-session")
+  authentication: protectedBrowserRoute
 });
 
 export const apiRouteContractSchema = z.discriminatedUnion("path", [

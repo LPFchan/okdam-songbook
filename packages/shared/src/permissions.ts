@@ -14,27 +14,23 @@ export type PermissionAction =
   | "backup:json"
   | "settings:read";
 
-const ownerOnly = new Set<PermissionAction>([
-  "song:delete",
-  "changeLog:restore",
-  "settings:read"
-]);
-
-const editorAllowed = new Set<PermissionAction>([
+const allActions = new Set<PermissionAction>([
   "song:create",
   "song:update",
   "song:markDeletionCandidate",
+  "song:delete",
   "performance:create",
   "performance:cancel",
   "changeLog:read",
-  "csv:export"
+  "changeLog:restore",
+  "csv:import",
+  "csv:export",
+  "backup:json",
+  "settings:read"
 ]);
 
 export function can(role: UserRole | null | undefined, action: PermissionAction): boolean {
-  if (!role) return false;
-  if (role === "owner") return true;
-  if (ownerOnly.has(action)) return false;
-  return editorAllowed.has(action);
+  return role === "allowed" && allActions.has(action);
 }
 
 export function isPublicSongStatus(status: SongStatus): boolean {

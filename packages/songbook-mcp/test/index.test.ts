@@ -5,16 +5,16 @@ import { tmpdir } from "node:os";
 import { createSongbookService, openDatabase, type RoleResolver, type SongbookService } from "@songbook/server-core";
 import { authInfoForPrincipal, createSongbookMcpHandler, mcpPackage } from "../src/index.js";
 
-const actor = { email: "owner@example.com", displayName: "Owner" };
+const actor = { email: "allowed@example.com", displayName: "Allowed" };
 const authInfo = authInfoForPrincipal({ actor, userId: "user-1", scopes: ["songbook:read", "songbook:write"] }, "token-1");
 
 const roleResolver: RoleResolver = {
-  resolve: (candidate) => candidate.email === actor.email ? { email: actor.email, displayName: actor.displayName, role: "owner" } : null
+  resolve: (candidate) => candidate.email === actor.email ? { email: actor.email, displayName: actor.displayName, role: "allowed" } : null
 };
 
 function songInput(clientRequestId: string) {
   return {
-    tjNumber: "12345", title: "Song", titleReadingKo: "", titleRomanized: "", titleAliases: [], artist: "Artist", artistReadingKo: "", artistAliases: [], country: "", genres: [], originalWork: "", keyCandidates: [], performerIds: [], memo: "", status: "active" as const, youtubeUrl: "", youtubeVideoId: "", isOfficialTjVideo: null, sourceType: "test", sourceReference: "", createdByName: "Owner", updatedByName: "Owner", clientRequestId
+    tjNumber: "12345", title: "Song", titleReadingKo: "", titleRomanized: "", titleAliases: [], artist: "Artist", artistReadingKo: "", artistAliases: [], country: "", genres: [], originalWork: "", keyCandidates: [], performerIds: [], memo: "", status: "active" as const, youtubeUrl: "", youtubeVideoId: "", isOfficialTjVideo: null, sourceType: "test", sourceReference: "", createdByName: "Allowed", updatedByName: "Allowed", clientRequestId
   };
 }
 
@@ -22,8 +22,8 @@ function service(): SongbookService {
   return {
     catalog: vi.fn(() => [{ id: "song-1", tjNumber: "123", title: "Song", titleReadingKo: "", titleRomanized: "", titleAliases: [], artist: "Artist", artistReadingKo: "", artistAliases: [], country: "", genres: [], originalWork: "", keyCandidates: [], performerIds: [], memo: "", status: "active", youtubeUrl: "", youtubeVideoId: "", isOfficialTjVideo: null, sourceType: "", sourceReference: "", createdByName: "", createdAt: "2026-01-01T00:00:00.000Z", updatedByName: "", updatedAt: "2026-01-01T00:00:00.000Z", deletedAt: "", version: 1, lastPerformedAt: "", performanceCount: 0 }]),
     search: vi.fn(() => []),
-    createPerformance: vi.fn((_, input) => ({ id: "performance-1", songId: input.songId, performedAt: input.performedAt ?? "2026-01-01T00:00:00.000Z", keySelection: null, memo: input.memo, createdByName: "Owner", createdAt: "2026-01-01T00:00:00.000Z", cancelledAt: "", clientRequestId: input.clientRequestId, version: 1 })),
-    cancelPerformance: vi.fn((_, input) => ({ id: input.performanceId, songId: "song-1", performedAt: "2026-01-01T00:00:00.000Z", keySelection: null, memo: "", createdByName: "Owner", createdAt: "2026-01-01T00:00:00.000Z", cancelledAt: "2026-01-01T00:00:00.000Z", clientRequestId: input.clientRequestId, version: 2 })),
+    createPerformance: vi.fn((_, input) => ({ id: "performance-1", songId: input.songId, performedAt: input.performedAt ?? "2026-01-01T00:00:00.000Z", keySelection: null, memo: input.memo, createdByName: "Allowed", createdAt: "2026-01-01T00:00:00.000Z", cancelledAt: "", clientRequestId: input.clientRequestId, version: 1 })),
+    cancelPerformance: vi.fn((_, input) => ({ id: input.performanceId, songId: "song-1", performedAt: "2026-01-01T00:00:00.000Z", keySelection: null, memo: "", createdByName: "Allowed", createdAt: "2026-01-01T00:00:00.000Z", cancelledAt: "2026-01-01T00:00:00.000Z", clientRequestId: input.clientRequestId, version: 2 })),
     checkDuplicate: vi.fn(() => null),
     createSong: vi.fn(), updateSong: vi.fn(), deleteSong: vi.fn(), performanceStats: vi.fn()
   } as unknown as SongbookService;

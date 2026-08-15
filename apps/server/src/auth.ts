@@ -3,6 +3,7 @@ import { mcp } from "better-auth/plugins";
 import type Database from "better-sqlite3";
 import type { RequestActor, ResolvedActor, RoleResolver, SongbookDatabase } from "@songbook/server-core";
 import { normalizeEmail, parseAuthorizationHeader, type McpScope } from "@songbook/shared";
+import { z } from "zod";
 
 export interface BrowserAuthConfig {
   database: SongbookDatabase;
@@ -10,24 +11,31 @@ export interface BrowserAuthConfig {
   secret: string;
   googleClientId?: string;
   googleClientSecret?: string;
-  allowedUsers?: Record<string, "owner" | "editor"> | string[];
+  allowedUsers?: string[];
   production?: boolean;
 }
 
 export type BrowserAuth = Auth<BetterAuthOptions>;
 
-export function allowedUserMap(value: BrowserAuthConfig["allowedUsers"]): Map<string, "owner" | "editor"> {
-  if (Array.isArray(value)) {
-    const entries: Array<[string, "editor"]> = [];
-    for (const email of value) { const normalized = normalizeEmail(email); if (normalized) entries.push([normalized, "editor"]); }
-    return new Map(entries);
+const allowedEmailSchema = z.string().trim().email();
+
+export function allowedUserMap(value: BrowserAuthConfig["allowedUsers"]): Map<string, "allowed"> {
+  if (value === undefined) return new Map();
+  if (!Array.isArray(value) || value.length === 0) throw new Error("allowedUsers must be a non-empty array of email strings");
+  const entries: Array<[string, "allowed"]> = [];
+  const seen = new Set<string>();
+  for (const email of value) {
+    const parsed = allowedEmailSchema.safeParse(email);
+    if (!parsed.success) throw new Error("allowedUsers must contain only valid email strings");
+    const normalized = normalizeEmail(parsed.data);
+    if (!normalized || seen.has(normalized)) throw new Error("allowedUsers must not contain duplicate email addresses");
+    seen.add(normalized);
+    entries.push([normalized, "allowed"]);
   }
-  const entries: Array<[string, "owner" | "editor"]> = [];
-  for (const [email, role] of Object.entries(value ?? {})) { const normalized = normalizeEmail(email); if (normalized) entries.push([normalized, role]); }
   return new Map(entries);
 }
 
-/** Resolve admission and role from the configured allowlist on every call. */
+/** Resolve admission from the configured allowlist on every call. */
 export function createAllowlistRoleResolver(value: BrowserAuthConfig["allowedUsers"]): RoleResolver {
   const allowed = allowedUserMap(value);
   return {

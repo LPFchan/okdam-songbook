@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { openDatabase, type SongbookDatabase } from "@songbook/server-core";
 import { createServerApp } from "../src/api.js";
-import { createAllowlistRoleResolver, createMcpAuthAdapter } from "../src/auth.js";
+import { allowedUserMap, createAllowlistRoleResolver, createMcpAuthAdapter } from "../src/auth.js";
 
 const origin = "https://songbook.example";
 let database: SongbookDatabase | undefined;
@@ -24,14 +24,22 @@ function request(path: string, init: globalThis.RequestInit = {}) {
 }
 
 describe("same-origin server surface", () => {
-  it("resolves configured owner/editor roles and fails closed", async () => {
-    const resolver = createAllowlistRoleResolver({ "owner@example.com": "owner", "editor@example.com": "editor" });
-    expect(resolver.resolve({ email: "owner@example.com" })?.role).toBe("owner");
-    expect(resolver.resolve({ email: "EDITOR@example.com" })?.role).toBe("editor");
+  it("resolves normalized allowlisted users and fails closed", async () => {
+    const resolver = createAllowlistRoleResolver(["allowed@example.com", "peer@example.com"]);
+    expect(resolver.resolve({ email: "ALLOWED@example.com" })?.role).toBe("allowed");
+    expect(resolver.resolve({ email: "PEER@example.com" })?.role).toBe("allowed");
     expect(resolver.resolve({ email: "revoked@example.com" })).toBeNull();
-    const noResolverServer = app({ sessionResolver: async () => ({ email: "owner@example.com", displayName: "Owner" }) });
+    const noResolverServer = app({ sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }) });
     const response = await noResolverServer.request(request("/api/me"));
     expect(response.status).toBe(401);
+  });
+
+  it("rejects malformed programmatic allowlists instead of admitting a valid subset", () => {
+    expect(allowedUserMap(undefined)).toEqual(new Map());
+    expect(() => allowedUserMap([])).toThrow("non-empty array");
+    expect(() => allowedUserMap(["allowed@example.com", "not-an-email"])).toThrow("valid email strings");
+    expect(() => allowedUserMap(["allowed@example.com", "ALLOWED@example.com"])).toThrow("duplicate");
+    expect(() => createAllowlistRoleResolver(["allowed@example.com", "not-an-email"])).toThrow("valid email strings");
   });
 
   it("serves anonymous catalog with an ETag and supports conditional reads", async () => {
@@ -66,7 +74,7 @@ describe("same-origin server surface", () => {
   });
 
   it("requires JSON and exact same-origin for browser mutations", async () => {
-    const server = app({ sessionResolver: async () => ({ email: "editor@example.com", displayName: "Editor" }) });
+    const server = app({ sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }) });
     const noJson = await server.request(request("/api/performances", { method: "POST", headers: { Origin: origin }, body: "{}" }));
     expect(noJson.status).toBe(415);
     const wrongOrigin = await server.request(request("/api/performances", { method: "POST", headers: { Origin: "https://evil.example", "Content-Type": "application/json" }, body: "{}" }));
@@ -75,8 +83,8 @@ describe("same-origin server surface", () => {
 
   it("maps malformed and schema-invalid JSON bodies to validation errors", async () => {
     const server = app({
-      sessionResolver: async () => ({ email: "editor@example.com", displayName: "Editor" }),
-      roleResolver: createAllowlistRoleResolver({ "editor@example.com": "editor" })
+      sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }),
+      roleResolver: createAllowlistRoleResolver(["allowed@example.com"])
     });
     const headers = { Origin: origin, "Content-Type": "application/json" };
     const malformed = await server.request(request("/api/songs", { method: "POST", headers, body: "{" }));
@@ -87,13 +95,13 @@ describe("same-origin server surface", () => {
     expect((await invalid.json()).error.code).toBe("VALIDATION_ERROR");
   });
 
-  it("deletes a song as owner and rejects editors", async () => {
+  it("allows every allowlisted user to delete and rejects unknown users", async () => {
     const headers = { Origin: origin, "Content-Type": "application/json" };
-    const ownerServer = app({
-      sessionResolver: async () => ({ email: "owner@example.com", displayName: "Owner" }),
-      roleResolver: createAllowlistRoleResolver({ "owner@example.com": "owner" })
+    const allowedServer = app({
+      sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }),
+      roleResolver: createAllowlistRoleResolver(["allowed@example.com"])
     });
-    const created = await ownerServer.request(
+    const created = await allowedServer.request(
       request("/api/songs", {
         method: "POST",
         headers,
@@ -103,7 +111,7 @@ describe("same-origin server surface", () => {
     expect(created.status).toBe(200);
     const song = (await created.json()).data;
 
-    const deleted = await ownerServer.request(
+    const deleted = await allowedServer.request(
       request(`/api/songs/${song.id}/delete`, {
         method: "DELETE",
         headers,
@@ -113,10 +121,10 @@ describe("same-origin server surface", () => {
     expect(deleted.status).toBe(200);
     expect((await deleted.json()).data.id).toBe(song.id);
 
-    const catalog = await ownerServer.request(request("/api/catalog"));
+    const catalog = await allowedServer.request(request("/api/catalog"));
     expect((await catalog.json()).data.songs.map((entry: { id: string }) => entry.id)).not.toContain(song.id);
 
-    const reAdded = await ownerServer.request(
+    const reAdded = await allowedServer.request(
       request("/api/songs", {
         method: "POST",
         headers,
@@ -126,40 +134,40 @@ describe("same-origin server surface", () => {
     expect(reAdded.status).toBe(200);
     expect((await reAdded.json()).data.id).not.toBe(song.id);
 
-    const editorServer = app({
-      sessionResolver: async () => ({ email: "editor@example.com", displayName: "Editor" }),
-      roleResolver: createAllowlistRoleResolver({ "editor@example.com": "editor" })
+    const unknownServer = app({
+      sessionResolver: async () => ({ email: "unknown@example.com", displayName: "Unknown" }),
+      roleResolver: createAllowlistRoleResolver(["allowed@example.com"])
     });
-    const madeByEditor = await editorServer.request(
+    const madeByAllowed = await allowedServer.request(
       request("/api/songs", {
         method: "POST",
         headers,
-        body: JSON.stringify({ title: "편집자 곡", artist: "가수", clientRequestId: crypto.randomUUID() })
+        body: JSON.stringify({ title: "허용된 곡", artist: "가수", clientRequestId: crypto.randomUUID() })
       })
     );
-    const editorSong = (await madeByEditor.json()).data;
-    const forbidden = await editorServer.request(
-      request(`/api/songs/${editorSong.id}/delete`, {
+    const allowedSong = (await madeByAllowed.json()).data;
+    const forbidden = await unknownServer.request(
+      request(`/api/songs/${allowedSong.id}/delete`, {
         method: "DELETE",
         headers,
-        body: JSON.stringify({ songId: editorSong.id, expectedVersion: editorSong.version, clientRequestId: crypto.randomUUID() })
+        body: JSON.stringify({ songId: allowedSong.id, expectedVersion: allowedSong.version, clientRequestId: crypto.randomUUID() })
       })
     );
-    expect(forbidden.status).toBe(403);
+    expect(forbidden.status).toBe(401);
   });
 
   it("returns the browser session contract with name and expiry fields", async () => {
     const server = app({
-      sessionResolver: async () => ({ id: "session-1", email: "editor@example.com", displayName: "Editor", expiresAt: "2026-08-14T00:00:00.000Z" }),
-      roleResolver: createAllowlistRoleResolver({ "editor@example.com": "editor" })
+      sessionResolver: async () => ({ id: "session-1", email: "allowed@example.com", displayName: "Allowed", expiresAt: "2026-08-14T00:00:00.000Z" }),
+      roleResolver: createAllowlistRoleResolver(["allowed@example.com"])
     });
     const response = await server.request(request("/api/session"));
     expect(response.status).toBe(200);
-    expect((await response.json()).data).toEqual({ user: { id: "session-1", email: "editor@example.com", name: "Editor", role: "editor" }, session: { id: "session-1", expiresAt: "2026-08-14T00:00:00.000Z" } });
+    expect((await response.json()).data).toEqual({ user: { id: "session-1", email: "allowed@example.com", name: "Allowed", role: "allowed" }, session: { id: "session-1", expiresAt: "2026-08-14T00:00:00.000Z" } });
   });
 
   it("rejects bearer credentials on browser API routes", async () => {
-    const server = app({ sessionResolver: async () => ({ email: "editor@example.com", displayName: "Editor" }) });
+    const server = app({ sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }) });
     const response = await server.request(request("/api/me", { headers: { Authorization: "Bearer invalid" } }));
     expect(response.status).toBe(401);
   });
@@ -190,11 +198,11 @@ describe("MCP OAuth resource-server gate", () => {
             ok: true,
             token: { accessToken: "accepted", resource: `${origin}/mcp`, scopes: ["songbook:read"], expiresAt: new Date(Date.now() + 60_000).toISOString() },
             session: { userId: "user-1" },
-            principal: { userId: "user-1", actor: { email: "owner@example.com", displayName: "Owner" } }
+            principal: { userId: "user-1", actor: { email: "allowed@example.com", displayName: "Allowed" } }
           };
         }
       },
-      roleResolver: createAllowlistRoleResolver({ "owner@example.com": "owner" })
+      roleResolver: createAllowlistRoleResolver(["allowed@example.com"])
     }).app;
     const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: { _meta: { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } });
     const response = await server.request(request("/mcp", { method: "POST", headers: { Authorization: "Bearer accepted", "Content-Type": "application/json", Accept: "application/json, text/event-stream", "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/list" }, body }));
@@ -221,12 +229,12 @@ describe("MCP OAuth resource-server gate", () => {
 
   it("binds opaque Better Auth tokens to the canonical resource and rejects cookie auth", async () => {
     database = openDatabase();
-    const auth = { api: { getMcpSession: async () => ({ userId: "user-1" }) }, $context: Promise.resolve({ internalAdapter: { findUserById: async () => ({ email: "owner@example.com", name: "Owner" }) } }) } as never;
+    const auth = { api: { getMcpSession: async () => ({ userId: "user-1" }) }, $context: Promise.resolve({ internalAdapter: { findUserById: async () => ({ email: "allowed@example.com", name: "Allowed" }) } }) } as never;
     const adapter = createMcpAuthAdapter({ auth, database, origin });
     await adapter.captureToken(new Response(JSON.stringify({ access_token: "opaque-token", expires_in: 60, scope: "songbook:read" }), { headers: { "Content-Type": "application/json" } }), new Request(`${origin}/mcp/token`));
     const accepted = await adapter.verifyRequest(new Request(`${origin}/mcp`, { headers: { Authorization: "Bearer opaque-token" } }), ["songbook:read"]);
     expect(accepted.ok).toBe(true);
-    if (accepted.ok) expect(accepted.principal).toEqual({ userId: "user-1", actor: { email: "owner@example.com", displayName: "Owner" } });
+    if (accepted.ok) expect(accepted.principal).toEqual({ userId: "user-1", actor: { email: "allowed@example.com", displayName: "Allowed" } });
     const cookie = await adapter.verifyRequest(new Request(`${origin}/mcp`, { headers: { Authorization: "Bearer opaque-token", Cookie: "better-auth.session_token=stale" } }), ["songbook:read"]);
     expect(cookie.ok).toBe(false);
   });

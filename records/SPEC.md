@@ -7,7 +7,7 @@ Recorded by agent: codex-orchestrator
 - Project id: `songbook`
 - Canonical repo: https://github.com/devuterian/okdam-songbook
 - Operator: Marie
-- Last updated: 2026-08-13
+- Last updated: 2026-08-15
 - Related decisions: DEC-20260701-001 through DEC-20260701-008, DEC-20260813-001 through DEC-20260813-005
 
 ## Project Thesis
@@ -47,11 +47,12 @@ history.
 - Local-first omnibar search, bounded debounced TJ accompaniment search, and
   authenticated one-action candidate add with manual fallback.
 - Server-authoritative duplicate checks, replay-safe writes, TJ provenance, and
-  owner-only restore for deleted matches.
+  hard deletion by allowed users.
 - Better Auth Google OAuth and renewable HTTP-only browser sessions use the
   same SQLite database as the songbook domain.
-- The server resolves the current allowlist and owner/editor role on every
-  protected request. Missing admission configuration fails closed.
+- The server resolves the current email allowlist on every protected request.
+  Every listed account has the same `allowed` role and permissions, including
+  song deletion. Missing admission configuration fails closed.
 - Stateless MCP Streamable HTTP is mounted at `/mcp`, with legacy stateless
   compatibility, bearer-only OAuth, resource binding, per-tool scopes, and no
   long-lived MCP session state.
@@ -67,8 +68,8 @@ history.
   are migration inputs or recovery exports, not live production stores.
 - Secrets, allowed emails, OAuth credentials, database files, and backup
   archives are never bundled in the frontend or committed to the repository.
-- Browser- or MCP-supplied identity and role values are never authority. The
-  server derives identity from Better Auth and rechecks the current allowlist.
+- Browser- or MCP-supplied identity values are never authority. The server
+  derives identity from Better Auth and rechecks the current allowlist.
 - Better Auth sessions use HTTP-only cookies. MCP accepts bearer credentials
   only and rejects cookie or mixed cookie/bearer authentication.
 - Browser mutations require JSON and the exact configured origin. Public

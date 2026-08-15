@@ -94,7 +94,7 @@ export async function fetchPublicData(): Promise<PublicData> {
 }
 
 export async function fetchCurrentUser(): Promise<CurrentUser> {
-  if (mockMode()) return currentUserSchema.parse({ email: "owner@example.com", displayName: "마리", role: "owner" });
+  if (mockMode()) return currentUserSchema.parse({ email: "allowed@example.com", displayName: "마리", role: "allowed" });
   return request("/api/me", { method: "GET" }, (data) => currentUserSchema.parse(data));
 }
 

@@ -1,5 +1,5 @@
 export interface BrowserSession {
-  user: { id: string; email: string; name: string; role: "owner" | "editor" };
+  user: { id: string; email: string; name: string; role: "allowed" };
   session: { id: string; expiresAt: string | number | Date };
 }
 

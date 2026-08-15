@@ -15,8 +15,8 @@ import {
 } from "../src/index.js";
 
 let database: ReturnType<typeof openDatabase>;
-const owner = { email: "owner@example.com", displayName: "Owner" };
-const editor = { email: "editor@example.com", displayName: "Editor" };
+const allowed = { email: "allowed@example.com", displayName: "Allowed" };
+const allowedPeer = { email: "peer@example.com", displayName: "Peer" };
 
 function songInput(overrides: Partial<Omit<Song, "id" | "createdAt" | "updatedAt" | "deletedAt" | "version" | "lastPerformedAt" | "performanceCount"> & { clientRequestId: string }> = {}) {
   return {
@@ -26,7 +26,7 @@ function songInput(overrides: Partial<Omit<Song, "id" | "createdAt" | "updatedAt
 
 function roleResolver(): RoleResolver {
   return {
-    resolve: (actor) => actor.email === owner.email ? { email: actor.email, displayName: actor.displayName ?? "Owner", role: "owner" } : actor.email === editor.email ? { email: actor.email, displayName: actor.displayName ?? "Editor", role: "editor" } : null
+    resolve: (actor) => actor.email === allowed.email || actor.email === allowedPeer.email ? { email: actor.email, displayName: actor.displayName ?? actor.email, role: "allowed" } : null
   };
 }
 
@@ -41,32 +41,32 @@ afterEach(() => {
 describe("songbook domain services", () => {
   it("fails closed when no role resolver is configured", () => {
     const service = createSongbookService(database);
-    expect(() => service.createSong(owner, songInput())).toThrowError(/로그인 또는 허용된 계정/);
+    expect(() => service.createSong(allowed, songInput())).toThrowError(/로그인 또는 허용된 계정/);
   });
 
   it("resolves the current role for each protected request", () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
-    expect(() => service.createSong(owner, songInput())).not.toThrow();
+    expect(() => service.createSong(allowed, songInput())).not.toThrow();
     expect(() => service.createSong({ email: "revoked@example.com" }, songInput({ tjNumber: "54321" }))).toThrowError(DomainError);
-    expect(() => service.deleteSong(editor, { id: "missing", expectedVersion: 1, clientRequestId: crypto.randomUUID() })).toThrowError(/권한/);
+    expect(() => service.deleteSong({ email: "unknown@example.com" }, { id: "missing", expectedVersion: 1, clientRequestId: crypto.randomUUID() })).toThrowError(/로그인 또는 허용된 계정/);
   });
 
   it("creates, searches, and returns anonymous public catalog rows", () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
-    const created = service.createSong(editor, songInput({ title: "フォニイ", artist: "ツミキ", tjNumber: "52537", titleRomanized: "phony" }));
+    const created = service.createSong(allowedPeer, songInput({ title: "フォニイ", artist: "ツミキ", tjNumber: "52537", titleRomanized: "phony" }));
     expect(service.catalog().map((song) => song.id)).toEqual([created.id]);
     expect(service.search("phony")[0]?.id).toBe(created.id);
-    service.createSong(owner, songInput({ title: "Hidden", artist: "Artist 2", tjNumber: "99999", status: "deleted", clientRequestId: crypto.randomUUID() }));
+    service.createSong(allowed, songInput({ title: "Hidden", artist: "Artist 2", tjNumber: "99999", status: "deleted", clientRequestId: crypto.randomUUID() }));
     expect(service.catalog()).toHaveLength(1);
   });
 
   it("rejects duplicates and reports version conflicts", () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
-    const first = service.createSong(owner, songInput());
+    const first = service.createSong(allowed, songInput());
     expect(Object.hasOwn(first, "clientRequestId")).toBe(false);
-    expect(() => service.createSong(editor, songInput({ clientRequestId: crypto.randomUUID() }))).toThrowError(DomainError);
-    expect(() => service.updateSong(editor, { id: first.id, expectedVersion: 99, clientRequestId: crypto.randomUUID(), title: "Changed" })).toThrowError(/다른 곳/);
-    const updated = service.updateSong(editor, { id: first.id, expectedVersion: 1, clientRequestId: crypto.randomUUID(), title: "Changed" });
+    expect(() => service.createSong(allowedPeer, songInput({ clientRequestId: crypto.randomUUID() }))).toThrowError(DomainError);
+    expect(() => service.updateSong(allowedPeer, { id: first.id, expectedVersion: 99, clientRequestId: crypto.randomUUID(), title: "Changed" })).toThrowError(/다른 곳/);
+    const updated = service.updateSong(allowedPeer, { id: first.id, expectedVersion: 1, clientRequestId: crypto.randomUUID(), title: "Changed" });
     expect(updated.title).toBe("Changed");
     expect(Object.hasOwn(updated, "clientRequestId")).toBe(false);
     expect(Object.hasOwn(updated, "expectedVersion")).toBe(false);
@@ -75,8 +75,8 @@ describe("songbook domain services", () => {
   it("makes mutations replay-safe and audits the successful operation once", () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
     const clientRequestId = crypto.randomUUID();
-    const first = service.createSong(owner, songInput({ clientRequestId }));
-    const replay = service.createSong(owner, songInput({ clientRequestId }));
+    const first = service.createSong(allowed, songInput({ clientRequestId }));
+    const replay = service.createSong(allowed, songInput({ clientRequestId }));
     expect(replay).toEqual(first);
     expect(Object.hasOwn(replay, "clientRequestId")).toBe(false);
     expect(Object.hasOwn(replay, "expectedVersion")).toBe(false);
@@ -88,16 +88,16 @@ describe("songbook domain services", () => {
 
   it("keeps update results and their stored and replayed responses free of request fields", () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
-    const created = service.createSong(owner, songInput());
+    const created = service.createSong(allowed, songInput());
     const clientRequestId = crypto.randomUUID();
     const input = { id: created.id, expectedVersion: created.version, clientRequestId, title: "Updated" };
-    const updated = service.updateSong(editor, input);
+    const updated = service.updateSong(allowedPeer, input);
     expect(Object.hasOwn(updated, "clientRequestId")).toBe(false);
     expect(Object.hasOwn(updated, "expectedVersion")).toBe(false);
     const stored = database.sqlite.prepare("SELECT response_json FROM idempotency_keys WHERE key=?").get(clientRequestId) as { response_json: string };
     expect(Object.hasOwn(JSON.parse(stored.response_json), "clientRequestId")).toBe(false);
     expect(Object.hasOwn(JSON.parse(stored.response_json), "expectedVersion")).toBe(false);
-    const replay = service.updateSong(editor, input);
+    const replay = service.updateSong(allowedPeer, input);
     expect(replay).toEqual(updated);
     expect(Object.hasOwn(replay, "clientRequestId")).toBe(false);
     expect(Object.hasOwn(replay, "expectedVersion")).toBe(false);
@@ -107,28 +107,28 @@ describe("songbook domain services", () => {
     const auditFailure = { append: () => { throw new Error("audit unavailable"); }, list: () => [] };
     const service = createSongbookService(database, { roleResolver: roleResolver(), auditRepository: auditFailure });
     const clientRequestId = crypto.randomUUID();
-    expect(() => service.createSong(owner, songInput({ clientRequestId }))).toThrow("audit unavailable");
+    expect(() => service.createSong(allowed, songInput({ clientRequestId }))).toThrow("audit unavailable");
     expect(createSongRepository(database.sqlite).list({ includeDeleted: true })).toHaveLength(0);
     expect(database.sqlite.prepare("SELECT COUNT(*) AS count FROM idempotency_keys WHERE key=?").get(clientRequestId)).toEqual({ count: 0 });
   });
 
-  it("supports owner-only hard delete that frees the TJ number", () => {
+  it("allows an allowlisted user to hard delete and free the TJ number", () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
-    const created = service.createSong(editor, songInput());
-    expect(() => service.deleteSong(editor, { id: created.id, expectedVersion: 1, clientRequestId: crypto.randomUUID() })).toThrowError(/권한/);
-    const deleted = service.deleteSong(owner, { id: created.id, expectedVersion: 1, clientRequestId: crypto.randomUUID() });
+    const created = service.createSong(allowedPeer, songInput());
+    const deleted = service.deleteSong(allowed, { id: created.id, expectedVersion: 1, clientRequestId: crypto.randomUUID() });
     expect(deleted.id).toBe(created.id);
+    expect(database.sqlite.prepare("SELECT actor_role FROM audit_events WHERE entity_type='song' AND entity_id=? ORDER BY created_at").all(created.id)).toEqual([{ actor_role: "allowed" }, { actor_role: "allowed" }]);
     expect(service.catalog()).toHaveLength(0);
-    const recreated = service.createSong(owner, songInput({ clientRequestId: crypto.randomUUID() }));
+    const recreated = service.createSong(allowed, songInput({ clientRequestId: crypto.randomUUID() }));
     expect(recreated.tjNumber).toBe(created.tjNumber);
   });
 
   it("creates, counts, and cancels performance records", () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
-    const created = service.createSong(editor, songInput());
-    const performance = service.createPerformance(editor, { songId: created.id, keySelection: null, memo: "", performedAt: "2026-08-13T10:00:00.000Z", clientRequestId: crypto.randomUUID() });
+    const created = service.createSong(allowedPeer, songInput());
+    const performance = service.createPerformance(allowedPeer, { songId: created.id, keySelection: null, memo: "", performedAt: "2026-08-13T10:00:00.000Z", clientRequestId: crypto.randomUUID() });
     expect(service.performanceStats(created.id)).toEqual({ count: 1, lastPerformedAt: "2026-08-13T10:00:00.000Z" });
-    expect(service.cancelPerformance(editor, { performanceId: performance.id, expectedVersion: 1, clientRequestId: crypto.randomUUID() }).cancelledAt).toBeTruthy();
+    expect(service.cancelPerformance(allowed, { performanceId: performance.id, expectedVersion: 1, clientRequestId: crypto.randomUUID() }).cancelledAt).toBeTruthy();
     expect(service.performanceStats(created.id)).toEqual({ count: 0, lastPerformedAt: "" });
   });
 

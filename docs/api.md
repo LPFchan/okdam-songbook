@@ -42,19 +42,24 @@ path remains enabled:
 Requests are authenticated and permission-checked by Apps Script. The browser
 must not supply an actor email or role as authority.
 
-## Better Auth Worker routes
+## Better Auth browser routes
 
-The Better Auth browser path is opt-in and is served by the Cloudflare Worker:
+The live Better Auth browser path is served by the OCI application:
 
 - `GET|POST /api/auth/*` — Better Auth Google OAuth/session handler.
 - `GET /api/session` — returns the active HTTP-only-cookie session and the
-  Apps Script-authoritative current user/role.
-- `POST /api/browser/{action}` — protected gateway for the nine named browser
-  actions above. The Worker derives the actor from the session and Apps Script
-  receives only the Worker-attested actor through the internal-secret pattern.
+  current allowlisted user with role `allowed`.
+- `GET /api/me` — returns the current allowlisted user.
+- `POST /api/songs`, `PATCH /api/songs/:id`, and
+  `DELETE /api/songs/:id/delete` — protected song mutations.
+- `POST /api/performances` and `DELETE /api/performances/:id` — protected
+  performance mutations.
 
-Browser calls use `credentials: include` and exact configured CORS origins.
-There is no browser-readable bearer token in this transport.
+Browser calls use `credentials: include`, exact same-origin mutation checks,
+and JSON request bodies. There is no browser-readable bearer token in this
+transport. Every protected route requires an authenticated allowlisted
+session; all allowlisted users share the same mutation permissions, including
+song deletion.
 
 ## TJ contracts
 
@@ -69,7 +74,8 @@ fixed TJ source URL.
 `addTjSong` accepts a normalized candidate and `clientRequestId`. It returns
 `created`, `duplicate`, or `deleted` outcomes without overwriting an existing
 row. Successful rows use `sourceType=tjmedia` and retain the bounded source
-URL. A deleted match may expose an owner-only restore path.
+URL. Deleted matches return `canRestore: false`; the current OCI API exposes no
+restore route.
 
 ## Song data
 

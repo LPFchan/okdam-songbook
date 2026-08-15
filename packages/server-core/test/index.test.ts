@@ -102,7 +102,7 @@ describe("SQLite storage foundation", () => {
 
   it("claims idempotency keys, returns same-request replays, rejects mismatches, and prunes expiry", () => {
     const repo = createIdempotencyRepository(database.sqlite);
-    const input = { key: "request-1", actorEmail: "owner@example.com", operation: "song.create", requestHash: "hash-a", createdAt: "2026-08-13T00:00:00.000Z", expiresAt: "2026-08-14T00:00:00.000Z" };
+    const input = { key: "request-1", actorEmail: "allowed@example.com", operation: "song.create", requestHash: "hash-a", createdAt: "2026-08-13T00:00:00.000Z", expiresAt: "2026-08-14T00:00:00.000Z" };
     expect(repo.reserve(input).kind).toBe("new");
     expect(repo.reserve(input).kind).toBe("replay");
     expect(() => repo.reserve({ ...input, requestHash: "hash-b" })).toThrow(IdempotencyMismatchError);
@@ -121,7 +121,7 @@ describe("SQLite storage foundation", () => {
     expect(songs.get("song-1")?.performanceCount).toBe(1);
     expect(songs.get("song-1")?.lastPerformedAt).toBe("2026-08-13T04:00:00.000Z");
     const audit = createAuditRepository(database.sqlite);
-    audit.append({ entityType: "song", entityId: "song-1", action: "create", beforeJson: null, afterJson: '{"id":"song-1"}', actorEmail: "owner@example.com", actorName: "Owner", actorRole: "owner", createdAt: "2026-08-13T00:00:00.000Z", clientRequestId: "request-1", entityVersionBefore: null, entityVersionAfter: 1 });
+    audit.append({ entityType: "song", entityId: "song-1", action: "create", beforeJson: null, afterJson: '{"id":"song-1"}', actorEmail: "allowed@example.com", actorName: "Allowed", actorRole: "allowed", createdAt: "2026-08-13T00:00:00.000Z", clientRequestId: "request-1", entityVersionBefore: null, entityVersionAfter: 1 });
     expect(audit.list("song", "song-1")).toHaveLength(1);
   });
 });

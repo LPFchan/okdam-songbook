@@ -10,7 +10,7 @@ export const songStatusSchema = z.enum([
   "deleted"
 ]);
 
-export const userRoleSchema = z.enum(["owner", "editor"]);
+export const userRoleSchema = z.literal("allowed");
 export const performerIdSchema = z.enum(performerOrder);
 
 export const keyCandidateSchema = z.object({

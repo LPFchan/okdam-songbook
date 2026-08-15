@@ -23,7 +23,8 @@ install -m 0600 deploy/container/songbook.env.example deploy/container/songbook.
 
 Edit `songbook.env` only on the host. It is intentionally not a secret store;
 protect the file and use the operator's normal credential-management process.
-The server reads `DATABASE_PATH`, `ORIGIN`, `ALLOWED_USERS_JSON`,
+The server reads `DATABASE_PATH`, `ORIGIN`, `ALLOWED_USERS_JSON` (a non-empty
+JSON array of valid email strings),
 `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and
 `ASSETS_ROOT`; Compose fixes the two path values for the container. The
 example uses a reserved invalid hostname and placeholder account, not live

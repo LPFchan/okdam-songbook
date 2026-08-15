@@ -15,8 +15,7 @@ import {
   tjLookupRequestSchema,
   tjSearchRequestSchema,
   type CurrentUser,
-  type McpScope,
-  type UserRole
+  type McpScope
 } from "@songbook/shared";
 import type { SongbookDatabase } from "@songbook/server-core";
 import {
@@ -91,11 +90,6 @@ function failure(c: Context, error: unknown, now: () => string, status?: number)
     TJ_RATE_LIMITED: 429, RATE_LIMITED: 429
   };
   return c.json({ ok: false, data: null, error: mapped, requestId: requestId(c), serverTime: now() }, (status ?? codeStatus[mapped.code] ?? 500) as 500);
-}
-
-function validationFailure(c: Context, error: unknown, now: () => string): Response {
-  const details = error && typeof error === "object" && "flatten" in error && typeof error.flatten === "function" ? error.flatten() : null;
-  return failure(c, new DomainError("VALIDATION_ERROR", "입력 형식이 올바르지 않아.", details), now, 400);
 }
 
 function jsonBodyRequired(c: Context): Response | null {
@@ -202,12 +196,11 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
   const mcpHandler = createSongbookMcpHandler({ service });
   const app = new Hono();
 
-  const protectBrowser = async (c: Context, action?: UserRole): Promise<BrowserPrincipal | Response> => {
+  const protectBrowser = async (c: Context): Promise<BrowserPrincipal | Response> => {
     if (hasBearer(c)) return failure(c, new DomainError("UNAUTHORIZED", "브라우저 세션이 필요해."), now);
     const principal = await sessionResolver(c.req.raw);
     const user = principal && currentUser(principal, roleResolver);
     if (!principal || !user) return failure(c, new DomainError("UNAUTHORIZED", "로그인 또는 허용된 계정이 필요해."), now);
-    if (action === "owner" && user.role !== "owner") return failure(c, new DomainError("FORBIDDEN", "소유자 권한이 필요해."), now);
     return principal;
   };
 
@@ -280,18 +273,11 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     if (!parsed.success) throw parsed.error;
     return service.updateSong(actor, parsed.data);
   }));
-  app.delete("/api/songs/:id/delete", async (c) => {
-    const bodyError = jsonBodyRequired(c);
-    if (bodyError) return bodyError;
-    if (!sameOrigin(c, options.origin)) return failure(c, new DomainError("FORBIDDEN", "같은 출처 요청만 허용해."), now);
-    const principal = await protectBrowser(c, "owner");
-    if (principal instanceof Response) return principal;
-    try {
-      const parsed = songDeleteRequestSchema.safeParse({ ...(await c.req.json()), songId: c.req.param("id") });
-      if (!parsed.success) return validationFailure(c, parsed.error, now);
-      return envelope(c, service.deleteSong(principal, { id: parsed.data.songId, expectedVersion: parsed.data.expectedVersion, clientRequestId: parsed.data.clientRequestId }), now);
-    } catch (error) { return failure(c, error, now); }
-  });
+  app.delete("/api/songs/:id/delete", (c) => mutate(c, async (actor) => {
+    const parsed = songDeleteRequestSchema.safeParse({ ...(await c.req.json()), songId: c.req.param("id") });
+    if (!parsed.success) throw parsed.error;
+    return service.deleteSong(actor, { id: parsed.data.songId, expectedVersion: parsed.data.expectedVersion, clientRequestId: parsed.data.clientRequestId });
+  }));
 
   app.post("/api/tj/search", (c) => mutate(c, async () => {
     if (!options.tj) throw new DomainError("TJ_UPSTREAM_ERROR", "TJ 연결이 설정되지 않았어.");

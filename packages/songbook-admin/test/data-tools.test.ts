@@ -4,18 +4,18 @@ import { AdminAuthorizationError, createSongbookAdmin } from "../src/index.js";
 
 const song = { id: "song-1", tjNumber: "12345", title: "Title", artist: "Artist", titleAliases: [], artistAliases: [], genres: [], keyCandidates: [], performerIds: [], status: "active", createdAt: "2026-08-13T00:00:00.000Z", updatedAt: "2026-08-13T00:00:00.000Z" };
 
-describe("owner data tools", () => {
-  it("denies editors and supports dry-run, apply, reconcile, and rollback export", () => {
+describe("allowlisted data tools", () => {
+  it("denies unknown roles and supports dry-run, apply, reconcile, and rollback export", () => {
     const database = openDatabase();
     const source = { songs: [song], performances: [], changeLog: [] };
-    const editor = createSongbookAdmin(database, { email: "editor@example.com", role: "editor" });
-    expect(() => editor.importDryRun(source)).toThrow(AdminAuthorizationError);
-    const owner = createSongbookAdmin(database, { email: "owner@example.com", role: "owner" });
-    expect(owner.importDryRun(source).songs[0]?.action).toBe("insert");
+    const unknown = createSongbookAdmin(database, { email: "unknown@example.com", role: "unknown" as never });
+    expect(() => unknown.importDryRun(source)).toThrow(AdminAuthorizationError);
+    const allowed = createSongbookAdmin(database, { email: "allowed@example.com", role: "allowed" });
+    expect(allowed.importDryRun(source).songs[0]?.action).toBe("insert");
     expect(database.sqlite.prepare("SELECT COUNT(*) AS count FROM songs").get()).toEqual({ count: 0 });
-    expect(owner.importApply(source).inserted).toBe(1);
-    expect(owner.reconcile(source).zeroDiff).toBe(true);
-    expect(owner.rollbackExport().songs).toContain("song-1");
+    expect(allowed.importApply(source).inserted).toBe(1);
+    expect(allowed.reconcile(source).zeroDiff).toBe(true);
+    expect(allowed.rollbackExport().songs).toContain("song-1");
     database.close();
   });
 });

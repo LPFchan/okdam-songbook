@@ -15,7 +15,7 @@ Better Auth는 Worker+D1의 14일 갱신 HTTP-only 세션을 목표로 하며, `
 - TJ 번호 정확 조회, 제한된 제목·아티스트 검색, 후보 수정 후 즉시 추가
 - 다크 모드, 접근성 포커스, 검색엔진 noindex, PWA 설치와 IndexedDB 캐시
 - 오프라인 공연 기록 큐와 `clientRequestId` 중복 방지
-- owner/editor 권한 모델과 Apps Script allowlist 최종 판정
+- 단일 allowlist 사용자 권한 모델과 OCI 서버 allowlist 판정
 - CSV/JSON/AI/YouTube/Image 분석을 위한 안전한 API 경계와 수동 폴백
 
 ## 구조

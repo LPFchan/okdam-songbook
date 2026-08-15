@@ -5,29 +5,31 @@
 - The GitHub Pages app is public. `robots.txt`, `noindex`, and unlisted URLs
   reduce discovery only; they are not authentication.
 - Public catalog reads do not require login.
-- Apps Script remains the final allowlist and role authority for Sheet writes.
-- The Better Auth Worker authenticates the browser session and derives an
+- The OCI server is the final allowlist and authorization authority for the
+  live SQLite application.
+- The OCI Better Auth server authenticates the browser session and derives an
   actor, but it does not accept a browser-supplied role or email as authority.
 - ChatGPT Action OAuth is a separate Worker protocol and keeps its own redirect
   allowlist and bearer-token contract.
 
 ## Better Auth browser sessions
 
-- Better Auth stores users, accounts, and sessions in D1.
+- Better Auth stores users, accounts, and sessions in the application SQLite
+  database.
 - Sessions use renewable 14-day HTTP-only cookies. The browser never stores a
   Google ID token or session bearer in `localStorage`, IndexedDB, URLs, logs,
   or service-worker caches.
 - Better Auth is mounted only under `/api/auth/*`. Current-user and protected
-  browser writes use credentialed requests to the Worker.
-- `AUTH_TRUSTED_ORIGINS` is an exact origin list. Production must verify the
-  final Pages/custom-domain and Worker origin posture before enabling cookies.
-- CORS allows credentials only for an exact configured origin. Untrusted
-  origins receive no allow-origin header.
-- The Worker forwards a Worker-generated request id, internal secret, and
-  session-derived actor metadata to Apps Script. Apps Script independently
-  resolves the email and role from `ALLOWED_USERS_JSON`.
-- `BETTER_AUTH_ENABLED=false` is the safe default until D1, OAuth, origin,
-  migration, and browser smoke checks pass.
+  browser writes use credentialed same-origin requests to the OCI server.
+- `ORIGIN` is the exact configured origin used for trusted origins and mutation
+  checks. Production must verify it matches the public hostname before enabling
+  cookies.
+- Browser mutations require the exact configured origin and JSON bodies.
+- The server resolves the normalized email against the non-empty
+  `ALLOWED_USERS_JSON` email array on every protected request. Missing,
+  malformed, empty, or invalid allowlists fail closed at startup.
+- Every allowlisted session has the single `allowed` role. Unknown or revoked
+  accounts receive no protected access.
 
 ## GIS rollback
 
