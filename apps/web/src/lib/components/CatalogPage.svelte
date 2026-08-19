@@ -130,7 +130,11 @@
       }
       if (delta === 0) return;
 
-      const threshold = height * 0.45;
+      // Hysteresis biased toward commitment: snap shut once 15% is hidden,
+      // snap open once 15% is revealed. Between the two marks the bar just
+      // follows the finger.
+      const hideThreshold = height * 0.15;
+      const showThreshold = height * 0.15;
 
       if (committedTarget) {
         const reversing =
@@ -149,8 +153,8 @@
       // Hand off to the spring exactly once per crossing. Note: settle()
       // zeroes velocity, so do it before setTarget() and only on the frame
       // that crosses, not on every scroll event.
-      const crossedTowardHidden = delta > 0 && previousPulled <= threshold && pulled > threshold;
-      const crossedTowardShown = delta < 0 && previousPulled >= threshold && pulled < threshold;
+      const crossedTowardHidden = delta > 0 && previousPulled <= hideThreshold && pulled > hideThreshold;
+      const crossedTowardShown = delta < 0 && previousPulled >= showThreshold && pulled < showThreshold;
       if (crossedTowardHidden || crossedTowardShown) {
         committedTarget = crossedTowardHidden ? "hidden" : "shown";
         topbarSpring.settle(pulled);
