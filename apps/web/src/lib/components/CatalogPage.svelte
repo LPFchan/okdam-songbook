@@ -142,24 +142,28 @@
           (committedTarget === "hidden" && delta < 0) || (committedTarget === "shown" && delta > 0);
         if (!reversing) return;
 
+        topbarSpring.stop();
         pulled = Math.min(Math.max(topbarSpring.value, 0), height);
         committedTarget = null;
       }
 
-      // Follow the finger exactly until the pull crosses the threshold.
-      const previousPulled = pulled;
+      // Follow the finger exactly while between the two marks.
       pulled = Math.min(Math.max(pulled + delta, 0), height);
       topbarShift = pulled;
 
-      // Hand off to the spring exactly once per crossing. Note: settle()
-      // zeroes velocity, so do it before setTarget() and only on the frame
-      // that crosses, not on every scroll event.
-      const crossedTowardHidden = delta > 0 && previousPulled <= hideThreshold && pulled > hideThreshold;
-      const crossedTowardShown = delta < 0 && previousPulled >= showThreshold && pulled < showThreshold;
-      if (crossedTowardHidden || crossedTowardShown) {
-        committedTarget = crossedTowardHidden ? "hidden" : "shown";
+      // Hand off to the spring whenever the bar is past the mark in the
+      // direction of travel. A level check, not an edge crossing, so a
+      // re-attach that lands past the mark still commits instead of
+      // stranding the bar on the finger. Note: settle() zeroes velocity,
+      // so call it before setTarget().
+      if (delta > 0 && pulled > hideThreshold) {
+        committedTarget = "hidden";
         topbarSpring.settle(pulled);
-        topbarSpring.setTarget(crossedTowardHidden ? height : 0);
+        topbarSpring.setTarget(height);
+      } else if (delta < 0 && pulled < showThreshold) {
+        committedTarget = "shown";
+        topbarSpring.settle(pulled);
+        topbarSpring.setTarget(0);
       }
     };
     window.addEventListener("scroll", onScroll, { passive: true });
