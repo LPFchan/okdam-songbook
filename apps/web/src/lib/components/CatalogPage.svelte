@@ -131,10 +131,11 @@
       if (delta === 0) return;
 
       // Hysteresis biased toward commitment: snap shut once 15% is hidden,
-      // snap open once 15% is revealed. Between the two marks the bar just
+      // snap open once 15% is revealed (i.e. less than 85% still hidden —
+      // `pulled` counts hidden pixels). Between the two marks the bar just
       // follows the finger.
       const hideThreshold = height * 0.15;
-      const showThreshold = height * 0.15;
+      const showThreshold = height * 0.85;
 
       if (committedTarget) {
         const reversing =
