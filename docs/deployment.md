@@ -4,11 +4,11 @@ Production is the OCI single server at https://okdam.lost.plus. The legacy
 GitHub Pages / Apps Script / Cloudflare Worker stack is retired: the Pages
 workflow is a manual-dispatch redirect stub and nothing deploys automatically.
 
-The current worktree contains an MCP/OAuth implementation that is not yet
-deployed. Production verification remains open for the origin-level protected
-resource metadata challenge, Better Auth OAuth discovery and PKCE flow,
-resource-bound opaque tokens, scoped public/protected tools, revocation, and
-modern/legacy stateless clients.
+The anonymous MCP and OAuth-protected operations from commit `b8ca145` are live.
+Production smoke verifies the protected-resource challenge, Better Auth OAuth
+discovery, anonymous listing/search, invalid-token handling, and local/public
+health. Interactive PKCE login, resource-bound token calls, revocation, restart,
+and the modern/legacy external-client matrix remain open.
 
 ## Current production components
 

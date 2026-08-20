@@ -36,13 +36,16 @@ Recorded by agent: codex-orchestrator
 
 ### Anonymous MCP and OAuth-protected operations
 
-- Status: `implemented in the current worktree; not deployed`.
+- Status: `live in production at okdam.lost.plus` (commit `b8ca145`).
 - Stateless MCP exposes public catalog, combined saved/TJ search, and active
   song lookup without a bearer. Performance writes and song create/update use
   `songbook:write`; deletion uses `songbook:admin`.
 - Body-derived routing rejects malformed credentials and prevents anonymous
   access to protected, unknown, ambiguous, or batch requests. Browser cookies
   never grant MCP identity.
+- Production smoke covers discovery, anonymous listing/search, bearer
+  challenges, invalid tokens, and health. The real external OAuth client
+  matrix remains rollout item 5 below.
 - Related ids: DEC-20260820-002.
 
 ## Rollout Sequence (Completed 2026-08-13/14)

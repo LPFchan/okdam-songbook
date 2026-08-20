@@ -5,7 +5,7 @@ Recorded by agent: codex-orchestrator
 
 ## Snapshot
 
-- Last updated: 2026-08-20 (MCP/OAuth implementation prepared; not deployed).
+- Last updated: 2026-08-20 (anonymous MCP and OAuth-protected operations deployed).
 - Overall posture: `live in production on OCI single-server`.
 - Production baseline: current `main` with single-role allowlist authorization,
   running as `songbook:local` (ARM64) on oci-ubuntu.
@@ -85,6 +85,9 @@ Recorded by agent: codex-orchestrator
   `songbook:admin`. Authoritative Better Auth identity is resolved before any
   authenticated request reaches the shared domain service, and anonymous
   search never invokes TJ.
+- MCP/OAuth commit `b8ca145` is live. Production smoke verified protected
+  resource and authorization-server discovery, anonymous tool listing and
+  combined search, missing/invalid bearer challenges, and local/public health.
 - The Docker image runs non-root with a read-only root filesystem, persistent
   SQLite bind mount, localhost-only published port, bounded logs/resources,
   and an application-owned `/healthz` check.
@@ -101,7 +104,6 @@ Recorded by agent: codex-orchestrator
 
 ## Remaining Verification
 
-- The MCP/OAuth implementation in the current worktree has not been deployed.
 - Real external MCP client flow (discovery, dynamic registration where
   required, PKCE, token issuance/resource binding, initialize, tool listing,
   read call, scoped write, revocation, restart) through the public hostname.

@@ -6,7 +6,7 @@
 
 통합 소스에는 카탈로그 중심의 통합 화면, 문맥형 곡 추가·관리·공연 기록, TJ 반주번호 보조 입력, OCI Node/Hono 서버, Better Auth 브라우저 세션이 반영되어 있습니다. 서버는 PWA, SQLite, TJ 미러, API, Better Auth, stateless MCP를 한 origin에서 제공합니다.
 
-MCP는 공개 카탈로그·통합 검색·곡 조회를 로그아웃 상태에서 제공하고, 공연 기록과 곡 변경은 Better Auth OAuth bearer 및 현재 이메일 allowlist로 보호합니다. MCP 쿠키는 identity가 아니며, 구현 변경은 현재 worktree에서 검증 중이고 아직 운영 배포되지 않았습니다.
+MCP는 공개 카탈로그·통합 검색·곡 조회를 로그아웃 상태에서 제공하고, 공연 기록과 곡 변경은 Better Auth OAuth bearer 및 현재 이메일 allowlist로 보호합니다. MCP 쿠키는 identity가 아니며, 이 MCP/OAuth 경계는 현재 운영 중입니다.
 
 ## 주요 기능
 
