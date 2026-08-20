@@ -4,7 +4,7 @@ Production is the OCI single server at https://okdam.lost.plus. The legacy
 GitHub Pages / Apps Script / Cloudflare Worker stack is retired: the Pages
 workflow is a manual-dispatch redirect stub and nothing deploys automatically.
 
-The anonymous MCP and OAuth-protected operations from commit `b8ca145` are live.
+The anonymous MCP and OAuth-protected operations from commit `3e8d623` are live.
 Production smoke verifies the protected-resource challenge, Better Auth OAuth
 discovery, anonymous listing/search, invalid-token handling, and local/public
 health. Interactive PKCE login, resource-bound token calls, revocation, restart,

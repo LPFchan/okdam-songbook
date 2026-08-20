@@ -84,9 +84,10 @@ Recorded by agent: codex-orchestrator
   `songbook:write`. Authoritative Better Auth identity is resolved before any
   authenticated request reaches the shared domain service, and anonymous
   search never invokes TJ.
-- MCP/OAuth commit `b8ca145` is live. Production smoke verified protected
+- MCP/OAuth commit `3e8d623` is live. Production smoke verified protected
   resource and authorization-server discovery, anonymous tool listing and
-  combined search, missing/invalid bearer challenges, and local/public health.
+  combined search, read/write-only scope metadata, missing/invalid bearer
+  challenges, and local/public health.
 - The Docker image runs non-root with a read-only root filesystem, persistent
   SQLite bind mount, localhost-only published port, bounded logs/resources,
   and an application-owned `/healthz` check.

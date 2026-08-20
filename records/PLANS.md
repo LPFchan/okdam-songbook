@@ -36,7 +36,7 @@ Recorded by agent: codex-orchestrator
 
 ### Anonymous MCP and OAuth-protected operations
 
-- Status: `live in production at okdam.lost.plus` (commit `b8ca145`).
+- Status: `live in production at okdam.lost.plus` (commit `3e8d623`).
 - Stateless MCP exposes public catalog, combined saved/TJ search, and active
   song lookup without a bearer. Every mutation uses `songbook:write`.
 - Body-derived routing rejects malformed credentials and prevents anonymous
