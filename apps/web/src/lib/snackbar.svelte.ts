@@ -8,7 +8,7 @@ export interface SnackbarState {
   action: SnackbarAction | null;
 }
 
-const DEFAULT_TIMEOUT_MS = 1000;
+const DEFAULT_TIMEOUT_MS = 4000;
 
 class SnackbarStore {
   current = $state<SnackbarState | null>(null);
