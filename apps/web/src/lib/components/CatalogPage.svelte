@@ -303,6 +303,7 @@
   }
 
   async function markPerformed(song: Song) {
+    selected = null;
     const clientRequestId = crypto.randomUUID();
     const performedAt = new Date().toISOString();
     songs = songs.map((item) =>

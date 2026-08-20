@@ -1,7 +1,7 @@
 <script lang="ts">
   import { snackbar } from "../snackbar.svelte";
 
-  // Drag horizontally (or pull down) to fling the toast away.
+  // Drag horizontally to fling the toast away.
   let startX = 0;
   let deltaX = $state(0);
   let dragging = $state(false);
