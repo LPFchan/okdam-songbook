@@ -69,7 +69,7 @@ export interface ServerApp {
 }
 
 const JSON_MEDIA_TYPE = /^application\/json(?:\s*;|$)/i;
-const PUBLIC_MCP_SCOPES: McpScope[] = ["songbook:read", "songbook:write", "songbook:admin"];
+const PUBLIC_MCP_SCOPES: McpScope[] = ["songbook:read", "songbook:write"];
 const ANONYMOUS_MCP_METHODS = new Set([
   "initialize",
   "server/discover",

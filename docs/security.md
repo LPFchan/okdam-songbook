@@ -27,8 +27,8 @@
 - Anonymous MCP routing is body-derived and fail-closed. It explicitly admits
   discovery, listings, notifications, ping, and public tool calls while
   rejecting unknown methods, malformed bodies, ambiguous calls, and batches.
-- OAuth scopes are `songbook:write` for performance/create/update operations
-  and `songbook:admin` for deletion. Public tools do not require a bearer.
+- OAuth scope `songbook:write` covers every mutation, including deletion.
+  Public tools do not require a bearer.
 
 ## Better Auth browser sessions
 

@@ -3,7 +3,7 @@ import { authInfoForPrincipal, createSongbookMcpHandler, mcpContract, mcpPackage
 import type { SongbookService, TjAdapter } from "@songbook/server-core";
 
 const actor = { email: "allowed@example.com", displayName: "Allowed" };
-const authInfo = authInfoForPrincipal({ actor, userId: "user-1", scopes: ["songbook:read", "songbook:write", "songbook:admin"] }, "token-1");
+const authInfo = authInfoForPrincipal({ actor, userId: "user-1", scopes: ["songbook:read", "songbook:write"] }, "token-1");
 
 const song = {
   id: "song-1", tjNumber: "123", title: "Song", titleReadingKo: "", titleRomanized: "", titleAliases: [], artist: "Artist", artistReadingKo: "", artistAliases: [], country: "", genres: [], originalWork: "", keyCandidates: [], performerIds: [], memo: "", status: "active", youtubeUrl: "", youtubeVideoId: "", isOfficialTjVideo: null, sourceType: "", sourceReference: "", createdByName: "", createdAt: "2026-01-01T00:00:00.000Z", updatedByName: "", updatedAt: "2026-01-01T00:00:00.000Z", deletedAt: "", version: 1, lastPerformedAt: "", performanceCount: 0
@@ -51,10 +51,11 @@ describe("stateless Songbook MCP", () => {
       "cancel_performance", "catalog", "create_song", "delete_song", "get_song", "record_performance", "search_songs", "update_song"
     ]);
     expect(mcpToolPolicy.search_songs).toEqual({ access: "public", requiredScope: "songbook:read" });
+    expect(mcpToolPolicy.delete_song).toEqual({ access: "write", requiredScope: "songbook:write" });
     expect(mcpContract.mount).toEqual({ authentication: "optional-oauth", path: "/mcp", audience: "songbook-mcp", stateless: true });
     expect(mcpRequiredScopeForBody({ method: "tools/call", params: { name: "record_performance" } })).toBe("songbook:write");
     expect(mcpRequiredScopeForBody({ method: "tools/call", params: { name: "search_songs" } })).toBe("songbook:read");
-    expect(mcpRequiredScopeForBody({ method: "tools/call", params: { name: "delete_song" } })).toBe("songbook:admin");
+    expect(mcpRequiredScopeForBody({ method: "tools/call", params: { name: "delete_song" } })).toBe("songbook:write");
     expect(mcpRequiredScopeForBody({ method: "tools/call", params: { name: "catalog" } })).toBeNull();
     expect(mcpRequiredScopeForBody({ method: "tools/call", params: { name: "unknown" } })).toBeUndefined();
   });

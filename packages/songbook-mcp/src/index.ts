@@ -31,7 +31,7 @@ export interface SongbookMcpHandlerOptions {
   tj?: TjAdapter;
 }
 
-export type McpToolAccess = "public" | "write" | "admin";
+export type McpToolAccess = "public" | "write";
 
 export interface McpToolPolicyEntry {
   readonly access: McpToolAccess;
@@ -46,7 +46,7 @@ export const mcpToolPolicy = {
   cancel_performance: { access: "write", requiredScope: "songbook:write" },
   create_song: { access: "write", requiredScope: "songbook:write" },
   update_song: { access: "write", requiredScope: "songbook:write" },
-  delete_song: { access: "admin", requiredScope: "songbook:admin" }
+  delete_song: { access: "write", requiredScope: "songbook:write" }
 } as const satisfies Record<string, McpToolPolicyEntry>;
 
 export type McpToolName = keyof typeof mcpToolPolicy;
@@ -55,7 +55,7 @@ export const mcpPackage = "@songbook/mcp" as const;
 
 export const mcpContract: StatelessMcpContract = {
   revision: "2026-07-28",
-  scopes: ["songbook:read", "songbook:write", "songbook:admin"],
+  scopes: ["songbook:read", "songbook:write"],
   mount: {
     authentication: "optional-oauth",
     path: "/mcp",

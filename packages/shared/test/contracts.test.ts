@@ -51,6 +51,7 @@ describe("single-server contracts", () => {
 
   it("models stateless MCP negotiation with optional OAuth", () => {
     expect(mcpScopeSetSchema.parse(["songbook:read", "songbook:read"])).toEqual(["songbook:read"]);
+    expect(mcpScopeSetSchema.safeParse(["songbook:admin"]).success).toBe(false);
     expect(mcpNegotiationSchema.parse({ requestedRevision: "2026-07-28", negotiatedRevision: "2026-07-28", stateless: true }).stateless).toBe(true);
     const options = optionalOAuthMcpMountOptionsSchema.parse({
       authentication: "optional-oauth",

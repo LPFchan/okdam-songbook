@@ -226,7 +226,7 @@ export const conflictDetailsSchema = z.object({
   requestVersion: z.number().int().nonnegative().optional()
 });
 
-export const mcpScopeSchema = z.enum(["songbook:read", "songbook:write", "songbook:admin"]);
+export const mcpScopeSchema = z.enum(["songbook:read", "songbook:write"]);
 export const mcpScopeSetSchema = z.array(mcpScopeSchema).min(1).transform((scopes) => Array.from(new Set(scopes)));
 export const mcpAudienceSchema = z.literal("songbook-mcp");
 

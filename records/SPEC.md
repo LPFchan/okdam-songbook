@@ -60,8 +60,7 @@ history.
   binding, body-derived anonymous routing, per-tool scopes, and no long-lived
   MCP session state.
 - MCP exposes public `catalog`, combined `search_songs`, and `get_song` tools;
-  `record_performance`, `cancel_performance`, `create_song`, and `update_song`
-  require `songbook:write`, while `delete_song` requires `songbook:admin`.
+  every mutation tool requires `songbook:write`.
   An authenticated `search_songs` call requires `songbook:read` before TJ
   continuation. Protected operations use the same domain services and
   validation as the browser API.

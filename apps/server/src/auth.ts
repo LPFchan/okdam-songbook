@@ -57,7 +57,7 @@ export function createBrowserAuth(config: BrowserAuthConfig): BrowserAuth {
   const plugins = [mcp({
     loginPage: "/",
     resource: `${config.origin}/mcp`,
-    oidcConfig: { loginPage: "/", scopes: ["songbook:read", "songbook:write", "songbook:admin"] }
+    oidcConfig: { loginPage: "/", scopes: ["songbook:read", "songbook:write"] }
   })];
   return betterAuth({
     database: config.database.sqlite as unknown as Database.Database,
@@ -145,7 +145,7 @@ export function createMcpAuthAdapter(options: { auth?: BrowserAuth; database: So
       const payload = await response.json().catch(() => null) as { access_token?: unknown; expires_in?: unknown; scope?: unknown } | null;
       if (!payload || typeof payload.access_token !== "string") return;
       const expiresIn = typeof payload.expires_in === "number" && payload.expires_in > 0 ? payload.expires_in : 3600;
-      const scopes = String(payload.scope ?? "").split(/\s+/).filter((scope): scope is McpScope => scope === "songbook:read" || scope === "songbook:write" || scope === "songbook:admin");
+      const scopes = String(payload.scope ?? "").split(/\s+/).filter((scope): scope is McpScope => scope === "songbook:read" || scope === "songbook:write");
       sqlite.prepare(`INSERT INTO mcp_token_resources (access_token,resource,scopes,expires_at,created_at) VALUES (?,?,?,?,?) ON CONFLICT(access_token) DO UPDATE SET resource=excluded.resource,scopes=excluded.scopes,expires_at=excluded.expires_at`).run(payload.access_token, canonical, scopes.join(" "), new Date(Date.now() + expiresIn * 1000).toISOString(), new Date().toISOString());
       void request;
     },
@@ -158,7 +158,7 @@ export function createMcpAuthAdapter(options: { auth?: BrowserAuth; database: So
       if (!token) return { ok: false, response: unauthorized("Malformed bearer authentication", options.origin, true) };
       const row = sqlite.prepare("SELECT access_token,resource,scopes,expires_at FROM mcp_token_resources WHERE access_token=?").get(token) as { access_token: string; resource: string; scopes: string; expires_at: string } | undefined;
       if (!row || row.resource !== canonical || Date.parse(row.expires_at) <= Date.now()) return { ok: false, response: unauthorized("Invalid or resource-mismatched token", options.origin, true) };
-      const scopes = row.scopes.split(/\s+/).filter((scope): scope is McpScope => scope === "songbook:read" || scope === "songbook:write" || scope === "songbook:admin");
+      const scopes = row.scopes.split(/\s+/).filter((scope): scope is McpScope => scope === "songbook:read" || scope === "songbook:write");
       if (requiredScopes.some((scope) => !scopes.includes(scope))) return { ok: false, response: forbidden("The token does not grant the requested scope") };
       if (!options.auth) return { ok: false, response: unauthorized("OAuth provider is not configured", options.origin, true) };
       const authHeaders = new Headers(request.headers);
@@ -190,5 +190,5 @@ export function createMcpAuthAdapter(options: { auth?: BrowserAuth; database: So
 }
 
 export function mcpScopeFromString(value: string): McpScope[] {
-  return value.split(/\s+/).filter((scope): scope is McpScope => scope === "songbook:read" || scope === "songbook:write" || scope === "songbook:admin");
+  return value.split(/\s+/).filter((scope): scope is McpScope => scope === "songbook:read" || scope === "songbook:write");
 }

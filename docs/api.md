@@ -66,8 +66,8 @@ song deletion.
 The stateless MCP mount at `/mcp` uses optional OAuth. Public tools are
 available without a bearer: `catalog`, `search_songs`, and `get_song`.
 `record_performance`,
-`cancel_performance`, `create_song`, and `update_song` require an OAuth bearer
-with `songbook:write`; `delete_song` requires `songbook:admin`.
+`cancel_performance`, `create_song`, `update_song`, and `delete_song` require
+an OAuth bearer with `songbook:write`.
 
 `search_songs` always returns `{ query, saved, tj }`. It uses the website’s
 trimmed query gate: TJ is eligible for queries with at least two characters or

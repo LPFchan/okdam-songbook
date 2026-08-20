@@ -49,8 +49,8 @@ flowchart LR
   malformed, expired, revoked, resource-mismatched, and unsupported headers
   are rejected. Cookies never provide MCP identity, and mixed cookies plus a
   bearer are rejected.
-- The single tool-policy table defines public access, `songbook:write`, and
-  `songbook:admin` requirements for both transport gating and tool guards.
+- The single tool-policy table defines public access and `songbook:write`
+  requirements for both transport gating and tool guards.
   Every authenticated request resolves the Better Auth token user and current
   allowlist before reaching a shared service.
 - `search_songs` always returns saved matches and a TJ section. Anonymous

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { openDatabase, type SongbookDatabase } from "@songbook/server-core";
 import { createServerApp } from "../src/api.js";
-import { allowedUserMap, createAllowlistRoleResolver, createMcpAuthAdapter } from "../src/auth.js";
+import { allowedUserMap, createAllowlistRoleResolver, createMcpAuthAdapter, mcpScopeFromString } from "../src/auth.js";
 
 const origin = "https://songbook.example";
 let database: SongbookDatabase | undefined;
@@ -32,6 +32,10 @@ describe("same-origin server surface", () => {
     const noResolverServer = app({ sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }) });
     const response = await noResolverServer.request(request("/api/me"));
     expect(response.status).toBe(401);
+  });
+
+  it("keeps MCP authorization to read and write scopes", () => {
+    expect(mcpScopeFromString("songbook:read songbook:write songbook:admin")).toEqual(["songbook:read", "songbook:write"]);
   });
 
   it("rejects malformed programmatic allowlists instead of admitting a valid subset", () => {
@@ -342,7 +346,7 @@ describe("MCP OAuth resource-server gate", () => {
     const metadata = await directDiscovery.json();
     expect(metadata).toEqual(expect.objectContaining({ issuer: `${origin}/api/auth`, authorization_endpoint: `${origin}/api/auth/mcp/authorize`, token_endpoint: `${origin}/api/auth/mcp/token`, registration_endpoint: `${origin}/api/auth/mcp/register` }));
     expect(await (await server.request(request("/.well-known/oauth-authorization-server"))).json()).toEqual(metadata);
-    expect(await (await server.request(request("/.well-known/oauth-protected-resource/mcp"))).json()).toEqual({ resource: `${origin}/mcp`, authorization_servers: [`${origin}/api/auth`], jwks_uri: `${origin}/api/auth/mcp/jwks`, scopes_supported: ["songbook:read", "songbook:write", "songbook:admin"], bearer_methods_supported: ["header"], resource_signing_alg_values_supported: ["RS256"] });
+    expect(await (await server.request(request("/.well-known/oauth-protected-resource/mcp"))).json()).toEqual({ resource: `${origin}/mcp`, authorization_servers: [`${origin}/api/auth`], jwks_uri: `${origin}/api/auth/mcp/jwks`, scopes_supported: ["songbook:read", "songbook:write"], bearer_methods_supported: ["header"], resource_signing_alg_values_supported: ["RS256"] });
     expect(await (await server.request(request("/.well-known/oauth-protected-resource"))).json()).toEqual(await (await server.request(request("/api/auth/.well-known/oauth-protected-resource"))).json());
   });
 

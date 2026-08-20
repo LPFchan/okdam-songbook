@@ -80,9 +80,8 @@ Recorded by agent: codex-orchestrator
   authentication recovery, with bounded retry, dead letters, and preserved
   write identities.
 - MCP uses stateless SDK v2 transport with legacy stateless fallback. Public
-  catalog/search/lookup operations work anonymously; performance and song
-  creation/update require `songbook:write`, and deletion requires
-  `songbook:admin`. Authoritative Better Auth identity is resolved before any
+  catalog/search/lookup operations work anonymously; every mutation requires
+  `songbook:write`. Authoritative Better Auth identity is resolved before any
   authenticated request reaches the shared domain service, and anonymous
   search never invokes TJ.
 - MCP/OAuth commit `b8ca145` is live. Production smoke verified protected
