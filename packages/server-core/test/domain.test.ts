@@ -72,6 +72,22 @@ describe("songbook domain services", () => {
     expect(Object.hasOwn(updated, "expectedVersion")).toBe(false);
   });
 
+  it("returns structured create outcomes, preserves TJ provenance, and hides deleted rows from lookup", () => {
+    const service = createSongbookService(database, { roleResolver: roleResolver() });
+    const created = service.createSongOutcome(allowed, songInput({ title: "Outcome", artist: "Artist", tjNumber: "77777" }));
+    expect(created.outcome).toBe("created");
+    const duplicate = service.createSongOutcome(allowed, songInput({ title: "Outcome", artist: "Artist", tjNumber: "77777", clientRequestId: crypto.randomUUID() }));
+    expect(duplicate).toMatchObject({ outcome: "duplicate", existing: { id: created.song?.id }, song: null, canOpen: true });
+
+    const tj = service.createTjSong(allowed, { tjNumber: "88888", title: "TJ source", artist: "TJ artist", lyricist: "", composer: "", sourceUrl: "https://tj.example/song" }, crypto.randomUUID());
+    expect(tj).toMatchObject({ outcome: "created", song: { sourceType: "tjmedia", sourceReference: "https://tj.example/song" } });
+
+    const deleted = service.createSong(allowed, songInput({ title: "Deleted", artist: "Artist", tjNumber: "99999", status: "deleted" }));
+    expect(service.getSong(deleted.id)).toBeNull();
+    const deletedOutcome = service.createSongOutcome(allowed, songInput({ title: "Deleted", artist: "Artist", tjNumber: "99999", clientRequestId: crypto.randomUUID() }));
+    expect(deletedOutcome).toMatchObject({ outcome: "deleted", existing: { id: deleted.id }, song: null, canOpen: false });
+  });
+
   it("makes mutations replay-safe and audits the successful operation once", () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
     const clientRequestId = crypto.randomUUID();

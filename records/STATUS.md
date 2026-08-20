@@ -5,7 +5,7 @@ Recorded by agent: codex-orchestrator
 
 ## Snapshot
 
-- Last updated: 2026-08-20.
+- Last updated: 2026-08-20 (MCP/OAuth implementation prepared; not deployed).
 - Overall posture: `live in production on OCI single-server`.
 - Production baseline: current `main` with single-role allowlist authorization,
   running as `songbook:local` (ARM64) on oci-ubuntu.
@@ -79,9 +79,12 @@ Recorded by agent: codex-orchestrator
 - The offline performance queue drains on startup, reconnect, visibility, and
   authentication recovery, with bounded retry, dead letters, and preserved
   write identities.
-- MCP uses stateless SDK v2 transport with legacy stateless fallback. Read and
-  write scopes protect five tools, and authoritative Better Auth identity is
-  resolved before the shared domain service executes.
+- MCP uses stateless SDK v2 transport with legacy stateless fallback. Public
+  catalog/search/lookup operations work anonymously; performance and song
+  creation/update require `songbook:write`, and deletion requires
+  `songbook:admin`. Authoritative Better Auth identity is resolved before any
+  authenticated request reaches the shared domain service, and anonymous
+  search never invokes TJ.
 - The Docker image runs non-root with a read-only root filesystem, persistent
   SQLite bind mount, localhost-only published port, bounded logs/resources,
   and an application-owned `/healthz` check.
@@ -98,6 +101,7 @@ Recorded by agent: codex-orchestrator
 
 ## Remaining Verification
 
+- The MCP/OAuth implementation in the current worktree has not been deployed.
 - Real external MCP client flow (discovery, dynamic registration where
   required, PKCE, token issuance/resource binding, initialize, tool listing,
   read call, scoped write, revocation, restart) through the public hostname.

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Song, TjSongCandidate } from "@songbook/shared";
+  import { isSearchableQuery, type Song, type TjSongCandidate } from "@songbook/shared";
   import { addTjSong, searchTjSongs } from "../api";
   import { snackbar } from "../snackbar.svelte";
 
@@ -26,7 +26,7 @@
   }
 
   const trimmedQuery = $derived(query.trim());
-  const searchable = $derived(trimmedQuery.length >= 2 || /^\d+$/u.test(trimmedQuery));
+  const searchable = $derived(isSearchableQuery(trimmedQuery));
 
   let loading = $state(false);
   let results = $state<TjSongCandidate[]>([]);

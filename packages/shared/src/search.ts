@@ -4,6 +4,19 @@ import { getHangulChoseong, includesAllTokens, normalizeNumber, normalizeText } 
 import { performerSearchText, type PerformerId } from "./performers.js";
 import { isPublicSongStatus } from "./permissions.js";
 
+export function normalizedSearchQuery(query: string): string {
+  return query.trim();
+}
+
+export function isSearchableQuery(query: string): boolean {
+  const trimmed = normalizedSearchQuery(query);
+  return trimmed.length >= 2 || /^\d+$/u.test(trimmed);
+}
+
+export function searchTypeForQuery(query: string): "all" | "number" {
+  return /^\d+$/u.test(normalizedSearchQuery(query)) ? "number" : "all";
+}
+
 export type SortKey = "title" | "tjNumber" | "recentAdded" | "recentUpdated" | "recentPerformed" | "performanceCount";
 
 export interface SongFilters {

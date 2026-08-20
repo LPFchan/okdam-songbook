@@ -144,7 +144,7 @@ export async function verifySessionToken(token: string, secret: string, nowMs?: 
 
 export function parseAuthorizationHeader(value: string | null | undefined): string | null {
   if (!value) return null;
-  const match = String(value).match(/^Bearer\s+(.+)$/i);
+  const match = String(value).match(/^Bearer[ \t]+([^\s]+)$/i);
   const captured = match ? match[1] : null;
   return captured ? captured.trim() : null;
 }

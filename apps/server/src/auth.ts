@@ -106,14 +106,22 @@ export interface McpAuthAdapter {
   verifyRequest(request: Request, requiredScopes: McpScope[]): Promise<{ ok: true; token: McpTokenBinding; session: unknown; principal: McpPrincipal } | { ok: false; response: Response }>;
 }
 
-function unauthorized(message: string, resource: string): Response {
+function unauthorized(message: string, origin: string, invalidToken = false): Response {
+  const metadata = `${origin}/.well-known/oauth-protected-resource/mcp`;
+  const challenge = invalidToken
+    ? `Bearer error="invalid_token", resource_metadata="${metadata}"`
+    : `Bearer resource_metadata="${metadata}"`;
   return new Response(JSON.stringify({ ok: false, error: message }), {
     status: 401,
     headers: {
       "Content-Type": "application/json",
-      "WWW-Authenticate": `Bearer resource_metadata="${resource}/.well-known/oauth-protected-resource/mcp"`
+      "WWW-Authenticate": challenge
     }
   });
+}
+
+export function mcpBearerChallenge(origin: string, invalidToken = false): Response {
+  return unauthorized(invalidToken ? "Invalid bearer authentication" : "Bearer authentication is required", origin, invalidToken);
 }
 
 function forbidden(message: string): Response {
@@ -142,14 +150,17 @@ export function createMcpAuthAdapter(options: { auth?: BrowserAuth; database: So
       void request;
     },
     async verifyRequest(request, requiredScopes) {
-      if (request.headers.get("Cookie")) return { ok: false, response: unauthorized("Bearer authentication is required", canonical) };
-      const token = parseAuthorizationHeader(request.headers.get("Authorization"));
-      if (!token) return { ok: false, response: unauthorized("Bearer authentication is required", canonical) };
+      const authorization = request.headers.get("Authorization");
+      const hasAuthorization = authorization !== null;
+      const token = parseAuthorizationHeader(authorization);
+      if (request.headers.get("Cookie") && hasAuthorization) return { ok: false, response: unauthorized("Mixed cookie and bearer authentication is not allowed", options.origin, true) };
+      if (!hasAuthorization) return { ok: false, response: unauthorized("Bearer authentication is required", options.origin) };
+      if (!token) return { ok: false, response: unauthorized("Malformed bearer authentication", options.origin, true) };
       const row = sqlite.prepare("SELECT access_token,resource,scopes,expires_at FROM mcp_token_resources WHERE access_token=?").get(token) as { access_token: string; resource: string; scopes: string; expires_at: string } | undefined;
-      if (!row || row.resource !== canonical || Date.parse(row.expires_at) <= Date.now()) return { ok: false, response: unauthorized("Invalid or resource-mismatched token", canonical) };
+      if (!row || row.resource !== canonical || Date.parse(row.expires_at) <= Date.now()) return { ok: false, response: unauthorized("Invalid or resource-mismatched token", options.origin, true) };
       const scopes = row.scopes.split(/\s+/).filter((scope): scope is McpScope => scope === "songbook:read" || scope === "songbook:write" || scope === "songbook:admin");
       if (requiredScopes.some((scope) => !scopes.includes(scope))) return { ok: false, response: forbidden("The token does not grant the requested scope") };
-      if (!options.auth) return { ok: false, response: unauthorized("OAuth provider is not configured", canonical) };
+      if (!options.auth) return { ok: false, response: unauthorized("OAuth provider is not configured", options.origin, true) };
       const authHeaders = new Headers(request.headers);
       authHeaders.set("Authorization", `Bearer ${token}`);
       const getMcpSession = (options.auth.api as unknown as { getMcpSession: (input: { headers: Headers; asResponse: false }) => Promise<unknown> }).getMcpSession;
@@ -157,11 +168,11 @@ export function createMcpAuthAdapter(options: { auth?: BrowserAuth; database: So
       try {
         session = await getMcpSession({ headers: authHeaders, asResponse: false });
       } catch {
-        return { ok: false, response: unauthorized("Invalid or expired token", canonical) };
+        return { ok: false, response: unauthorized("Invalid or expired token", options.origin, true) };
       }
-      if (!session) return { ok: false, response: unauthorized("Invalid or expired token", canonical) };
+      if (!session) return { ok: false, response: unauthorized("Invalid or expired token", options.origin, true) };
       const userId = typeof session === "object" && session !== null && "userId" in session && typeof session.userId === "string" ? session.userId : "";
-      if (!userId) return { ok: false, response: unauthorized("Token has no authoritative user", canonical) };
+      if (!userId) return { ok: false, response: unauthorized("Token has no authoritative user", options.origin, true) };
       let user: { email?: unknown; name?: unknown } | null;
       try {
         const context = await options.auth.$context;
@@ -171,7 +182,7 @@ export function createMcpAuthAdapter(options: { auth?: BrowserAuth; database: So
         user = null;
       }
       const email = normalizeEmail(typeof user?.email === "string" ? user.email : "");
-      if (!email) return { ok: false, response: unauthorized("Token user cannot be resolved", canonical) };
+      if (!email) return { ok: false, response: unauthorized("Token user cannot be resolved", options.origin, true) };
       const displayName = typeof user?.name === "string" && user.name.trim() ? user.name.trim() : email;
       return { ok: true, token: { accessToken: row.access_token, resource: row.resource, scopes, expiresAt: row.expires_at }, session, principal: { userId, actor: { email, displayName } } };
     }

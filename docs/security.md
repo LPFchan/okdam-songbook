@@ -12,6 +12,24 @@
 - ChatGPT Action OAuth is a separate Worker protocol and keeps its own redirect
   allowlist and bearer-token contract.
 
+## MCP OAuth
+
+- MCP public catalog/search/lookup calls may be anonymous. Protected MCP tools
+  use Better Auth OAuth bearer tokens and the current email allowlist; no
+  browser cookie grants MCP identity.
+- A request with no Authorization header is anonymous. A request with any
+  Authorization header is authenticated input and cannot downgrade to
+  anonymous when the scheme, token, expiry, resource binding, or revocation
+  check fails.
+- Mixed cookie-plus-bearer requests are rejected. Missing credentials receive
+  a Bearer resource-metadata challenge at the origin-level discovery URL;
+  rejected credentials include `invalid_token`.
+- Anonymous MCP routing is body-derived and fail-closed. It explicitly admits
+  discovery, listings, notifications, ping, and public tool calls while
+  rejecting unknown methods, malformed bodies, ambiguous calls, and batches.
+- OAuth scopes are `songbook:write` for performance/create/update operations
+  and `songbook:admin` for deletion. Public tools do not require a bearer.
+
 ## Better Auth browser sessions
 
 - Better Auth stores users, accounts, and sessions in the application SQLite

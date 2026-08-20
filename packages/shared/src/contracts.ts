@@ -237,20 +237,18 @@ export const mcpNegotiationSchema = z.object({
   stateless: z.literal(true)
 });
 
-export const bearerMcpMountOptionsSchema = z.object({
+export const optionalOAuthMcpMountOptionsSchema = z.object({
+  authentication: z.literal("optional-oauth"),
   path: z.literal("/mcp"),
   audience: mcpAudienceSchema,
-  bearerOnly: z.literal(true),
-  stateless: z.literal(true),
-  validateAudience: z.function().args(z.string()).returns(z.union([z.boolean(), z.promise(z.boolean())]))
+  stateless: z.literal(true)
 });
 
-export interface BearerMcpMountOptions {
+export interface OptionalOAuthMcpMountOptions {
+  authentication: "optional-oauth";
   path: "/mcp";
   audience: "songbook-mcp";
-  bearerOnly: true;
   stateless: true;
-  validateAudience(token: string): boolean | Promise<boolean>;
 }
 
 export type McpScope = z.infer<typeof mcpScopeSchema>;

@@ -37,6 +37,26 @@ flowchart LR
 - The retired Apps Script/Sheets implementation remains historical migration
   material only; it is not on the live request path.
 
+## MCP transport and authorization
+
+- `/mcp` is an optional-OAuth mount serving modern and legacy stateless MCP
+  exchanges without long-lived MCP session state.
+- Requests without an Authorization header are anonymous. Anonymous transport
+  admission is derived from the JSON body and allows discovery, listings,
+  notifications, ping, and public catalog/search/lookup calls. Unknown,
+  malformed, ambiguous, and batch requests fail closed.
+- A present Authorization header is always evaluated as OAuth bearer input;
+  malformed, expired, revoked, resource-mismatched, and unsupported headers
+  are rejected. Cookies never provide MCP identity, and mixed cookies plus a
+  bearer are rejected.
+- The single tool-policy table defines public access, `songbook:write`, and
+  `songbook:admin` requirements for both transport gating and tool guards.
+  Every authenticated request resolves the Better Auth token user and current
+  allowlist before reaching a shared service.
+- `search_songs` always returns saved matches and a TJ section. Anonymous
+  searches never invoke TJ; authenticated read-scoped eligible searches use
+  the existing mirror-backed adapter and preserve local matches when TJ fails.
+
 ## Live TJ adapter
 
 - Browser requests only typed lookup/search/add/restore actions.
@@ -58,7 +78,7 @@ The former Apps Script/Sheets API and Cloudflare Worker integration are
 retained as legacy source and migration context. They are not live request
 boundaries after the OCI cutover.
 
-## Separate ChatGPT OAuth
+## Separate legacy ChatGPT OAuth
 
 The Worker’s `/authorize`, `/oauth/callback`, `/token`, and `/api/gpt*` routes
 remain a separate OAuth protocol for ChatGPT Actions. Better Auth browser

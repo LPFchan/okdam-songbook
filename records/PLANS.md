@@ -34,6 +34,17 @@ Recorded by agent: codex-orchestrator
   has the same `allowed` role and mutation permissions.
 - Related ids: DEC-20260813-001, DEC-20260813-005, DEC-20260814-001.
 
+### Anonymous MCP and OAuth-protected operations
+
+- Status: `implemented in the current worktree; not deployed`.
+- Stateless MCP exposes public catalog, combined saved/TJ search, and active
+  song lookup without a bearer. Performance writes and song create/update use
+  `songbook:write`; deletion uses `songbook:admin`.
+- Body-derived routing rejects malformed credentials and prevents anonymous
+  access to protected, unknown, ambiguous, or batch requests. Browser cookies
+  never grant MCP identity.
+- Related ids: DEC-20260820-002.
+
 ## Rollout Sequence (Completed 2026-08-13/14)
 
 1. ~~Native OCI ARM64 image build, start, database health, disk-space gate.~~

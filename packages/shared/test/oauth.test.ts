@@ -125,5 +125,8 @@ describe("parseAuthorizationHeader", () => {
     expect(parseAuthorizationHeader(null)).toBeNull();
     expect(parseAuthorizationHeader("")).toBeNull();
     expect(parseAuthorizationHeader("Basic abc")).toBeNull();
+    expect(parseAuthorizationHeader("Bearer")).toBeNull();
+    expect(parseAuthorizationHeader("Bearer ")).toBeNull();
+    expect(parseAuthorizationHeader("Bearer abc def")).toBeNull();
   });
 });

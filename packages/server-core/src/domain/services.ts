@@ -1,4 +1,4 @@
-import type { Performance, Song } from "@songbook/shared";
+import type { Performance, Song, TjAddResult, TjSongCandidate } from "@songbook/shared";
 import { can, filterSongs, searchSongs, sortSongs, type PermissionAction, type SongFilters, type SortKey } from "@songbook/shared";
 import type { SongbookDatabase } from "../db/connection.js";
 import { createAuditRepository, createIdempotencyRepository, createPerformanceRepository, createSongRepository, IdempotencyMismatchError, type AuditRepository, type IdempotencyRepository, type PerformanceRepository, type SongRepository } from "../db/repositories.js";
@@ -45,10 +45,22 @@ export interface PerformanceStats {
   lastPerformedAt: string;
 }
 
+export interface SongCreateOutcome {
+  outcome: "created" | "duplicate" | "deleted";
+  song: Song | null;
+  existing: Song | null;
+  duplicateKind: "tjNumber" | "titleArtist" | null;
+  canRestore: boolean;
+  canOpen: boolean;
+}
+
 export interface SongbookService {
   catalog(): Song[];
+  getSong(id: string): Song | null;
   search(query: string, filters?: SongFilters, sortKey?: SortKey): Song[];
   createSong(actor: RequestActor, input: SongMutation): Song;
+  createSongOutcome(actor: RequestActor, input: SongMutation): SongCreateOutcome;
+  createTjSong(actor: RequestActor, candidate: TjSongCandidate, clientRequestId: string): TjAddResult;
   updateSong(actor: RequestActor, input: SongUpdate): Song;
   deleteSong(actor: RequestActor, input: { id: string; expectedVersion: number; clientRequestId: string }): Song;
   createPerformance(actor: RequestActor, input: PerformanceCreate): Performance;
@@ -97,6 +109,18 @@ function songFromUpdate(before: Song, input: SongUpdate, timestamp: string): Son
     createdByName: input.createdByName ?? before.createdByName, updatedByName: input.updatedByName ?? before.updatedByName,
     updatedAt: timestamp, version: before.version
   };
+}
+
+function duplicateKind(input: { tjNumber?: string | null }, duplicate: Song): "tjNumber" | "titleArtist" {
+  return input.tjNumber && duplicate.tjNumber === input.tjNumber ? "tjNumber" : "titleArtist";
+}
+
+function isDeletedSong(song: Song): boolean {
+  return Boolean(song.deletedAt) || song.status === "deleted";
+}
+
+function isUniqueConstraint(error: unknown): boolean {
+  return Boolean(error && typeof error === "object" && "code" in error && String((error as { code?: unknown }).code).startsWith("SQLITE_CONSTRAINT"));
 }
 
 export function createSongbookService(database: SongbookDatabase, options: ServiceOptions = {}): SongbookService {
@@ -148,8 +172,46 @@ export function createSongbookService(database: SongbookDatabase, options: Servi
     if (duplicate) throw new DomainError(input.tjNumber && duplicate.tjNumber === input.tjNumber ? "DUPLICATE_TJ_NUMBER" : "CONFLICT", "같은 TJ 번호 또는 곡명/아티스트가 이미 등록되어 있어.", { duplicateId: duplicate.id });
   };
 
+  const createSongOutcome = (actor: RequestActor, input: SongMutation): SongCreateOutcome => withMutation(actor, "song:create", "song.create", input.clientRequestId, input, (resolved) => {
+    const duplicate = songs.findDuplicate(input, undefined, { includeDeleted: true });
+    if (duplicate) {
+      return {
+        outcome: isDeletedSong(duplicate) ? "deleted" : "duplicate",
+        song: null,
+        existing: duplicate,
+        duplicateKind: duplicateKind(input, duplicate),
+        canRestore: false,
+        canOpen: !isDeletedSong(duplicate)
+      } satisfies SongCreateOutcome;
+    }
+    try {
+      const timestamp = now();
+      const created = songFromCreate(input, idFactory(), timestamp);
+      songs.insert({ ...created, createdByEmail: resolved.email, updatedByEmail: resolved.email });
+      const after = songs.get(created.id)!;
+      appendAudit(resolved, "song", created.id, "create", null, after, input.clientRequestId, null, after.version);
+      return { outcome: "created", song: after, existing: null, duplicateKind: null, canRestore: false, canOpen: true } satisfies SongCreateOutcome;
+    } catch (error) {
+      if (!isUniqueConstraint(error)) throw error;
+      const raced = songs.findDuplicate(input, undefined, { includeDeleted: true });
+      if (!raced) throw error;
+      return {
+        outcome: isDeletedSong(raced) ? "deleted" : "duplicate",
+        song: null,
+        existing: raced,
+        duplicateKind: duplicateKind(input, raced),
+        canRestore: false,
+        canOpen: !isDeletedSong(raced)
+      } satisfies SongCreateOutcome;
+    }
+  });
+
   return {
     catalog: () => filterSongs(songs.list(), {}, false),
+    getSong: (id) => {
+      const song = songs.get(id);
+      return song && !isDeletedSong(song) && song.status !== "deletion_candidate" ? song : null;
+    },
     search: (query, filters = {}, sortKey = "title") => sortSongs(filterSongs(searchSongs(songs.list(), query), filters, false), sortKey),
     checkDuplicate: (input, excludeId) => songs.findDuplicate(input, excludeId),
     createSong: (actor, input) => withMutation(actor, "song:create", "song.create", input.clientRequestId, input, (resolved) => {
@@ -161,6 +223,43 @@ export function createSongbookService(database: SongbookDatabase, options: Servi
       appendAudit(resolved, "song", created.id, "create", null, after, input.clientRequestId, null, after.version);
       return after;
     }),
+    createSongOutcome,
+    createTjSong: (actor, candidate, clientRequestId) => {
+      const input: SongMutation = {
+        tjNumber: candidate.tjNumber,
+        title: candidate.title,
+        titleReadingKo: "",
+        titleRomanized: "",
+        titleAliases: [],
+        artist: candidate.artist,
+        artistReadingKo: "",
+        artistAliases: [],
+        country: "",
+        genres: [],
+        originalWork: "",
+        keyCandidates: [],
+        performerIds: [],
+        memo: "",
+        status: "active",
+        youtubeUrl: "",
+        youtubeVideoId: "",
+        isOfficialTjVideo: null,
+        sourceType: "tjmedia",
+        sourceReference: candidate.sourceUrl,
+        createdByName: actor.displayName ?? actor.email,
+        updatedByName: actor.displayName ?? actor.email,
+        clientRequestId
+      };
+      const outcome = createSongOutcome(actor, input);
+      return {
+        outcome: outcome.outcome,
+        song: outcome.song,
+        existing: outcome.existing,
+        duplicateKind: outcome.duplicateKind,
+        canRestore: outcome.canRestore,
+        canOpen: outcome.canOpen
+      };
+    },
     updateSong: (actor, input) => withMutation(actor, "song:update", "song.update", input.clientRequestId, input, (resolved) => {
       const before = songs.get(input.id);
       if (!before || before.deletedAt) throw new DomainError("NOT_FOUND", "곡을 찾을 수 없어.");

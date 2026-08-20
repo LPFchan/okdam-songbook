@@ -11,9 +11,9 @@ import {
   songCreateRequestSchema,
   songDeleteRequestSchema,
   songUpdateRequestSchema,
-  tjAddResultSchema,
   tjLookupRequestSchema,
   tjSearchRequestSchema,
+  tjSongCandidateSchema,
   type CurrentUser,
   type McpScope
 } from "@songbook/shared";
@@ -35,9 +35,10 @@ import {
   type BrowserAuthConfig,
   initializeBrowserAuth,
   type McpAuthAdapter,
-  createMcpAuthAdapter
+  createMcpAuthAdapter,
+  mcpBearerChallenge
 } from "./auth.js";
-import { authInfoForPrincipal, createSongbookMcpHandler } from "@songbook/mcp";
+import { authInfoForPrincipal, createSongbookMcpHandler, mcpRequiredScopeForBody, mcpToolPolicyFor } from "@songbook/mcp";
 
 export interface BrowserPrincipal extends RequestActor {
   id?: string;
@@ -69,6 +70,25 @@ export interface ServerApp {
 
 const JSON_MEDIA_TYPE = /^application\/json(?:\s*;|$)/i;
 const PUBLIC_MCP_SCOPES: McpScope[] = ["songbook:read", "songbook:write", "songbook:admin"];
+const ANONYMOUS_MCP_METHODS = new Set([
+  "initialize",
+  "server/discover",
+  "ping",
+  "tools/list",
+  "resources/list",
+  "prompts/list",
+  "notifications/initialized",
+  "notifications/cancelled",
+  "notifications/progress",
+  "notifications/message",
+  "notifications/resources/list_changed",
+  "notifications/resources/updated",
+  "notifications/tools/list_changed",
+  "notifications/prompts/list_changed",
+  "notifications/roots/list_changed",
+  "notifications/tasks/status",
+  "notifications/elicitation/complete"
+]);
 
 function requestId(c: Context): string {
   return c.req.header("X-Request-Id")?.trim() || crypto.randomUUID();
@@ -104,8 +124,35 @@ function sameOrigin(c: Context, origin: string): boolean {
   return c.req.header("Origin") === origin;
 }
 
-function hasBearer(c: Context): boolean {
-  return Boolean(c.req.header("Authorization"));
+function hasAuthorizationHeader(c: Context): boolean {
+  return c.req.header("Authorization") !== undefined;
+}
+
+function validJsonRpcMessage(body: unknown): body is { jsonrpc: "2.0"; method: string; params?: unknown } {
+  return Boolean(body && typeof body === "object" && !Array.isArray(body)
+    && (body as { jsonrpc?: unknown }).jsonrpc === "2.0"
+    && typeof (body as { method?: unknown }).method === "string");
+}
+
+function anonymousMcpRequestAllowed(method: string, body: unknown): boolean {
+  if (method === "GET" || method === "DELETE") return true;
+  if (method !== "POST" || !validJsonRpcMessage(body)) return false;
+  if (ANONYMOUS_MCP_METHODS.has(body.method)) return true;
+  if (body.method !== "tools/call" || !body.params || typeof body.params !== "object" || Array.isArray(body.params)) return false;
+  const name = (body.params as { name?: unknown }).name;
+  return typeof name === "string" && mcpToolPolicyFor(name)?.access === "public";
+}
+
+function bodyDerivedMcpRequest(request: Request, body: unknown): Request {
+  if (!validJsonRpcMessage(body)) return request;
+  const headers = new Headers(request.headers);
+  headers.set("Mcp-Method", body.method);
+  if (body.method === "tools/call" && body.params && typeof body.params === "object" && !Array.isArray(body.params) && typeof (body.params as { name?: unknown }).name === "string") {
+    headers.set("Mcp-Name", String((body.params as { name: string }).name));
+  } else {
+    headers.delete("Mcp-Name");
+  }
+  return new Request(request, { headers });
 }
 
 function etag(value: string): string {
@@ -193,11 +240,11 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
   const auth = options.auth;
   const sessionResolver = options.sessionResolver ?? (auth ? (request: Request) => authSession(auth, request) : async () => null);
   const mcpAuth = options.mcpAuth ?? (auth ? createMcpAuthAdapter({ auth, database: options.database, origin: options.origin }) : createMcpAuthAdapter({ database: options.database, origin: options.origin }));
-  const mcpHandler = createSongbookMcpHandler({ service });
+  const mcpHandler = createSongbookMcpHandler({ service, tj: options.tj });
   const app = new Hono();
 
   const protectBrowser = async (c: Context): Promise<BrowserPrincipal | Response> => {
-    if (hasBearer(c)) return failure(c, new DomainError("UNAUTHORIZED", "브라우저 세션이 필요해."), now);
+    if (hasAuthorizationHeader(c)) return failure(c, new DomainError("UNAUTHORIZED", "브라우저 세션이 필요해."), now);
     const principal = await sessionResolver(c.req.raw);
     const user = principal && currentUser(principal, roleResolver);
     if (!principal || !user) return failure(c, new DomainError("UNAUTHORIZED", "로그인 또는 허용된 계정이 필요해."), now);
@@ -245,7 +292,7 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
   });
 
   app.get("/api/session", async (c) => {
-    if (hasBearer(c)) return failure(c, new DomainError("UNAUTHORIZED", "브라우저 세션이 필요해."), now);
+    if (hasAuthorizationHeader(c)) return failure(c, new DomainError("UNAUTHORIZED", "브라우저 세션이 필요해."), now);
     const principal = await sessionResolver(c.req.raw);
     if (!principal) return failure(c, new DomainError("UNAUTHORIZED", "로그인 세션이 없어."), now);
     const user = currentUser(principal, roleResolver);
@@ -295,15 +342,9 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     const body = await c.req.json();
     const parsed = z.object({ candidate: z.unknown(), clientRequestId: z.string().uuid() }).safeParse(body);
     if (!parsed.success) throw parsed.error;
-    const candidate = tjAddResultSchema.shape.song; // keeps this route's validation independent from provider HTML
-    void candidate;
-    const cnd = z.object({ tjNumber: z.string().regex(/^\d+$/), title: z.string().min(1), artist: z.string().min(1), lyricist: z.string().default(""), composer: z.string().default(""), sourceUrl: z.string().url() }).parse(parsed.data.candidate);
-    const duplicate = service.checkDuplicate({ tjNumber: cnd.tjNumber, title: cnd.title, artist: cnd.artist });
-    if (duplicate) return { outcome: duplicate.deletedAt ? "deleted" : "duplicate", song: null, existing: duplicate, duplicateKind: duplicate.tjNumber === cnd.tjNumber ? "tjNumber" : "titleArtist", canRestore: false, canOpen: true };
-    const song = service.createSong(actor, {
-      tjNumber: cnd.tjNumber, title: cnd.title, artist: cnd.artist, titleReadingKo: "", titleRomanized: "", titleAliases: [], artistReadingKo: "", artistAliases: [], country: "", genres: [], originalWork: "", keyCandidates: [], performerIds: [], memo: "", status: "active", youtubeUrl: "", youtubeVideoId: "", isOfficialTjVideo: null, sourceType: "tjmedia", sourceReference: cnd.sourceUrl, createdByName: actor.displayName ?? "", updatedByName: actor.displayName ?? "", clientRequestId: parsed.data.clientRequestId
-    });
-    return { outcome: "created", song, existing: null, duplicateKind: null, canRestore: false, canOpen: true };
+    const candidate = tjSongCandidateSchema.safeParse(parsed.data.candidate);
+    if (!candidate.success) throw candidate.error;
+    return service.createTjSong(actor, candidate.data, parsed.data.clientRequestId);
   }));
 
   app.get("/.well-known/oauth-authorization-server", (c) => c.json(publicMcpMetadata(options.origin)));
@@ -335,13 +376,21 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
   };
   app.on(["GET", "POST", "OPTIONS"], "/api/auth/*", authHandler);
   app.all("/mcp", async (c) => {
-    const body = c.req.method === "POST" ? await c.req.raw.clone().json().catch(() => null) as { method?: unknown; params?: { name?: unknown } } | null : null;
-    const toolName = body?.method === "tools/call" && typeof body.params?.name === "string" ? body.params.name : "";
-    const requiredScope = toolName === "record_performance" || toolName === "cancel_performance" ? "songbook:write" : "songbook:read";
-    const checked = await mcpAuth.verifyRequest(c.req.raw, [requiredScope]);
+    const request = c.req.raw;
+    const body = request.method === "POST" ? await request.clone().json().catch(() => null) : null;
+    const handlerRequest = bodyDerivedMcpRequest(request, body);
+    if (request.headers.get("Authorization") === null) {
+      if (!anonymousMcpRequestAllowed(request.method, body)) return mcpBearerChallenge(options.origin);
+      return mcpHandler.fetch(handlerRequest, { parsedBody: body ?? undefined });
+    }
+    const requiredScope = mcpRequiredScopeForBody(body);
+    const checked = await mcpAuth.verifyRequest(request, requiredScope ? [requiredScope] : []);
     if (!checked.ok) return checked.response;
-    if (!roleResolver.resolve(checked.principal.actor)) return failure(c, new DomainError("UNAUTHORIZED", "로그인 또는 허용된 계정이 필요해."), now);
-    return mcpHandler.fetch(c.req.raw, { authInfo: authInfoForPrincipal({ ...checked.principal, scopes: checked.token.scopes }, checked.token.accessToken) });
+    if (!roleResolver.resolve(checked.principal.actor)) return mcpBearerChallenge(options.origin, true);
+    return mcpHandler.fetch(handlerRequest, {
+      authInfo: authInfoForPrincipal({ ...checked.principal, scopes: checked.token.scopes }, checked.token.accessToken),
+      parsedBody: body ?? undefined
+    });
   });
 
   app.all("*", (c) => {

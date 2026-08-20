@@ -61,6 +61,32 @@ transport. Every protected route requires an authenticated allowlisted
 session; all allowlisted users share the same mutation permissions, including
 song deletion.
 
+## MCP
+
+The stateless MCP mount at `/mcp` uses optional OAuth. Public tools are
+available without a bearer: `catalog`, `search_songs`, and `get_song`.
+`record_performance`,
+`cancel_performance`, `create_song`, and `update_song` require an OAuth bearer
+with `songbook:write`; `delete_song` requires `songbook:admin`.
+
+`search_songs` always returns `{ query, saved, tj }`. It uses the website’s
+trimmed query gate: TJ is eligible for queries with at least two characters or
+all-digit queries, and all-digit queries use number search. Anonymous calls
+return local matches and `tj.state=skipped_anonymous`; `includeTj=false` reports
+`disabled_by_input`. A bearer call needs `songbook:read` before it can continue
+to TJ. TJ failures return a successful tool result with local matches intact
+and safe error metadata.
+
+`create_song` accepts the compact song-create fields or a validated
+`tjCandidate` and returns a structured `created`, `duplicate`, or `deleted`
+outcome. `update_song` and `delete_song` accept `id` or their corresponding
+`songId` alias, plus `expectedVersion` and `clientRequestId`.
+
+MCP cookies are not identity. A missing Authorization header is anonymous;
+any present malformed or invalid bearer is rejected, and cookie-plus-bearer
+requests are rejected. Transport authorization is derived from the JSON body,
+not client-supplied method/name headers.
+
 ## TJ contracts
 
 `lookupTjSong` accepts a 1–8 digit `tjNumber`, optional nation, and bounded page

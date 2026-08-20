@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterSongs, parseCsvKey, sampleSongs, searchSongs, sortSongs } from "../src";
+import { filterSongs, isSearchableQuery, parseCsvKey, sampleSongs, searchSongs, searchTypeForQuery, sortSongs } from "../src";
 import { getHangulChoseong, normalizeNumber, normalizeText } from "../src/normalize";
 
 describe("normalization", () => {
@@ -17,6 +17,13 @@ describe("normalization", () => {
 });
 
 describe("search", () => {
+  it("matches the omnibar query gate and numeric search rule", () => {
+    expect(isSearchableQuery("x")).toBe(false);
+    expect(isSearchableQuery("12")).toBe(true);
+    expect(isSearchableQuery("  ")).toBe(false);
+    expect(searchTypeForQuery("123")).toBe("number");
+    expect(searchTypeForQuery("Song")).toBe("all");
+  });
   it("finds Japanese title by Korean reading", () => {
     const eve = searchSongs(sampleSongs, "Eve");
     expect(eve.length).toBeGreaterThan(0);

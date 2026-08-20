@@ -4,6 +4,12 @@ Production is the OCI single server at https://okdam.lost.plus. The legacy
 GitHub Pages / Apps Script / Cloudflare Worker stack is retired: the Pages
 workflow is a manual-dispatch redirect stub and nothing deploys automatically.
 
+The current worktree contains an MCP/OAuth implementation that is not yet
+deployed. Production verification remains open for the origin-level protected
+resource metadata challenge, Better Auth OAuth discovery and PKCE flow,
+resource-bound opaque tokens, scoped public/protected tools, revocation, and
+modern/legacy stateless clients.
+
 ## Current production components
 
 - `oci-ubuntu` (Oracle Cloud always-free ARM64) runs the Dockerized app as
@@ -36,6 +42,10 @@ workflow is a manual-dispatch redirect stub and nothing deploys automatically.
 4. Verify `curl http://127.0.0.1:3010/healthz` and
    `curl https://okdam.lost.plus/healthz` both return `{"ok":true}`, and
    that `docker ps` reports the container healthy.
+5. For an MCP release, verify `/.well-known/oauth-protected-resource/mcp`,
+   authorization-server discovery, anonymous public calls, protected-tool
+   OAuth, invalid-token challenges, and the external client matrix before
+   calling the release complete.
 
 The image builds natively on the ARM64 host; never push an amd64-built image
 to production.

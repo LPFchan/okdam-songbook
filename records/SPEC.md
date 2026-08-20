@@ -30,6 +30,8 @@ history.
   state, theme, sync status, and role-aware management entry points.
 - The main search is an omnibar: saved-song matches appear immediately, then
   authenticated debounced TJ matches continue below with inline add actions.
+  The MCP `search_songs` tool uses the same trimmed-length gate (at least two
+  characters or all digits) and numeric queries select number search.
 - Manage and history tools open contextually from the catalog toolbar; manual
   add remains a TJ-search fallback. `/admin` is a compatibility alias to the
   same composition, not a separate security boundary.
@@ -53,11 +55,16 @@ history.
 - The server resolves the current email allowlist on every protected request.
   Every listed account has the same `allowed` role and permissions, including
   song deletion. Missing admission configuration fails closed.
-- Stateless MCP Streamable HTTP is mounted at `/mcp`, with legacy stateless
-  compatibility, bearer-only OAuth, resource binding, per-tool scopes, and no
-  long-lived MCP session state.
-- MCP exposes catalog, search, song lookup, performance recording, and
-  performance cancellation through the same domain service as the browser API.
+- Stateless MCP Streamable HTTP is an optional-OAuth mount at `/mcp`, with
+  modern and legacy stateless compatibility, Better Auth OAuth resource
+  binding, body-derived anonymous routing, per-tool scopes, and no long-lived
+  MCP session state.
+- MCP exposes public `catalog`, combined `search_songs`, and `get_song` tools;
+  `record_performance`, `cancel_performance`, `create_song`, and `update_song`
+  require `songbook:write`, while `delete_song` requires `songbook:admin`.
+  An authenticated `search_songs` call requires `songbook:read` before TJ
+  continuation. Protected operations use the same domain services and
+  validation as the browser API.
 - Songs store structured `performerIds` for who will sing the song. Built-in
   performers are `marie`, `seongwook`, and `yeowool`; legacy `뽀냐` input maps to
   `marie` plus `yeowool` and is not a stored user ID.
@@ -70,8 +77,15 @@ history.
   archives are never bundled in the frontend or committed to the repository.
 - Browser- or MCP-supplied identity values are never authority. The server
   derives identity from Better Auth and rechecks the current allowlist.
-- Better Auth sessions use HTTP-only cookies. MCP accepts bearer credentials
-  only and rejects cookie or mixed cookie/bearer authentication.
+- Better Auth sessions use HTTP-only cookies. MCP treats requests without an
+  Authorization header as anonymous, never grants MCP identity from cookies,
+  and rejects mixed cookie/bearer requests or any malformed, expired,
+  resource-mismatched, revoked, or otherwise invalid bearer.
+- Anonymous MCP requests may initialize, discover, list tools/resources/prompts,
+  ping, send notifications, and call public tools. Transport admission is
+  derived from the JSON body; client-supplied method/name headers are not
+  authorization input. Unknown, malformed, ambiguous, and batch requests do
+  not receive anonymous access.
 - Browser mutations require JSON and the exact configured origin. Public
   catalog reads remain available without login.
 - Every write carries an idempotency key. Offline replay and MCP retries must

@@ -45,7 +45,7 @@ export interface SongRepository {
   list(options?: { includeDeleted?: boolean }): Song[];
   get(id: string): Song | null;
   getByTjNumber(tjNumber: string): Song | null;
-  findDuplicate(input: { tjNumber?: string | null; title: string; artist: string }, excludeId?: string): Song | null;
+  findDuplicate(input: { tjNumber?: string | null; title: string; artist: string }, excludeId?: string, options?: { includeDeleted?: boolean }): Song | null;
   insert(song: Song & { createdByEmail?: string; updatedByEmail?: string; deletedByEmail?: string | null }): void;
   update(song: Song & { createdByEmail?: string; updatedByEmail?: string; deletedByEmail?: string | null }, expectedVersion: number): boolean;
   remove(id: string, expectedVersion: number): boolean;
@@ -57,14 +57,15 @@ export function createSongRepository(sqlite: Database.Database): SongRepository 
     list: (options = {}) => (sqlite.prepare(`${select} ${options.includeDeleted ? "" : "WHERE s.deleted_at IS NULL"} ORDER BY s.updated_at DESC`).all() as RawSong[]).map(songFromRow),
     get: (id) => { const row = sqlite.prepare(`${select} WHERE s.id=?`).get(id) as RawSong | undefined; return row ? songFromRow(row) : null; },
     getByTjNumber: (tjNumber) => { const row = sqlite.prepare(`${select} WHERE s.tj_number=?`).get(tjNumber) as RawSong | undefined; return row ? songFromRow(row) : null; },
-    findDuplicate: (input, excludeId) => {
+    findDuplicate: (input, excludeId, options = {}) => {
       const values: unknown[] = [];
       const clauses: string[] = [];
       if (input.tjNumber) { clauses.push("s.tj_number=?"); values.push(input.tjNumber); }
       clauses.push("(lower(s.title)=lower(?) AND lower(s.artist)=lower(?))"); values.push(input.title, input.artist);
       const exclusion = excludeId ? " AND s.id<>?" : "";
       if (excludeId) values.push(excludeId);
-      const row = sqlite.prepare(`${select} WHERE (${clauses.join(" OR ")})${exclusion} AND s.deleted_at IS NULL LIMIT 1`).get(...values) as RawSong | undefined;
+      const deleted = options.includeDeleted ? "" : " AND s.deleted_at IS NULL AND s.status <> 'deleted'";
+      const row = sqlite.prepare(`${select} WHERE (${clauses.join(" OR ")})${exclusion}${deleted} LIMIT 1`).get(...values) as RawSong | undefined;
       return row ? songFromRow(row) : null;
     },
     insert: (song) => { sqlite.prepare(`INSERT INTO songs (id,tj_number,title,title_reading_ko,title_romanized,title_aliases_json,artist,artist_reading_ko,artist_aliases_json,country,genres_json,original_work,key_candidates_json,performer_ids_json,memo,status,youtube_url,youtube_video_id,is_official_tj_video,source_type,source_reference,created_by_email,created_by_name,created_at,updated_by_email,updated_by_name,updated_at,deleted_at,deleted_by_email,version) VALUES (${Array.from({ length: 30 }, () => "?").join(",")})`).run(...songValues(song)); },

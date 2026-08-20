@@ -3,10 +3,10 @@ import {
   apiFailureSchema,
   apiRouteContractSchema,
   apiSuccessSchema,
-  bearerMcpMountOptionsSchema,
   conflictDetailsSchema,
   mcpNegotiationSchema,
   mcpScopeSetSchema,
+  optionalOAuthMcpMountOptionsSchema,
   performanceCreateRequestSchema,
   songCreateRequestSchema,
   songUpdateRequestSchema
@@ -49,16 +49,15 @@ describe("single-server contracts", () => {
     expect(conflictDetailsSchema.parse({ reason: "version-mismatch", currentVersion: 3, requestVersion: 2 }).reason).toBe("version-mismatch");
   });
 
-  it("models stateless MCP negotiation and bearer audience validation", async () => {
+  it("models stateless MCP negotiation with optional OAuth", () => {
     expect(mcpScopeSetSchema.parse(["songbook:read", "songbook:read"])).toEqual(["songbook:read"]);
     expect(mcpNegotiationSchema.parse({ requestedRevision: "2026-07-28", negotiatedRevision: "2026-07-28", stateless: true }).stateless).toBe(true);
-    const options = bearerMcpMountOptionsSchema.parse({
+    const options = optionalOAuthMcpMountOptionsSchema.parse({
+      authentication: "optional-oauth",
       path: "/mcp",
       audience: "songbook-mcp",
-      bearerOnly: true,
-      stateless: true,
-      validateAudience: async (token: string) => token === "ok"
+      stateless: true
     });
-    await expect(options.validateAudience("ok")).resolves.toBe(true);
+    expect(options.authentication).toBe("optional-oauth");
   });
 });

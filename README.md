@@ -4,9 +4,9 @@
 
 ## 현재 상태
 
-통합 소스에는 카탈로그 중심의 통합 화면, 문맥형 곡 추가·관리·공연 기록, TJ 반주번호 보조 입력, Better Auth 브라우저 세션 기반이 반영되어 있습니다. Better Auth와 TJ Apps Script 변경은 아직 운영 환경에 활성화하지 않았으며, 현재 운영 브라우저 쓰기는 기존 GIS 직접 Apps Script 경로를 사용합니다.
+통합 소스에는 카탈로그 중심의 통합 화면, 문맥형 곡 추가·관리·공연 기록, TJ 반주번호 보조 입력, OCI Node/Hono 서버, Better Auth 브라우저 세션이 반영되어 있습니다. 서버는 PWA, SQLite, TJ 미러, API, Better Auth, stateless MCP를 한 origin에서 제공합니다.
 
-Better Auth는 Worker+D1의 14일 갱신 HTTP-only 세션을 목표로 하며, `BETTER_AUTH_ENABLED=false`가 기본값입니다. GIS 직접 토큰 경로는 명시적인 롤백용으로 유지됩니다. 브라우저는 actor/email/role을 권한 근거로 제공하지 않습니다.
+MCP는 공개 카탈로그·통합 검색·곡 조회를 로그아웃 상태에서 제공하고, 공연 기록과 곡 변경은 Better Auth OAuth bearer 및 현재 이메일 allowlist로 보호합니다. MCP 쿠키는 identity가 아니며, 구현 변경은 현재 worktree에서 검증 중이고 아직 운영 배포되지 않았습니다.
 
 ## 주요 기능
 
@@ -23,7 +23,7 @@ Better Auth는 Worker+D1의 14일 갱신 HTTP-only 세션을 목표로 하며, `
 ```text
 apps/web/        React + TypeScript + Vite PWA
 apps-script/     Google Apps Script Web App source
-integrations/    Cloudflare Worker, Better Auth, D1 migration, ChatGPT OAuth
+integrations/    legacy Cloudflare Worker and ChatGPT OAuth source
 packages/shared/ shared schemas, search, permissions, TJ contracts
 docs/            architecture, deployment, security, API, operations
 records/         repo-template truth, decisions, research
