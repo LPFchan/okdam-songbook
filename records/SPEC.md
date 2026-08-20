@@ -7,8 +7,8 @@ Recorded by agent: codex-orchestrator
 - Project id: `songbook`
 - Canonical repo: https://github.com/devuterian/okdam-songbook
 - Operator: Marie
-- Last updated: 2026-08-15
-- Related decisions: DEC-20260701-001 through DEC-20260701-008, DEC-20260813-001 through DEC-20260813-005
+- Last updated: 2026-08-20
+- Related decisions: DEC-20260701-001 through DEC-20260701-008, DEC-20260813-001 through DEC-20260813-005, DEC-20260820-001
 
 ## Project Thesis
 
@@ -24,8 +24,8 @@ history.
 - Cloudflare Tunnel may provide ingress to the OCI service, but no application
   logic runs in a Cloudflare Worker.
 - SQLite is the operational database for songs, performers, performances,
-  audit events, idempotency records, Better Auth state, and MCP token-resource
-  bindings.
+  audit events, idempotency records, Better Auth state, MCP token-resource
+  bindings, and the search-driven TJ mirror.
 - The catalog is the primary surface for search, filters, account/session
   state, theme, sync status, and role-aware management entry points.
 - The main search is an omnibar: saved-song matches appear immediately, then
@@ -79,6 +79,10 @@ history.
 - TJ candidates remain editable, attributed input until an authenticated
   SQLite write succeeds. TJ outages or parser drift never remove manual entry
   or public catalog access.
+- The TJ mirror stores normalized songs plus exact query/page memberships in
+  SQLite. Each canonical query is fresh for 24 hours; stale refreshes wait for
+  TJ, retain the prior snapshot on failure, and emit operational failure
+  metadata. Search is the only ingestion path and mirrored songs are retained.
 - Backups are useful only when integrity checks and a restore drill pass.
 - `noindex` and link obscurity reduce discoverability only; they are not access
   control.

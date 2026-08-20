@@ -101,6 +101,42 @@ export const migrations = [
       );
       CREATE INDEX IF NOT EXISTS mcp_token_resources_expiry_idx ON mcp_token_resources(expires_at);
     `
+  },
+  {
+    id: "0101_tj_mirror",
+    sql: `
+      CREATE TABLE IF NOT EXISTS tj_mirror_songs (
+        tj_number TEXT PRIMARY KEY NOT NULL,
+        title TEXT NOT NULL,
+        artist TEXT NOT NULL,
+        lyricist TEXT NOT NULL DEFAULT '',
+        composer TEXT NOT NULL DEFAULT '',
+        first_seen_at TEXT NOT NULL,
+        last_seen_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS tj_mirror_queries (
+        query_key TEXT PRIMARY KEY NOT NULL,
+        query TEXT NOT NULL,
+        search_type TEXT NOT NULL,
+        nation TEXT NOT NULL DEFAULT '',
+        page INTEGER NOT NULL,
+        page_size INTEGER NOT NULL,
+        has_more INTEGER NOT NULL DEFAULT 0,
+        source_url TEXT NOT NULL,
+        checked_at TEXT NOT NULL,
+        last_attempted_at TEXT NOT NULL,
+        last_error_code TEXT,
+        consecutive_failures INTEGER NOT NULL DEFAULT 0
+      );
+
+      CREATE TABLE IF NOT EXISTS tj_mirror_query_results (
+        query_key TEXT NOT NULL REFERENCES tj_mirror_queries(query_key) ON DELETE CASCADE ON UPDATE CASCADE,
+        tj_number TEXT NOT NULL REFERENCES tj_mirror_songs(tj_number) ON DELETE RESTRICT ON UPDATE CASCADE,
+        result_position INTEGER NOT NULL,
+        PRIMARY KEY (query_key, tj_number)
+      );
+    `
   }
 ] as const;
 

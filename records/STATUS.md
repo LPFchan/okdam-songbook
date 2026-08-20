@@ -5,7 +5,7 @@ Recorded by agent: codex-orchestrator
 
 ## Snapshot
 
-- Last updated: 2026-08-15.
+- Last updated: 2026-08-20.
 - Overall posture: `live in production on OCI single-server`.
 - Production baseline: current `main` with single-role allowlist authorization,
   running as `songbook:local` (ARM64) on oci-ubuntu.
@@ -55,8 +55,14 @@ Recorded by agent: codex-orchestrator
 
 - `packages/shared/src/tj.ts` defines bounded lookup/search/candidate
   contracts and parsing helpers.
-- The single-server TJ adapter implements fixed-host fetching, bounded cache,
-  throttling, parser-drift/upstream errors, exact lookup, and bounded search.
+- The single-server TJ adapter implements fixed-host fetching, a persistent
+  SQLite mirror with 24-hour exact-query freshness, throttling,
+  parser-drift/upstream errors, exact lookup, and bounded search.
+- The mirror is wired to the same SQLite handle as the application. It grows
+  only from searches, retains normalized songs indefinitely, records stale
+  refresh attempts/failures, and serves the previous snapshot when a refresh
+  fails. Pages are independent; a future combined-paging surface must handle
+  mixed-age seams.
 - Same-origin authenticated actions provide duplicate-safe immediate add
   through the SQLite domain service. Manual add/edit remains available.
 

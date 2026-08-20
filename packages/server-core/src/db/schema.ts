@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text, index } from "drizzle-orm/sqlite-core";
+import { integer, primaryKey, sqliteTable, text, index } from "drizzle-orm/sqlite-core";
 
 const jsonText = (name: string) => text(name, { mode: "text" });
 
@@ -89,7 +89,40 @@ export const idempotencyKeys = sqliteTable("idempotency_keys", {
   actorOperation: index("idempotency_keys_actor_operation_idx").on(table.actorEmail, table.operation)
 }));
 
-export const schema = { songs, performances, auditEvents, idempotencyKeys };
+export const tjMirrorSongs = sqliteTable("tj_mirror_songs", {
+  tjNumber: text("tj_number").primaryKey(),
+  title: text("title").notNull(),
+  artist: text("artist").notNull(),
+  lyricist: text("lyricist").notNull().default(""),
+  composer: text("composer").notNull().default(""),
+  firstSeenAt: text("first_seen_at").notNull(),
+  lastSeenAt: text("last_seen_at").notNull()
+});
+
+export const tjMirrorQueries = sqliteTable("tj_mirror_queries", {
+  queryKey: text("query_key").primaryKey(),
+  query: text("query").notNull(),
+  searchType: text("search_type").notNull(),
+  nation: text("nation").notNull().default(""),
+  page: integer("page").notNull(),
+  pageSize: integer("page_size").notNull(),
+  hasMore: integer("has_more", { mode: "boolean" }).notNull().default(false),
+  sourceUrl: text("source_url").notNull(),
+  checkedAt: text("checked_at").notNull(),
+  lastAttemptedAt: text("last_attempted_at").notNull(),
+  lastErrorCode: text("last_error_code"),
+  consecutiveFailures: integer("consecutive_failures").notNull().default(0)
+});
+
+export const tjMirrorQueryResults = sqliteTable("tj_mirror_query_results", {
+  queryKey: text("query_key").notNull().references(() => tjMirrorQueries.queryKey, { onDelete: "cascade", onUpdate: "cascade" }),
+  tjNumber: text("tj_number").notNull().references(() => tjMirrorSongs.tjNumber, { onDelete: "restrict", onUpdate: "cascade" }),
+  resultPosition: integer("result_position").notNull()
+}, (table) => ({
+  primary: primaryKey({ columns: [table.queryKey, table.tjNumber] })
+}));
+
+export const schema = { songs, performances, auditEvents, idempotencyKeys, tjMirrorSongs, tjMirrorQueries, tjMirrorQueryResults };
 
 export type SongRow = typeof songs.$inferSelect;
 export type NewSongRow = typeof songs.$inferInsert;
@@ -98,3 +131,6 @@ export type NewPerformanceRow = typeof performances.$inferInsert;
 export type AuditEventRow = typeof auditEvents.$inferSelect;
 export type NewAuditEventRow = typeof auditEvents.$inferInsert;
 export type IdempotencyKeyRow = typeof idempotencyKeys.$inferSelect;
+export type TjMirrorSongRow = typeof tjMirrorSongs.$inferSelect;
+export type TjMirrorQueryRow = typeof tjMirrorQueries.$inferSelect;
+export type TjMirrorQueryResultRow = typeof tjMirrorQueryResults.$inferSelect;

@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { serve } from "@hono/node-server";
-import { createTjAdapter } from "@songbook/server-core";
+import { createTjAdapter, createTjSearchMirror } from "@songbook/server-core";
 import { normalizeEmail } from "@songbook/shared";
 import { z } from "zod";
 import { createConfiguredServer } from "./api.js";
@@ -42,7 +42,10 @@ export async function startFromEnvironment() {
   const server = await createConfiguredServer({
     database,
     origin,
-    tj: createTjAdapter(),
+    tj: createTjAdapter({
+      mirror: createTjSearchMirror(database.sqlite),
+      onWarn: (warning) => console.warn(JSON.stringify({ event: "tj_adapter_warning", ...warning }))
+    }),
     assetsRoot: process.env.ASSETS_ROOT?.trim() || resolve(process.cwd(), "apps/web/dist"),
     auth: {
       database,

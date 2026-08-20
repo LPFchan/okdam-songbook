@@ -114,6 +114,52 @@ function listRows(html: string): string[] {
   return rows;
 }
 
+function classHas(value: string, name: string): boolean {
+  return new RegExp(`(?:^|\\s)${name}(?:\\s|$)`, "iu").test(value);
+}
+
+/** Extract direct-ish result sections while respecting nested tags of the same type. */
+function musicSearchSections(html: string): string[] {
+  const startPattern = /<([a-z][\w:-]*)\b[^>]*\bclass\s*=\s*["'][^"']*\bmusic-search-list\b[^"']*["'][^>]*>/giu;
+  const sections: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = startPattern.exec(html))) {
+    const tag = match[1];
+    const start = match.index;
+    const afterStart = startPattern.lastIndex;
+    const tokenPattern = new RegExp(`<\\/?${tag}\\b[^>]*>`, "giu");
+    tokenPattern.lastIndex = afterStart;
+    let depth = 1;
+    let end = html.length;
+    let token: RegExpExecArray | null;
+    while ((token = tokenPattern.exec(html))) {
+      if (/^<\//u.test(token[0])) {
+        depth -= 1;
+        if (depth === 0) {
+          end = tokenPattern.lastIndex;
+          break;
+        }
+      } else if (!/\/\s*>$/u.test(token[0])) {
+        depth += 1;
+      }
+    }
+    sections.push(html.slice(start, end));
+    startPattern.lastIndex = afterStart;
+  }
+  return sections;
+}
+
+function explicitlyEmptySection(section: string): boolean {
+  if (!classHas(section.match(/class\s*=\s*["']([^"']*)["']/iu)?.[1] ?? "", "music-search-list")) return false;
+  if (listRows(section).length) return false;
+  if (!/검색\s*결과를\s*찾을\s*수\s*없습니다/iu.test(cleanText(section))) return false;
+  // TJ's empty marker lives inside the result section. Requiring a section
+  // boundary and no result list prevents the marker in another category from
+  // turning a malformed/populated section into a safe empty result.
+  return /<(?:p|div|span|strong)\b[^>]*>[^<]*검색\s*결과를\s*찾을\s*수\s*없습니다/iu.test(section)
+    || /(?:no[-_ ]?result|empty|none|no-data|nodata)/iu.test(section);
+}
+
 function uniqueCandidates(candidates: TjSongCandidate[]): TjSongCandidate[] {
   const seen = new Set<string>();
   return candidates.filter((candidate) => {
@@ -127,8 +173,27 @@ function uniqueCandidates(candidates: TjSongCandidate[]): TjSongCandidate[] {
 /** Parse only the server-rendered result rows. Raw TJ markup never leaves this boundary. */
 export function parseTjSearchHtml(html: string, sourceUrl: string): TjSongCandidate[] {
   const text = String(html || "");
+  const sections = musicSearchSections(text);
+  if (sections.length) {
+    const rows = sections.flatMap((section) => listRows(section));
+    const allEmpty = sections.length > 0 && sections.every(explicitlyEmptySection);
+    if (!rows.length) {
+      if (allEmpty) return [];
+      throw new Error("TJ_PARSER_DRIFT");
+    }
+    const candidates = rows.map((row) => ({
+      tjNumber: firstText(row, /class\s*=\s*["'][^"']*\bnum2\b[^"']*["'][^>]*>([\s\S]*?)<\/span>/iu).replace(/\D/gu, ""),
+      title: titleText(row),
+      artist: firstText(row, /class\s*=\s*["'][^"']*\btitle4\b[^"']*\bsinger\b[^"']*["'][\s\S]*?<p\b[^>]*>([\s\S]*?)<\/p>/iu),
+      lyricist: firstText(row, /class\s*=\s*["'][^"']*\btitle5\b[^"']*["'][\s\S]*?<p\b[^>]*>([\s\S]*?)<\/p>/iu),
+      composer: firstText(row, /class\s*=\s*["'][^"']*\btitle6\b[^"']*["'][\s\S]*?<p\b[^>]*>([\s\S]*?)<\/p>/iu),
+      sourceUrl
+    })).filter((candidate) => candidate.tjNumber && candidate.title && candidate.artist);
+    if (!candidates.length) throw new Error("TJ_PARSER_DRIFT");
+    return uniqueCandidates(candidates);
+  }
+
   const rows = listRows(text);
-  if (!rows.length && /검색\s*결과를\s*찾을\s*수\s*없습니다/iu.test(text)) return [];
   const candidates = rows.map((row) => ({
     tjNumber: firstText(row, /class\s*=\s*["'][^"']*\bnum2\b[^"']*["'][^>]*>([\s\S]*?)<\/span>/iu).replace(/\D/gu, ""),
     title: titleText(row),
