@@ -3,21 +3,36 @@ import { createSpring, GENTLE } from "./spring";
 /**
  * Measured, spring-driven height animation for the filter chips bar.
  *
- * flex-wrap flips instantly and CSS cannot transition an auto height, so
- * without this the bar hard-snaps between its collapsed and expanded sizes.
- * The action owns the wrap state through `onWrap`: the caller hands over its
- * expanded flag, and the class is only re-applied once the spring has pinned
- * the outgoing height — so no frame ever paints the unanimated snap.
+ * Why this exists: flex-wrap flips instantly, CSS cannot transition an auto
+ * height, and Svelte applies class bindings in its own flush — two paints
+ * before an action's rAF can react. So the component hands the wrap state
+ * over entirely: this action receives a `{ expanded, scroller }` pair, owns
+ * the chips-expanded class on the scroller, and pins the bar's height before
+ * ever flipping the wrap. The sequence per toggle:
+ *
+ *   1. pin the bar at its current (outgoing) height with clipping
+ *   2. flip the scroller's wrap class — the pin caps the bar's painted box,
+ *      but not the scroller's layout, so the scroller reports its natural
+ *      wrapped height, which is the spring's destination
+ *   3. spring the pinned height to that destination
+ *   4. on settle, release the pin so the bar is fluid again
+ *
+ * Steps 1–2 run synchronously inside one frame, so the relocation is always
+ * clipped and never paints. The clip lives on this outer bar, not the
+ * scroller, because the scroller's overflow-x would break vertical clipping.
  */
-export function chipsHeight(node: HTMLElement, initialExpanded: boolean) {
-  let isExpanded = initialExpanded;
+export function chipsHeight(
+  node: HTMLElement,
+  params: { expanded: boolean; scroller: HTMLElement | null }
+) {
+  let isExpanded = params.expanded;
   let frame = 0;
   const reduced =
     typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const release = () => {
     node.style.height = "";
-    node.style.overflowY = "";
+    node.style.overflow = "";
   };
 
   // Writes the pinned height every frame. The writer arms only after
@@ -35,46 +50,52 @@ export function chipsHeight(node: HTMLElement, initialExpanded: boolean) {
       release();
       return;
     }
-    requestAnimationFrame(releaseWhenSettled);
+    frame = requestAnimationFrame(releaseWhenSettled);
+  };
+
+  const applyWrap = (expanded: boolean) => {
+    params.scroller?.classList.toggle("chips-expanded", expanded);
   };
 
   const animateTo = (nextExpanded: boolean) => {
     isExpanded = nextExpanded;
+    cancelAnimationFrame(frame);
     if (reduced) {
-      node.classList.toggle("chips-expanded", nextExpanded);
+      spring.stop();
+      running = false;
+      applyWrap(nextExpanded);
       release();
       return;
     }
-    cancelAnimationFrame(frame);
     frame = requestAnimationFrame(() => {
-      // The bar is still in the previous wrap state (the caller stopped
-      // driving the class directly), so offsetHeight is the origin. Flip
-      // the wrap to measure the destination; nothing paints mid-frame.
+      const scroller = params.scroller;
+      if (!scroller) {
+        applyWrap(nextExpanded);
+        return;
+      }
       const from = node.offsetHeight;
-      node.classList.toggle("chips-expanded", nextExpanded);
-      const to = node.offsetHeight;
+      node.style.height = from + "px";
+      node.style.overflow = "clip";
+      applyWrap(nextExpanded);
+      const to = scroller.offsetHeight;
 
       if (from === to) {
         release();
         return;
       }
-      // Rewind the painted height to the origin, then spring forward.
-      // overflowY keeps the wrapped content from spilling while the pinned
-      // height trails behind it.
-      node.style.overflowY = "clip";
-      node.style.height = from + "px";
       spring.settle(from);
       running = true;
       spring.setTarget(to);
-      requestAnimationFrame(releaseWhenSettled);
+      frame = requestAnimationFrame(releaseWhenSettled);
     });
   };
 
-  node.classList.toggle("chips-expanded", initialExpanded);
+  applyWrap(params.expanded);
 
   return {
-    update(nextExpanded: boolean) {
-      if (nextExpanded !== isExpanded) animateTo(nextExpanded);
+    update(next: { expanded: boolean; scroller: HTMLElement | null }) {
+      params = next;
+      if (next.expanded !== isExpanded) animateTo(next.expanded);
     },
     destroy() {
       cancelAnimationFrame(frame);

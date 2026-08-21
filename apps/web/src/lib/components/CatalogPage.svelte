@@ -44,6 +44,9 @@
   let filters = $state<SongFilters>({});
   let selected = $state<Song | null>(null);
   let chipsExpanded = $state(false);
+  // chipsHeight owns the chips-expanded class on this element, so the wrap
+  // never flips before the bar's height pin is in place.
+  let chipsScrollerEl = $state<HTMLElement | null>(null);
   let editingSong = $state<Song | null>(null);
   let confirmSignOut = $state(false);
   // Pixels the topbar is currently pushed off-screen (0 = fully visible).
@@ -495,7 +498,7 @@
         {/if}
       </button>
     </div>
-    <div class="controls-bar">
+    <div class="controls-bar" use:chipsHeight={{ expanded: chipsExpanded, scroller: chipsScrollerEl }}>
       <label class="sort-select">
         <SlidersHorizontal size={15} />
         <select bind:value={sortKey}>
@@ -509,10 +512,10 @@
       </label>
       <div
         class="controls-bar-scroll"
+        bind:this={chipsScrollerEl}
         role="group"
         aria-label="필터"
         use:chipStagger={chipsExpanded}
-        use:chipsHeight={chipsExpanded}
       >
         {#each quickFilters as filter (filter.key)}
           {@const pressed =
