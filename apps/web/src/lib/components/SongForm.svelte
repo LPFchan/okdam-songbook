@@ -28,16 +28,66 @@
     return { title: "", artist: "", tjNumber: "", status: "active", country: "일본", performerIds: [] };
   }
 
+  type KeyMode = "none" | "female" | "male";
+
   let draft = $state<Partial<Song>>(emptyDraft());
   let editingId = $state<string | null>(null);
   let deleteConfirm = $state(false);
   let deletePending = $state(false);
+  let keyMode = $state<KeyMode>("none");
+  let keyOffset = $state(0);
+
+  function loadKeyFromSong(song: Song | null) {
+    const candidate = song?.keyCandidates.find((key) => key.isPrimary) ?? song?.keyCandidates[0];
+    if (candidate && (candidate.baseMode === "female" || candidate.baseMode === "male")) {
+      keyMode = candidate.baseMode;
+      keyOffset = candidate.offset;
+    } else {
+      keyMode = "none";
+      keyOffset = 0;
+    }
+  }
+
+  function clampOffset(value: number): number {
+    return Math.min(12, Math.max(-12, Math.trunc(value)));
+  }
+
+  function setKeyMode(mode: KeyMode) {
+    keyMode = mode;
+    const current = (draft.keyCandidates ?? []).filter((_, index) => index > 0);
+    if (mode === "none") {
+      draft = { ...draft, keyCandidates: [] };
+      return;
+    }
+    const primary = {
+      id: draft.keyCandidates?.[0]?.id ?? crypto.randomUUID(),
+      baseMode: mode,
+      offset: keyOffset,
+      label: "추천",
+      memo: "",
+      isPrimary: true
+    };
+    draft = { ...draft, keyCandidates: [primary, ...current] };
+  }
+
+  function adjustOffset(delta: number) {
+    keyOffset = clampOffset(keyOffset + delta);
+    if (keyMode !== "none") setKeyMode(keyMode);
+  }
+
+  function onOffsetInput(event: Event) {
+    const value = Number((event.currentTarget as HTMLInputElement).value);
+    if (!Number.isFinite(value)) return;
+    keyOffset = clampOffset(value);
+    if (keyMode !== "none") setKeyMode(keyMode);
+  }
 
   // Load an externally requested song into the form (detail-sheet edit, list edit).
   $effect(() => {
     if (editSong) {
       draft = { ...editSong };
       editingId = editSong.id;
+      loadKeyFromSong(editSong);
     }
   });
 
@@ -120,11 +170,14 @@
     draft = emptyDraft();
     editingId = null;
     deleteConfirm = false;
+    keyMode = "none";
+    keyOffset = 0;
   }
 
   function startEdit(song: Song) {
     draft = { ...song };
     editingId = song.id;
+    loadKeyFromSong(song);
     onRequestTab("add");
   }
 
@@ -189,9 +242,43 @@
         {/each}
       </div>
     </section>
+
+    <section class="form-section" aria-label="키">
+      <h3 class="form-section-title">키</h3>
+      <div class="key-control">
+        <div class="key-stepper" role="group" aria-label="키 조절">
+          <button type="button" class="key-step-button" disabled={keyMode === "none"} aria-label="반음 내리기" onclick={() => adjustOffset(-1)}>
+            −
+          </button>
+          <input
+            class="key-offset-input"
+            type="number"
+            inputmode="numeric"
+            min="-12"
+            max="12"
+            disabled={keyMode === "none"}
+            aria-label="키 오프셋"
+            value={keyOffset}
+            oninput={onOffsetInput}
+          />
+          <button type="button" class="key-step-button" disabled={keyMode === "none"} aria-label="반음 올리기" onclick={() => adjustOffset(1)}>
+            +
+          </button>
+        </div>
+        <div class="chip-toggle-group" role="group" aria-label="키 기준">
+          <button type="button" class="chip-toggle" aria-pressed={keyMode === "male"} data-selected={keyMode === "male" ? "true" : undefined} onclick={() => setKeyMode(keyMode === "male" ? "none" : "male")}>
+            남
+          </button>
+          <button type="button" class="chip-toggle" aria-pressed={keyMode === "female"} data-selected={keyMode === "female" ? "true" : undefined} onclick={() => setKeyMode(keyMode === "female" ? "none" : "female")}>
+            여
+          </button>
+        </div>
+      </div>
+      <p class="hint">{keyMode === "none" ? "남/여를 눌러 추천 키를 정해요." : (keyMode === "female" ? "여성키" : "남성키") + " " + (keyOffset > 0 ? "+" : "") + keyOffset + "으로 저장돼요."}</p>
+    </section>
     <section class="form-section" aria-label="메모">
       <h3 class="form-section-title">메모</h3>
-      <textarea bind:value={draft.memo} placeholder="키, 주의할 점 등"></textarea>
+<textarea bind:value={draft.memo} placeholder="주의할 점 등"></textarea>
     </section>
     <div class="admin-action-bar">
       <button type="button" class="primary-button" disabled={!canSave} onclick={() => void saveSong()}>

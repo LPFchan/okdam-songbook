@@ -33,4 +33,22 @@ describe("SongForm", () => {
     expect(screen.getByRole("button", { name: "마리" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "여울" })).toHaveAttribute("aria-pressed", "true");
   });
+  it("writes the primary key candidate from the key control", async () => {
+    render(SongForm, {
+      props: { tab: "add", songs: [], onSongSaved: () => {}, onSongDeleted: () => {}, onRequestTab: () => {}, onClose: () => {} }
+    });
+
+    const offset = screen.getByRole("spinbutton", { name: "키 오프셋" });
+    expect(offset).toBeDisabled();
+
+    await screen.getByRole("button", { name: "여" }).click();
+    expect(offset).not.toBeDisabled();
+    await screen.getByRole("button", { name: "반음 올리기" }).click();
+    await screen.getByRole("button", { name: "반음 올리기" }).click();
+    expect(offset).toHaveValue(2);
+    expect(screen.getByText("여성키 +2으로 저장돼요.")).toBeInTheDocument();
+
+    await screen.getByRole("button", { name: "여" }).click();
+    expect(offset).toBeDisabled();
+  });
 });

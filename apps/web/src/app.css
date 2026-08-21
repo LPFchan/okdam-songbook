@@ -124,6 +124,12 @@ mark.hit{background:transparent;color:var(--color-primary);font-weight:700}
 input,textarea,select{border:1px solid var(--color-line);background:var(--color-surface);border-radius:10px;padding:9px 12px;font-size:15px;outline:none}
 input:focus,textarea:focus,select:focus{border-color:var(--color-primary)}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.key-control{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.key-stepper{display:inline-flex;align-items:center;gap:4px}
+.key-step-button{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:1px solid var(--color-line);border-radius:999px;background:var(--color-surface);color:var(--color-ink);font-size:18px;line-height:1;transition:background 160ms ease,transform 100ms ease}
+.key-step-button:active{transform:scale(0.92)}
+.key-step-button:disabled{opacity:0.4}
+.key-offset-input{width:56px;text-align:center;font-size:15px;padding:6px 4px;border:1px solid var(--color-line);border-radius:10px;background:var(--color-surface);color:var(--color-ink)}
 .form-grid label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--color-muted)}
 .form-wide{grid-column:1/-1}
 .form-grid textarea{min-height:72px;resize:vertical}
