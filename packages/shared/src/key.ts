@@ -1,6 +1,6 @@
 import type { KeyCandidate } from "./schemas.js";
 
-export const KEY_TEXT_PATTERN = /^([여남])(?:키)?\s*([+-]?\d{1,2})?$/;
+export const KEY_TEXT_PATTERN = /^([여남])(?:자?키)?\s*([+-]?\d{1,2})?$/;
 
 /**
  * Read key notation written in free text ("여+1", "남 -2", "여키", "-3").

@@ -11,12 +11,12 @@
 import Database from "better-sqlite3";
 import { pathToFileURL } from "node:url";
 
-const KEY_TEXT_PATTERN = /^([여남])(?:키)?\s*([+-]?\d{1,2})?$/;
+const KEY_TEXT_PATTERN = /^([여남])(?:자?키)?\s*([+-]?\d{1,2})?$/;
 
 function parseKeyText(segment) {
   const text = segment.trim();
   const match = text.match(KEY_TEXT_PATTERN);
-  const offsetOnly = text.match(/^([+-]\d{1,2})$/);
+  const offsetOnly = text.match(/^([+-]\d{1,2})<?$/);
   if (!match && !offsetOnly) return null;
   const baseMode = match ? (match[1] === "여" ? "female" : "male") : "original";
   const offset = match ? Number(match[2] ?? 0) : Number(offsetOnly?.[1] ?? 0);

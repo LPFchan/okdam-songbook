@@ -7,6 +7,8 @@ describe("parseKeyText", () => {
     ["남 -2", "male", -2],
     ["여키", "female", 0],
     ["남", "male", 0],
+    ["남자키", "male", 0],
+    ["여자키 +4", "female", 4],
     ["-3", "original", -3],
     ["+2", "original", 2]
   ])("parses %s", (text, baseMode, offset) => {
