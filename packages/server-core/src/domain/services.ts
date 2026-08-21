@@ -1,5 +1,5 @@
 import type { Performance, Song, TjAddResult, TjSongCandidate } from "@songbook/shared";
-import { can, filterSongs, searchSongs, sortSongs, type PermissionAction, type SongFilters, type SortKey } from "@songbook/shared";
+import { can, filterSongs, normalizePerformerIds, searchSongs, sortSongs, type PermissionAction, type SongFilters, type SortKey } from "@songbook/shared";
 import type { SongbookDatabase } from "../db/connection.js";
 import { createAuditRepository, createIdempotencyRepository, createPerformanceRepository, createSongRepository, IdempotencyMismatchError, type AuditRepository, type IdempotencyRepository, type PerformanceRepository, type SongRepository } from "../db/repositories.js";
 import { DomainError } from "./errors.js";
@@ -225,6 +225,7 @@ export function createSongbookService(database: SongbookDatabase, options: Servi
     }),
     createSongOutcome,
     createTjSong: (actor, candidate, clientRequestId) => {
+      const resolved = actorFor(actor);
       const input: SongMutation = {
         tjNumber: candidate.tjNumber,
         title: candidate.title,
@@ -238,7 +239,7 @@ export function createSongbookService(database: SongbookDatabase, options: Servi
         genres: [],
         originalWork: "",
         keyCandidates: [],
-        performerIds: [],
+        performerIds: normalizePerformerIds([resolved.displayName]).ids,
         memo: "",
         status: "active",
         youtubeUrl: "",
@@ -246,8 +247,8 @@ export function createSongbookService(database: SongbookDatabase, options: Servi
         isOfficialTjVideo: null,
         sourceType: "tjmedia",
         sourceReference: candidate.sourceUrl,
-        createdByName: actor.displayName ?? actor.email,
-        updatedByName: actor.displayName ?? actor.email,
+        createdByName: resolved.displayName,
+        updatedByName: resolved.displayName,
         clientRequestId
       };
       const outcome = createSongOutcome(actor, input);

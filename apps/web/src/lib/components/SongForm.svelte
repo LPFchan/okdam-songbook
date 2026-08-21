@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PerformerId, Song } from "@songbook/shared";
-  import { can, performerOrder, performers } from "@songbook/shared";
+  import { can, normalizePerformerIds, performerOrder, performers } from "@songbook/shared";
   import { Pencil, Trash2, Wand2 } from "@lucide/svelte";
   import {
     deleteSong,
@@ -29,7 +29,8 @@
   const { tab, songs, editSong = null, onSongSaved, onSongDeleted, onRequestTab, onClose, registerActions }: Props = $props();
 
   function emptyDraft(): Partial<Song> {
-    return { title: "", artist: "", tjNumber: "", status: "active", country: "일본", performerIds: [] };
+    const performerIds = auth.user ? normalizePerformerIds([auth.user.displayName]).ids : [];
+    return { title: "", artist: "", tjNumber: "", status: "active", country: "일본", performerIds };
   }
 
   const countryOptions = ["일본", "미국", "한국", "그 외"] as const;

@@ -92,6 +92,26 @@ describe("songbook domain services", () => {
     expect(deletedOutcome).toMatchObject({ outcome: "deleted", existing: { id: deleted.id }, song: null, canOpen: false });
   });
 
+  it("assigns a TJ-added song to the signed-in performer", () => {
+    const marieResolver: RoleResolver = {
+      resolve: (actor) => actor.email === allowed.email
+        ? { email: actor.email, displayName: "마리", role: "allowed" }
+        : null
+    };
+    const service = createSongbookService(database, { roleResolver: marieResolver });
+
+    const result = service.createTjSong(allowed, {
+      tjNumber: "88889",
+      title: "TJ default performer",
+      artist: "TJ artist",
+      lyricist: "",
+      composer: "",
+      sourceUrl: "https://tj.example/default-performer"
+    }, crypto.randomUUID());
+
+    expect(result.song?.performerIds).toEqual(["marie"]);
+  });
+
   it("makes mutations replay-safe and audits the successful operation once", () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
     const clientRequestId = crypto.randomUUID();

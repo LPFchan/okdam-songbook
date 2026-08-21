@@ -34,6 +34,19 @@ describe("SongForm", () => {
     expect(screen.getByRole("button", { name: "여울" })).toHaveAttribute("aria-pressed", "true");
   });
 
+  it("preselects the signed-in person for a new song", () => {
+    auth.user = { email: "allowed@example.com", displayName: "여울", role: "allowed", expiresAt: null };
+    auth.status = "authenticated";
+
+    render(SongForm, {
+      props: { tab: "add", songs: [], onSongSaved: () => {}, onSongDeleted: () => {}, onRequestTab: () => {}, onClose: () => {} }
+    });
+
+    expect(screen.getByRole("button", { name: "마리" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "여울" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "성욱" })).toHaveAttribute("aria-pressed", "false");
+  });
+
   it("offers a single country choice as chips", async () => {
     render(SongForm, {
       props: { tab: "add", songs: [], onSongSaved: () => {}, onSongDeleted: () => {}, onRequestTab: () => {}, onClose: () => {} }
