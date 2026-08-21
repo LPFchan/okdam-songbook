@@ -450,10 +450,12 @@ describe("MCP OAuth resource-server gate", () => {
   it("logs OAuth outcomes without logging credentials, codes, or callback state", async () => {
     database = openDatabase();
     const records: McpOAuthDiagnosticRecord[] = [];
+    let providerAuthorizeScope: string | null = null;
     const fakeAuth = {
       handler: async (incoming: Request) => {
         const pathname = new URL(incoming.url).pathname;
         if (pathname.endsWith("/mcp/authorize")) {
+          providerAuthorizeScope = new URL(incoming.url).searchParams.get("scope");
           return new Response(null, { status: 302, headers: { Location: "https://chatgpt.com/connector/oauth/callback-id?code=secret-code&state=secret-state" } });
         }
         if (pathname.endsWith("/mcp/token")) {
@@ -481,7 +483,7 @@ describe("MCP OAuth resource-server gate", () => {
     const authorize = new URL(`${origin}/api/auth/mcp/authorize`);
     authorize.searchParams.set("client_id", "secret-client");
     authorize.searchParams.set("redirect_uri", "https://chatgpt.com/connector/oauth/callback-id");
-    authorize.searchParams.set("scope", "songbook:write songbook:read mcp:tools https://example.test/private");
+    authorize.searchParams.set("scope", "songbook:write songbook:read songbook:admin mcp:tools https://example.test/private");
     authorize.searchParams.set("code_challenge", "secret-challenge");
     authorize.searchParams.set("code_challenge_method", "S256");
     authorize.searchParams.set("resource", `${origin}/mcp`);
@@ -500,6 +502,7 @@ describe("MCP OAuth resource-server gate", () => {
     await server.request(request("/api/auth/callback/google", { headers: { Cookie: "oidc_login_prompt=secret-prompt" } }));
 
     expect(records).toHaveLength(3);
+    expect(providerAuthorizeScope).toBe("songbook:write songbook:read mcp:tools https://example.test/private");
     expect(records[0]).toMatchObject({
       endpoint: "authorize",
       status: 302,
@@ -508,6 +511,7 @@ describe("MCP OAuth resource-server gate", () => {
         resourceMatches: true,
         scopes: {
           known: ["songbook:read", "songbook:write"],
+          legacy: ["songbook:admin"],
           unknown: ["mcp:tools", expect.stringMatching(/^sha256:[a-f0-9]{12}$/u)],
           unknownCount: 2
         }

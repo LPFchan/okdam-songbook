@@ -111,6 +111,9 @@ Recorded by agent: codex-orchestrator
   credentials, authorization codes, callback state, and tokens are excluded.
   Unknown OAuth scopes are recorded only when they match the bounded safe-label
   format; all other values are represented by short one-way fingerprints.
+  Authorization requests from previously registered ChatGPT clients translate
+  the retired `songbook:admin` name to `songbook:write` before provider
+  validation; discovery, issued tokens, and authorization remain read/write-only.
 - The Docker image runs non-root with a read-only root filesystem, persistent
   SQLite bind mount, localhost-only published port, bounded logs/resources,
   and an application-owned `/healthz` check.

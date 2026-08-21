@@ -221,13 +221,24 @@ function oauthLabel(value: unknown): string | null {
 
 function oauthScopeFacts(value: unknown): Record<string, unknown> {
   const allowed = new Set(["openid", "profile", "email", "offline_access", "songbook:read", "songbook:write"]);
+  const legacy = new Set(["songbook:admin"]);
   const requested = String(value ?? "").split(/\s+/u).filter(Boolean);
-  const unknown = requested.filter((scope) => !allowed.has(scope));
+  const unknown = requested.filter((scope) => !allowed.has(scope) && !legacy.has(scope));
   return {
     known: requested.filter((scope) => allowed.has(scope)).sort(),
+    legacy: requested.filter((scope) => legacy.has(scope)).sort(),
     unknown: unknown.map((scope) => oauthLabel(scope) ?? `sha256:${oauthFingerprint(scope)}`),
     unknownCount: unknown.length
   };
+}
+
+function normalizeLegacyMcpAuthorizeRequest(request: Request): Request {
+  const url = new URL(request.url);
+  const requested = (url.searchParams.get("scope") ?? "").split(/\s+/u).filter(Boolean);
+  if (!requested.includes("songbook:admin")) return request;
+  const normalized = Array.from(new Set(requested.map((scope) => scope === "songbook:admin" ? "songbook:write" : scope)));
+  url.searchParams.set("scope", normalized.join(" "));
+  return new Request(url, request);
 }
 
 function oauthRedirectFacts(location: string | null, origin: string): Record<string, unknown> {
@@ -531,7 +542,8 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     url.pathname = `/api/auth${target}`;
     const request = new Request(url, c.req.raw);
     const diagnosticRequest = request.clone();
-    const response = await auth.handler(request);
+    const providerRequest = target === "/mcp/authorize" ? normalizeLegacyMcpAuthorizeRequest(request) : request;
+    const response = await auth.handler(providerRequest);
     if (target === "/mcp/token" && response.ok) await mcpAuth.captureToken(response.clone(), c.req.raw);
     const endpoint = target.slice(5) as "authorize" | "token" | "register";
     await logOAuthExchange(endpoint, diagnosticRequest, response.clone(), startedAt);

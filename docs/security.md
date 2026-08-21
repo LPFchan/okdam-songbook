@@ -29,6 +29,9 @@
   rejecting unknown methods, malformed bodies, ambiguous calls, and batches.
 - OAuth scope `songbook:write` covers every mutation, including deletion.
   Public tools do not require a bearer.
+- Authorization requests from older ChatGPT connections translate the retired
+  `songbook:admin` name to `songbook:write` before reaching the provider. The
+  provider, issued tokens, resource binding, and tool checks remain two-tiered.
 
 ## Better Auth browser sessions
 
