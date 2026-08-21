@@ -5,9 +5,9 @@ Recorded by agent: codex-orchestrator
 
 ## Snapshot
 
-- Last updated: 2026-08-21 (signed-in performance identity deployed at commit
-  `8010e54`; key stepper UI deployed; memo-stored keys migrated to
-  `keyCandidates`).
+- Last updated: 2026-08-21 (country chip selection deployed at commit
+  `a864042`; signed-in performance identity, key stepper UI, and structured
+  `keyCandidates` are live).
 - Overall posture: `live in production on OCI single-server`.
 - Production baseline: current `main` with single-role authorization and an
   exact email-to-public-name allowlist, running as `songbook:local` (ARM64) on
