@@ -1,5 +1,5 @@
 import type { Performance, Song, TjAddResult, TjSongCandidate } from "@songbook/shared";
-import { can, filterSongs, normalizePerformerIds, searchSongs, sortSongs, type PermissionAction, type SongFilters, type SortKey } from "@songbook/shared";
+import { can, detectSongCountry, filterSongs, normalizePerformerIds, searchSongs, sortSongs, type PermissionAction, type SongFilters, type SortKey } from "@songbook/shared";
 import type { SongbookDatabase } from "../db/connection.js";
 import { createAuditRepository, createIdempotencyRepository, createPerformanceRepository, createSongRepository, IdempotencyMismatchError, type AuditRepository, type IdempotencyRepository, type PerformanceRepository, type SongRepository } from "../db/repositories.js";
 import { DomainError } from "./errors.js";
@@ -235,7 +235,7 @@ export function createSongbookService(database: SongbookDatabase, options: Servi
         artist: candidate.artist,
         artistReadingKo: "",
         artistAliases: [],
-        country: "",
+        country: detectSongCountry(candidate.title, candidate.artist, songs.list()),
         genres: [],
         originalWork: "",
         keyCandidates: [],

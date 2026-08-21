@@ -76,7 +76,9 @@ Recorded by agent: codex-orchestrator
   fails. Pages are independent; a future combined-paging surface must handle
   mixed-age seams.
 - Same-origin authenticated actions provide duplicate-safe immediate add
-  through the SQLite domain service. Manual add/edit remains available.
+  through the SQLite domain service. TJ adds reuse a known artist's country
+  when possible, then infer it from the title and artist writing systems.
+  Manual add/edit remains available.
 
 ### OCI single-server foundation
 

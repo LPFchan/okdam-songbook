@@ -84,7 +84,7 @@ describe("songbook domain services", () => {
     expect(duplicate).toMatchObject({ outcome: "duplicate", existing: { id: created.song?.id }, song: null, canOpen: true });
 
     const tj = service.createTjSong(allowed, { tjNumber: "88888", title: "TJ source", artist: "TJ artist", lyricist: "", composer: "", sourceUrl: "https://tj.example/song" }, crypto.randomUUID());
-    expect(tj).toMatchObject({ outcome: "created", song: { sourceType: "tjmedia", sourceReference: "https://tj.example/song" } });
+    expect(tj).toMatchObject({ outcome: "created", song: { country: "미국", sourceType: "tjmedia", sourceReference: "https://tj.example/song" } });
 
     const deleted = service.createSong(allowed, songInput({ title: "Deleted", artist: "Artist", tjNumber: "99999", status: "deleted" }));
     expect(service.getSong(deleted.id)).toBeNull();
@@ -110,6 +110,36 @@ describe("songbook domain services", () => {
     }, crypto.randomUUID());
 
     expect(result.song?.performerIds).toEqual(["marie"]);
+  });
+
+  it("detects the country when adding a TJ song", () => {
+    const service = createSongbookService(database, { roleResolver: roleResolver() });
+    service.createSong(allowed, songInput({
+      tjNumber: "11111",
+      title: "Dreaming",
+      artist: "FreeTEMPO",
+      country: "일본"
+    }));
+
+    const knownArtist = service.createTjSong(allowed, {
+      tjNumber: "22222",
+      title: "New Latin Title",
+      artist: "FreeTEMPO",
+      lyricist: "",
+      composer: "",
+      sourceUrl: "https://tj.example/known-artist"
+    }, crypto.randomUUID());
+    const korean = service.createTjSong(allowed, {
+      tjNumber: "33333",
+      title: "좋은 날",
+      artist: "아이유",
+      lyricist: "",
+      composer: "",
+      sourceUrl: "https://tj.example/korean"
+    }, crypto.randomUUID());
+
+    expect(knownArtist.song?.country).toBe("일본");
+    expect(korean.song?.country).toBe("한국");
   });
 
   it("makes mutations replay-safe and audits the successful operation once", () => {

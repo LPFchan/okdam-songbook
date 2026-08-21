@@ -54,7 +54,8 @@ history.
   is represented by one record from each person's account.
 - Offline-first public read cache and queued performance writes.
 - Local-first omnibar search, bounded debounced TJ accompaniment search, and
-  authenticated one-action candidate add with manual fallback.
+  authenticated one-action candidate add with country inferred from existing
+  artist matches and the title/artist writing systems, plus manual fallback.
 - Server-authoritative duplicate checks, replay-safe writes, TJ provenance, and
   hard deletion by allowed users.
 - Better Auth Google OAuth and renewable HTTP-only browser sessions use the
