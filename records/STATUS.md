@@ -109,6 +109,8 @@ Recorded by agent: codex-orchestrator
   registration, and token outcomes emit structured diagnostics containing
   status, redirect shape, scope shape, and short one-way fingerprints; raw
   credentials, authorization codes, callback state, and tokens are excluded.
+  Unknown OAuth scopes are recorded only when they match the bounded safe-label
+  format; all other values are represented by short one-way fingerprints.
 - The Docker image runs non-root with a read-only root filesystem, persistent
   SQLite bind mount, localhost-only published port, bounded logs/resources,
   and an application-owned `/healthz` check.

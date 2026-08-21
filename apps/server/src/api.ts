@@ -222,9 +222,11 @@ function oauthLabel(value: unknown): string | null {
 function oauthScopeFacts(value: unknown): Record<string, unknown> {
   const allowed = new Set(["openid", "profile", "email", "offline_access", "songbook:read", "songbook:write"]);
   const requested = String(value ?? "").split(/\s+/u).filter(Boolean);
+  const unknown = requested.filter((scope) => !allowed.has(scope));
   return {
     known: requested.filter((scope) => allowed.has(scope)).sort(),
-    unknownCount: requested.filter((scope) => !allowed.has(scope)).length
+    unknown: unknown.map((scope) => oauthLabel(scope) ?? `sha256:${oauthFingerprint(scope)}`),
+    unknownCount: unknown.length
   };
 }
 

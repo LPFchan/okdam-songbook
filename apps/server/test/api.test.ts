@@ -481,7 +481,7 @@ describe("MCP OAuth resource-server gate", () => {
     const authorize = new URL(`${origin}/api/auth/mcp/authorize`);
     authorize.searchParams.set("client_id", "secret-client");
     authorize.searchParams.set("redirect_uri", "https://chatgpt.com/connector/oauth/callback-id");
-    authorize.searchParams.set("scope", "songbook:write songbook:read");
+    authorize.searchParams.set("scope", "songbook:write songbook:read mcp:tools https://example.test/private");
     authorize.searchParams.set("code_challenge", "secret-challenge");
     authorize.searchParams.set("code_challenge_method", "S256");
     authorize.searchParams.set("resource", `${origin}/mcp`);
@@ -503,7 +503,15 @@ describe("MCP OAuth resource-server gate", () => {
     expect(records[0]).toMatchObject({
       endpoint: "authorize",
       status: 302,
-      request: { hasPkce: true, resourceMatches: true, scopes: { known: ["songbook:read", "songbook:write"], unknownCount: 0 } },
+      request: {
+        hasPkce: true,
+        resourceMatches: true,
+        scopes: {
+          known: ["songbook:read", "songbook:write"],
+          unknown: ["mcp:tools", expect.stringMatching(/^sha256:[a-f0-9]{12}$/u)],
+          unknownCount: 2
+        }
+      },
       response: { redirect: { kind: "chatgpt_callback", hasCode: true, hasState: true } }
     });
     expect(records[1]).toMatchObject({
