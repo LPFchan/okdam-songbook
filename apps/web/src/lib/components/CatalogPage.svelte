@@ -612,15 +612,17 @@
         <ChevronDown size={17} />
       </button>
     </div>
-    {#if activeFilters.length}
-      <div class="active-filters" aria-label="활성 필터">
-        {#each activeFilters as filter (filter.key)}
-          <button type="button" onclick={() => removeFilter(filter.key)}>{filter.label} ×</button>
-        {/each}
-        <button type="button" class="clear-filters" onclick={() => { filters = {}; favoriteOnly = false; }}>모두 초기화</button>
-      </div>
-    {/if}
-    <p class="result-count">{visibleSongs.length}곡</p>
+    <div class="result-bar">
+      <p class="result-count">{visibleSongs.length}곡</p>
+      {#if activeFilters.length}
+        <div class="active-filters" aria-label="활성 필터">
+          {#each activeFilters as filter (filter.key)}
+            <button type="button" onclick={() => removeFilter(filter.key)}>{filter.label} ×</button>
+          {/each}
+          <button type="button" class="clear-filters" onclick={() => { filters = {}; favoriteOnly = false; }}>모두 초기화</button>
+        </div>
+      {/if}
+    </div>
   </header>
 
   {#if queueTotal}
