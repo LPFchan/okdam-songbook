@@ -5,9 +5,9 @@ Recorded by agent: codex-orchestrator
 
 ## Snapshot
 
-- Last updated: 2026-08-21 (country chip selection deployed at commit
-  `a864042`; signed-in performance identity, key stepper UI, and structured
-  `keyCandidates` are live).
+- Last updated: 2026-08-22 (country-only classification deployed at commit
+  `73e5b43`; the redundant genre field and `genres_json` database column are
+  removed, and `아니메` is normalized into `일본`).
 - Overall posture: `live in production on OCI single-server`.
 - Production baseline: current `main` with single-role authorization and an
   exact email-to-public-name allowlist, running as `songbook:local` (ARM64) on
