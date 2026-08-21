@@ -79,8 +79,10 @@
     <CalendarCheck size={18} />
     오늘 불렀어요!
   </button>
-  <button type="button" class="secondary-button" disabled={!canEdit} onclick={() => onEdit(song)}>
-    <Edit3 size={18} />
-    수정
-  </button>
+  {#if canEdit}
+    <button type="button" class="secondary-button" onclick={() => onEdit(song)}>
+      <Edit3 size={18} />
+      수정
+    </button>
+  {/if}
 {/snippet}
