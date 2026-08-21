@@ -71,8 +71,9 @@ Recorded by agent: codex-orchestrator
 
 ## Deferred Work
 
-- Korean-reading generation is live through the configured Grimoire endpoint.
-  YouTube metadata and image/song extraction remain deferred.
+- Korean-reading generation is live through Cloudflare Workers AI with
+  `@cf/google/gemma-4-26b-a4b-it`. YouTube metadata and image/song extraction
+  remain deferred.
 - Cross-tab offline queue claiming remains deferred until the queue has durable
   lease-owner and lease-expiry fields with an atomic claim transaction.
 - TJ add response replay should move duplicate detection behind the same
