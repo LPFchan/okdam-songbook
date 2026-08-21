@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { KeyCandidate, PerformerId, Song } from "@songbook/shared";
+  import type { PerformerId, Song } from "@songbook/shared";
   import { can, normalizePerformerIds, performerOrder, performers } from "@songbook/shared";
-  import { Pencil, Plus, Trash2, Wand2, X } from "@lucide/svelte";
+  import { Pencil, Trash2, Wand2 } from "@lucide/svelte";
   import {
     deleteSong,
     generateReading,
@@ -36,57 +36,56 @@
   const countryOptions = ["일본", "미국", "한국", "그 외"] as const;
   const primaryCountries: readonly string[] = countryOptions.slice(0, 3);
 
+  type KeyMode = "none" | "female" | "male";
+
   let draft = $state<Partial<Song>>(emptyDraft());
   let editingId = $state<string | null>(null);
   let deleteConfirm = $state(false);
   let deletePending = $state(false);
   let readingPending = $state(false);
+  let keyMode = $state<KeyMode>("none");
+  let keyOffset = $state(0);
+
+  function loadKeyFromSong(song: Song | null) {
+    const candidate = song?.keyCandidates.find((key) => key.isPrimary) ?? song?.keyCandidates[0];
+    if (candidate) {
+      keyMode = candidate.baseMode === "female" || candidate.baseMode === "male" ? candidate.baseMode : "none";
+      keyOffset = candidate.offset;
+    } else {
+      keyMode = "none";
+      keyOffset = 0;
+    }
+  }
 
   function clampOffset(value: number): number {
     return Math.min(12, Math.max(-12, Math.trunc(value)));
   }
 
-  function addKeyCandidate() {
-    const current = draft.keyCandidates ?? [];
-    const candidate: KeyCandidate = {
-      id: crypto.randomUUID(),
-      baseMode: "original",
-      offset: 0,
-      label: current.length ? "" : "추천",
+  function syncKeyCandidate(mode: KeyMode) {
+    const current = (draft.keyCandidates ?? []).filter((_, index) => index > 0);
+    if (mode === "none" && keyOffset === 0) {
+      draft = { ...draft, keyCandidates: [] };
+      return;
+    }
+    const primary = {
+      id: draft.keyCandidates?.[0]?.id ?? crypto.randomUUID(),
+      baseMode: (mode === "none" ? "original" : mode) as "original" | "male" | "female",
+      offset: keyOffset,
+      label: "추천",
       memo: "",
-      isPrimary: current.length === 0
+      isPrimary: true
     };
-    draft = { ...draft, keyCandidates: [...current, candidate] };
+    draft = { ...draft, keyCandidates: [primary, ...current] };
   }
 
-  function updateKeyCandidate(id: string, patch: Partial<KeyCandidate>) {
-    draft = {
-      ...draft,
-      keyCandidates: (draft.keyCandidates ?? []).map((candidate) => candidate.id === id ? { ...candidate, ...patch } : candidate)
-    };
+  function setKeyMode(mode: KeyMode) {
+    keyMode = mode;
+    syncKeyCandidate(mode);
   }
 
-  function adjustKeyOffset(candidate: KeyCandidate, delta: number) {
-    updateKeyCandidate(candidate.id, { offset: clampOffset(candidate.offset + delta) });
-  }
-
-  function makePrimaryKey(id: string) {
-    draft = {
-      ...draft,
-      keyCandidates: (draft.keyCandidates ?? []).map((candidate) => ({ ...candidate, isPrimary: candidate.id === id }))
-    };
-  }
-
-  function removeKeyCandidate(id: string) {
-    const current = draft.keyCandidates ?? [];
-    const removed = current.find((candidate) => candidate.id === id);
-    const remaining = current.filter((candidate) => candidate.id !== id);
-    if (removed?.isPrimary && remaining.length) remaining[0] = { ...remaining[0]!, isPrimary: true };
-    draft = { ...draft, keyCandidates: remaining };
-  }
-
-  function parseAliases(value: string): string[] {
-    return Array.from(new Set(value.split(/\r?\n/).map((alias) => alias.trim()).filter(Boolean)));
+  function adjustOffset(delta: number) {
+    keyOffset = clampOffset(keyOffset + delta);
+    syncKeyCandidate(keyMode);
   }
 
   // Load an externally requested song into the form (detail-sheet edit, list edit).
@@ -94,6 +93,7 @@
     if (editSong) {
       draft = { ...editSong };
       editingId = editSong.id;
+      loadKeyFromSong(editSong);
     }
   });
 
@@ -184,11 +184,14 @@
     draft = emptyDraft();
     editingId = null;
     deleteConfirm = false;
+    keyMode = "none";
+    keyOffset = 0;
   }
 
   function startEdit(song: Song) {
     draft = { ...song };
     editingId = song.id;
+    loadKeyFromSong(song);
     onRequestTab("add");
   }
 
@@ -218,10 +221,6 @@
         <label>
           TJ 번호
           <input bind:value={draft.tjNumber} inputmode="numeric" placeholder="TJ 번호" />
-        </label>
-        <label>
-          원작
-          <input bind:value={draft.originalWork} placeholder="애니, 게임, 영화 등" />
         </label>
       </div>
     </section>
@@ -258,26 +257,6 @@
           아티스트 독음
           <input bind:value={draft.artistReadingKo} />
         </label>
-        <label class="form-wide">
-          로마자 곡명
-          <input bind:value={draft.titleRomanized} placeholder="Kirari" />
-        </label>
-        <label>
-          곡명 별칭
-          <textarea
-            value={(draft.titleAliases ?? []).join("\n")}
-            oninput={(event) => (draft = { ...draft, titleAliases: parseAliases(event.currentTarget.value) })}
-            placeholder="한 줄에 하나씩"
-          ></textarea>
-        </label>
-        <label>
-          아티스트 별칭
-          <textarea
-            value={(draft.artistAliases ?? []).join("\n")}
-            oninput={(event) => (draft = { ...draft, artistAliases: parseAliases(event.currentTarget.value) })}
-            placeholder="한 줄에 하나씩"
-          ></textarea>
-        </label>
       </div>
     </section>
     <section class="form-section" aria-label="부를 사람">
@@ -298,80 +277,25 @@
     </section>
 
     <section class="form-section" aria-label="키">
-      <div class="form-section-heading">
-        <h3 class="form-section-title">추천 키</h3>
-        <button type="button" class="ghost-button" onclick={addKeyCandidate}>
-          <Plus size={15} /> 키 추가
-        </button>
-      </div>
-      {#if draft.keyCandidates?.length}
-        <div class="key-candidate-list">
-          {#each draft.keyCandidates as candidate, index (candidate.id)}
-            <fieldset class="key-candidate">
-              <legend>키 {index + 1}</legend>
-              <div class="key-candidate-heading">
-                <button
-                  type="button"
-                  class="chip-toggle"
-                  aria-pressed={candidate.isPrimary}
-                  data-selected={candidate.isPrimary ? "true" : undefined}
-                  onclick={() => makePrimaryKey(candidate.id)}
-                >
-                  {candidate.isPrimary ? "대표 키" : "대표로 지정"}
-                </button>
-                <button type="button" class="icon-button compact-icon-button" aria-label={`키 ${index + 1} 삭제`} onclick={() => removeKeyCandidate(candidate.id)}>
-                  <X size={16} />
-                </button>
-              </div>
-              <div class="chip-toggle-group" role="group" aria-label={`키 ${index + 1} 기준`}>
-                {#each [["original", "원곡"], ["male", "남"], ["female", "여"], ["custom", "직접"]] as [mode, label]}
-                  <button
-                    type="button"
-                    class="chip-toggle"
-                    aria-pressed={candidate.baseMode === mode}
-                    data-selected={candidate.baseMode === mode ? "true" : undefined}
-                    onclick={() => updateKeyCandidate(candidate.id, { baseMode: mode as KeyCandidate["baseMode"] })}
-                  >{label}</button>
-                {/each}
-              </div>
-              <div class="key-control">
-                <div class="key-stepper" role="group" aria-label={`키 ${index + 1} 조절`}>
-                  <button type="button" class="key-step-button" aria-label={`키 ${index + 1} 반음 내리기`} onclick={() => adjustKeyOffset(candidate, -1)}>−</button>
-                  <span class="key-offset-display" aria-live="polite">{candidate.offset > 0 ? "+" + candidate.offset : candidate.offset}</span>
-                  <button type="button" class="key-step-button" aria-label={`키 ${index + 1} 반음 올리기`} onclick={() => adjustKeyOffset(candidate, 1)}>+</button>
-                </div>
-              </div>
-              <div class="form-grid">
-                <label>
-                  이름
-                  <input value={candidate.label} maxlength="40" placeholder="추천, 마리용 등" oninput={(event) => updateKeyCandidate(candidate.id, { label: event.currentTarget.value })} />
-                </label>
-                <label>
-                  키 메모
-                  <input value={candidate.memo} maxlength="500" placeholder="후렴만 +1 등" oninput={(event) => updateKeyCandidate(candidate.id, { memo: event.currentTarget.value })} />
-                </label>
-              </div>
-            </fieldset>
-          {/each}
+      <h3 class="form-section-title">키</h3>
+      <div class="key-control">
+        <div class="key-stepper" role="group" aria-label="키 조절">
+          <button type="button" class="key-step-button" aria-label="반음 내리기" onclick={() => adjustOffset(-1)}>
+            −
+          </button>
+          <span class="key-offset-display" aria-live="polite">{keyOffset > 0 ? "+" + keyOffset : keyOffset}</span>
+          <button type="button" class="key-step-button" aria-label="반음 올리기" onclick={() => adjustOffset(1)}>
+            +
+          </button>
         </div>
-      {:else}
-        <p class="form-empty-note">추천 키가 없어요.</p>
-      {/if}
-    </section>
-    <section class="form-section" aria-label="영상">
-      <h3 class="form-section-title">영상</h3>
-      <div class="form-grid">
-        <label class="form-wide">
-          YouTube URL
-          <input type="url" bind:value={draft.youtubeUrl} placeholder="https://www.youtube.com/watch?v=…" />
-        </label>
-      </div>
-    </section>
-    <section class="form-section" aria-label="상태">
-      <h3 class="form-section-title">상태</h3>
-      <div class="chip-toggle-group">
-        <button type="button" class="chip-toggle" aria-pressed={draft.status === "active"} data-selected={draft.status === "active" ? "true" : undefined} onclick={() => (draft = { ...draft, status: "active" })}>활성</button>
-        <button type="button" class="chip-toggle" aria-pressed={draft.status === "hold"} data-selected={draft.status === "hold" ? "true" : undefined} onclick={() => (draft = { ...draft, status: "hold" })}>보류</button>
+        <div class="chip-toggle-group" role="group" aria-label="키 기준">
+          <button type="button" class="chip-toggle" aria-pressed={keyMode === "male"} data-selected={keyMode === "male" ? "true" : undefined} onclick={() => setKeyMode(keyMode === "male" ? "none" : "male")}>
+            남
+          </button>
+          <button type="button" class="chip-toggle" aria-pressed={keyMode === "female"} data-selected={keyMode === "female" ? "true" : undefined} onclick={() => setKeyMode(keyMode === "female" ? "none" : "female")}>
+            여
+          </button>
+        </div>
       </div>
     </section>
     <section class="form-section" aria-label="메모">

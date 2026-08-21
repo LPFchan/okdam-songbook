@@ -56,11 +56,8 @@ Recorded by agent: codex-orchestrator
   continuation, local duplicate resolution, and inline immediate add state.
 - `/admin` supplies add/manage/history content to the main surface as a
   compatibility alias rather than a separate page composition.
-- The song form exposes original work, Korean readings, title romanization,
-  title and artist aliases, country, assigned performers, multiple detailed key
-  candidates, YouTube URL, active/hold status, and memo. It can generate
-  schema-checked Korean-reading candidates, leaves them editable, and requires
-  a separate save action.
+- The song form generates schema-checked Korean-reading candidates for the
+  title and artist, leaves them editable, and requires a separate save action.
 - `오늘 불렀어요!` attributes one performance to the signed-in account. The
   detail sheet publicly shows the latest mapped name, timestamp, and shared
   count; unknown historical creators keep the timestamp-only display. The
