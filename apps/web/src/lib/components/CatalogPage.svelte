@@ -646,36 +646,44 @@
 
   {#if selected}
     <BottomSheet title={selected.title} onClose={() => (selected = null)}>
-      <SongDetail
-        song={selected}
-        user={auth.user}
-        onPerformed={(song) => void markPerformed(song)}
-        onEdit={(song) => {
-          selected = null;
-          openManagement("add", song);
-        }}
-      />
+      {#snippet children(registerActions: (content: import("svelte").Snippet) => void)}
+        {@const song = selected}
+        {#if song}
+          <SongDetail
+            {song}
+            user={auth.user}
+            onPerformed={(s) => void markPerformed(s)}
+            onEdit={(s) => {
+              selected = null;
+              openManagement("add", s);
+            }}
+            {registerActions}
+          />
+        {/if}
+      {/snippet}
     </BottomSheet>
   {/if}
 
   {#if managementTab}
     <BottomSheet title={managementTitle(managementTab)} onClose={closeManagement}>
-      {#if auth.user}
-        <div class="admin-surface">
-          {#if managementTab !== "add"}
-            <nav class="admin-tabs" aria-label="관리 탭">
-              <button type="button" aria-current={managementTab === "songs" ? "page" : undefined} onclick={() => openManagement("songs")}>곡 관리</button>
-            </nav>
-          {/if}
-          <SongForm tab={managementTab} {songs} editSong={editingSong} {onSongSaved} {onSongDeleted} onRequestTab={(tab) => openManagement(tab)} onClose={closeManagement} />
-        </div>
-      {:else}
-        <p class="hint">곡 관리는 로그인한 편집자만 사용할 수 있어요.</p>
-        <button type="button" class="primary-button" onclick={() => void loginWithGoogle()}>
-          <LogIn size={17} />
-          Google로 로그인
-        </button>
-      {/if}
+      {#snippet children(registerActions: (content: import("svelte").Snippet) => void)}
+        {#if auth.user}
+          <div class="admin-surface">
+            {#if managementTab !== "add"}
+              <nav class="admin-tabs" aria-label="관리 탭">
+                <button type="button" aria-current={managementTab === "songs" ? "page" : undefined} onclick={() => openManagement("songs")}>곡 관리</button>
+              </nav>
+            {/if}
+            <SongForm tab={managementTab} {songs} editSong={editingSong} {onSongSaved} {onSongDeleted} onRequestTab={(tab) => openManagement(tab)} onClose={closeManagement} {registerActions} />
+          </div>
+        {:else}
+          <p class="hint">곡 관리는 로그인한 편집자만 사용할 수 있어요.</p>
+          <button type="button" class="primary-button" onclick={() => void loginWithGoogle()}>
+            <LogIn size={17} />
+            Google로 로그인
+          </button>
+        {/if}
+      {/snippet}
     </BottomSheet>
   {/if}
 </main>

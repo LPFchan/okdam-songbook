@@ -6,10 +6,18 @@
   interface Props {
     title: string;
     onClose(): void;
-    children: Snippet;
+    children: Snippet<[registerActions: (content: Snippet) => void]>;
   }
 
   const { title, onClose, children }: Props = $props();
+
+  let footerActions = $state<Snippet | null>(null);
+
+  // Children call this to hoist their action row into the sheet's fixed
+  // footer, below the scroll area so it stays clear of the fade mask.
+  function registerActionsImpl(content: Snippet) {
+    footerActions = content;
+  }
 
   let panel = $state<HTMLElement | null>(null);
   let scroller = $state<HTMLElement | null>(null);
@@ -411,7 +419,14 @@
       </header>
     </div>
     <div class="sheet-scroll" bind:this={scroller}>
-      {@render children()}
+      {@render children(registerActionsImpl)}
     </div>
+    {#if footerActions}
+      <div class="sheet-footer">
+        <div class="sheet-actions">
+          {@render footerActions()}
+        </div>
+      </div>
+    {/if}
   </div>
 </div>

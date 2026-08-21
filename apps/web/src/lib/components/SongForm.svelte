@@ -20,9 +20,13 @@
     onSongDeleted(songId: string): void;
     onRequestTab(tab: AdminTab): void;
     onClose(): void;
+    // When set (sheet usage), the form hands its action-row snippet to the
+    // sheet's fixed footer so it stays clear of the scroll area's fade mask.
+    // When unset, the action bar renders inline at the end of the form.
+    registerActions?: (content: import("svelte").Snippet) => void;
   }
 
-  const { tab, songs, editSong = null, onSongSaved, onSongDeleted, onRequestTab, onClose }: Props = $props();
+  const { tab, songs, editSong = null, onSongSaved, onSongDeleted, onRequestTab, onClose, registerActions }: Props = $props();
 
   function emptyDraft(): Partial<Song> {
     return { title: "", artist: "", tjNumber: "", status: "active", country: "일본", performerIds: [] };
@@ -197,23 +201,11 @@
       <h3 class="form-section-title">메모</h3>
       <textarea bind:value={draft.memo} placeholder="키, 주의할 점 등"></textarea>
     </section>
-    <div class="admin-action-bar">
-      <button type="button" class="primary-button" disabled={!canSave} onclick={() => void saveSong()}>
-        {editingId ? "수정 저장" : "저장"}
-      </button>
-      {#if editingId && can(auth.user?.role, "song:delete")}
-        <button
-          type="button"
-          class="danger-button"
-          data-confirm={deleteConfirm ? "true" : undefined}
-          disabled={deletePending}
-          onclick={() => void deleteDraft()}
-        >
-          <Trash2 size={17} />
-          {deletePending ? "삭제 중…" : deleteConfirm ? "한 번 더 누르면 삭제" : "삭제"}
-        </button>
-      {/if}
-    </div>
+    {#if !registerActions}
+      <div class="admin-action-bar">
+        {@render formActions()}
+      </div>
+    {/if}
   </section>
 {:else if tab === "songs"}
   <section class="admin-panel">
@@ -230,4 +222,26 @@
       {/each}
     </div>
   </section>
+{/if}
+
+{#snippet formActions()}
+  <button type="button" class="primary-button" disabled={!canSave} onclick={() => void saveSong()}>
+    {editingId ? "수정 저장" : "저장"}
+  </button>
+  {#if editingId && can(auth.user?.role, "song:delete")}
+    <button
+      type="button"
+      class="danger-button"
+      data-confirm={deleteConfirm ? "true" : undefined}
+      disabled={deletePending}
+      onclick={() => void deleteDraft()}
+    >
+      <Trash2 size={17} />
+      {deletePending ? "삭제 중…" : deleteConfirm ? "한 번 더 누르면 삭제" : "삭제"}
+    </button>
+  {/if}
+{/snippet}
+
+{#if registerActions && tab === "add"}
+  {registerActions(formActions)}
 {/if}

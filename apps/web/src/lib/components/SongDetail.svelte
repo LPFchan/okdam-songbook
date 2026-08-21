@@ -9,9 +9,12 @@
     user: AuthUser | null;
     onPerformed(song: Song): void;
     onEdit(song: Song): void;
+    // When set (sheet usage), the detail hands its action-row snippet to the
+    // sheet's fixed footer so it stays clear of the scroll area's fade mask.
+    registerActions?: (content: import("svelte").Snippet) => void;
   }
 
-  const { song, user, onPerformed, onEdit }: Props = $props();
+  const { song, user, onPerformed, onEdit, registerActions }: Props = $props();
 
   const performerIds = $derived(sortPerformerIds(song.performerIds));
   const canEdit = $derived(can(user?.role, "song:update"));
@@ -62,14 +65,19 @@
     <span class="detail-label">최근 기록</span>
     <p>마지막 {song.lastPerformedAt ? new Date(song.lastPerformedAt).toLocaleString() : "없음"} · 총 {song.performanceCount}회</p>
   </div>
-  <div class="sheet-actions">
-    <button type="button" class="primary-button" onclick={() => onPerformed(song)}>
-      <CalendarCheck size={18} />
-      오늘 불렀어요!
-    </button>
-    <button type="button" class="secondary-button" disabled={!canEdit} onclick={() => onEdit(song)}>
-      <Edit3 size={18} />
-      수정
-    </button>
-  </div>
 </div>
+
+{#snippet detailActions()}
+  <button type="button" class="primary-button" onclick={() => onPerformed(song)}>
+    <CalendarCheck size={18} />
+    오늘 불렀어요!
+  </button>
+  <button type="button" class="secondary-button" disabled={!canEdit} onclick={() => onEdit(song)}>
+    <Edit3 size={18} />
+    수정
+  </button>
+{/snippet}
+
+{#if registerActions}
+  {registerActions(detailActions)}
+{/if}
