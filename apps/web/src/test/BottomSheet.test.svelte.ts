@@ -143,12 +143,12 @@ describe("BottomSheet motion", () => {
       configurable: true
     });
 
-    input.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 1, clientX: 200, clientY: 400, bubbles: true }));
+    input.dispatchEvent(new window.PointerEvent("pointerdown", { pointerId: 1, clientX: 200, clientY: 400, bubbles: true }));
     for (let i = 1; i <= 4; i++) {
-      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 200, clientY: 400 - i * 20, bubbles: true }));
+      window.dispatchEvent(new window.PointerEvent("pointermove", { pointerId: 1, clientX: 200, clientY: 400 - i * 20, bubbles: true }));
       await new Promise((r) => setTimeout(r, 30));
     }
-    window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 1, clientX: 200, clientY: 320, bubbles: true }));
+    window.dispatchEvent(new window.PointerEvent("pointerup", { pointerId: 1, clientX: 200, clientY: 320, bubbles: true }));
 
     expect(scrollTop).toBeGreaterThan(0);
   });
