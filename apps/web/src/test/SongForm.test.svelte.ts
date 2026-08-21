@@ -38,24 +38,25 @@ describe("SongForm", () => {
       props: { tab: "add", songs: [], onSongSaved: () => {}, onSongDeleted: () => {}, onRequestTab: () => {}, onClose: () => {} }
     });
 
-    const offset = screen.getByRole("spinbutton", { name: "키 오프셋" });
+    const stepper = screen.getByRole("group", { name: "키 조절" });
+    const offset = () => stepper.querySelector(".key-offset-display"); 
 
     // 원키: offset without a 남/여 mode
     await screen.getByRole("button", { name: "반음 내리기" }).click();
-    expect(offset).toHaveValue(-1);
+    expect(offset()?.textContent).toBe("-1");
 
     await screen.getByRole("button", { name: "반음 올리기" }).click();
-    expect(offset).toHaveValue(0);
+    expect(offset()?.textContent).toBe("0");
 
     await screen.getByRole("button", { name: "여" }).click();
     await screen.getByRole("button", { name: "반음 올리기" }).click();
     await screen.getByRole("button", { name: "반음 올리기" }).click();
-    expect(offset).toHaveValue(2);
+    expect(offset()?.textContent).toBe("2");
     expect(screen.getByRole("button", { name: "여" })).toHaveAttribute("aria-pressed", "true");
 
     await screen.getByRole("button", { name: "여" }).click();
     expect(screen.getByRole("button", { name: "여" })).toHaveAttribute("aria-pressed", "false");
     // offset is kept, so the song stores 원키 +2
-    expect(offset).toHaveValue(2);
+    expect(offset()?.textContent).toBe("2");
   });
 });

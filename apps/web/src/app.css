@@ -132,7 +132,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--color-primary)}
 .key-step-button{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border:1px solid var(--color-line);border-radius:999px;background:var(--color-surface);color:var(--color-ink);font-size:18px;line-height:1;transition:background 160ms ease,transform 100ms ease}
 .key-step-button:active{transform:scale(0.92)}
 .key-step-button:disabled{opacity:0.4}
-.key-offset-input{width:56px;text-align:center;font-size:15px;padding:6px 4px;border:1px solid var(--color-line);border-radius:10px;background:var(--color-surface);color:var(--color-ink)}
+.key-offset-display{min-width:40px;text-align:center;font-size:16px;font-weight:600;color:var(--color-ink);font-variant-numeric:tabular-nums}
 .form-grid label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--color-muted)}
 .form-wide{grid-column:1/-1}
 .form-grid textarea{min-height:72px;resize:vertical}

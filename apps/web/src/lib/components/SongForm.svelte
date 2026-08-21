@@ -84,13 +84,6 @@
     syncKeyCandidate(keyMode);
   }
 
-  function onOffsetInput(event: Event) {
-    const value = Number((event.currentTarget as HTMLInputElement).value);
-    if (!Number.isFinite(value)) return;
-    keyOffset = clampOffset(value);
-    syncKeyCandidate(keyMode);
-  }
-
   // Load an externally requested song into the form (detail-sheet edit, list edit).
   $effect(() => {
     if (editSong) {
@@ -269,16 +262,7 @@
           <button type="button" class="key-step-button" aria-label="반음 내리기" onclick={() => adjustOffset(-1)}>
             −
           </button>
-          <input
-            class="key-offset-input"
-            type="number"
-            inputmode="numeric"
-            min="-12"
-            max="12"
-            aria-label="키 오프셋"
-            value={keyOffset}
-            oninput={onOffsetInput}
-          />
+          <span class="key-offset-display" aria-live="polite">{keyOffset}</span>
           <button type="button" class="key-step-button" aria-label="반음 올리기" onclick={() => adjustOffset(1)}>
             +
           </button>
