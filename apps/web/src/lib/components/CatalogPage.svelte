@@ -510,7 +510,6 @@
       </label>
       <div
         class="controls-bar-scroll"
-        class:chips-expanded={chipsExpanded}
         role="group"
         aria-label="필터"
         use:chipStagger={chipsExpanded}
