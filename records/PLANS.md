@@ -71,8 +71,8 @@ Recorded by agent: codex-orchestrator
 
 ## Deferred Work
 
-- Real AI provider smoke tests remain deferred until provider credentials and
-  cost/privacy acceptance exist.
+- Korean-reading generation is live through the configured Grimoire endpoint.
+  YouTube metadata and image/song extraction remain deferred.
 - Cross-tab offline queue claiming remains deferred until the queue has durable
   lease-owner and lease-expiry fields with an atomic claim transaction.
 - TJ add response replay should move duplicate detection behind the same

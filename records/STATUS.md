@@ -5,7 +5,7 @@ Recorded by agent: codex-orchestrator
 
 ## Snapshot
 
-- Last updated: 2026-08-20 (anonymous MCP and OAuth-protected operations deployed).
+- Last updated: 2026-08-21 (Korean-reading generation deployed).
 - Overall posture: `live in production on OCI single-server`.
 - Production baseline: current `main` with single-role allowlist authorization,
   running as `songbook:local` (ARM64) on oci-ubuntu.
@@ -34,6 +34,8 @@ Recorded by agent: codex-orchestrator
   `http://localhost:3010`; the container port is localhost-only.
 - Health: `/healthz` returns `{"ok":true}` locally and through the public
   hostname; the container healthcheck passes.
+- Korean-reading generation uses the server-only Grimoire endpoint settings in
+  the host environment; the credential is not bundled into the web application.
 - Recent motion fixes: topbar spring commit behavior and bottom-sheet release
   overscroll are calm in production (commits `d7cc3ca`…`86dd9b3`); the
   release-path CSS transform transition that fought the return spring is gone,
@@ -50,6 +52,8 @@ Recorded by agent: codex-orchestrator
   continuation, local duplicate resolution, and inline immediate add state.
 - `/admin` supplies add/manage/history content to the main surface as a
   compatibility alias rather than a separate page composition.
+- The song form generates schema-checked Korean-reading candidates for the
+  title and artist, leaves them editable, and requires a separate save action.
 
 ### TJ-assisted entry
 
