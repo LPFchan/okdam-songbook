@@ -103,18 +103,14 @@ mark.hit{background:transparent;color:var(--color-primary-ink);font-weight:700}
 .offline-queue-actions button{border:1px solid var(--color-line);background:var(--color-bg);border-radius:8px;padding:4px 10px;font-size:12px}
 .hint{color:var(--color-muted);font-size:13px;margin:4px 0}
 .hint.error{color:var(--color-danger)}
-.omnibar-tj{margin:4px 12px 0;padding:12px;border-top:1px solid var(--color-line)}
+.omnibar-tj{margin:0 12px;padding:12px;border-top:1px solid var(--color-line)}
 .omnibar-tj-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px}
 .omnibar-tj-heading h2{margin:0;font-size:15px}
 .omnibar-tj-heading p{margin:2px 0 0;font-size:12px;color:var(--color-muted)}
 .omnibar-tj-status{color:var(--color-muted);font-size:13px}
 .omnibar-tj-status.error{color:var(--color-danger)}
 .omnibar-tj-results{display:flex;flex-direction:column;gap:6px}
-.omnibar-tj-row{display:flex;align-items:center;gap:10px;background:var(--color-surface);border-radius:var(--radius);padding:8px 12px}
-.omnibar-tj-number{font-variant-numeric:tabular-nums;font-weight:700;color:var(--color-primary-ink);font-size:14px}
-.omnibar-tj-copy{flex:1;min-width:0;display:flex;flex-direction:column}
-.omnibar-tj-copy small{color:var(--color-muted);font-size:12px}
-.omnibar-tj-row button{flex-shrink:0;padding:6px 12px;font-size:13px}
+.omnibar-tj-results .song-card-actions .primary-button,.omnibar-tj-results .song-card-actions .secondary-button{padding:6px 12px;font-size:13px}
 .admin-surface{display:flex;flex-direction:column;gap:16px}
 .admin-panel h2{margin:0 0 8px;font-size:16px}
 .admin-form-panel{display:flex;flex-direction:column;gap:20px}

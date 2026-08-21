@@ -2,6 +2,7 @@
   import { isSearchableQuery, type Song, type TjSongCandidate } from "@songbook/shared";
   import { addTjSong, searchTjSongs } from "../api";
   import { snackbar } from "../snackbar.svelte";
+  import SongRow from "./SongRow.svelte";
 
   interface Props {
     query: string;
@@ -141,21 +142,18 @@
           {#each results as candidate (candidateKey(candidate))}
             {@const key = candidateKey(candidate)}
             {@const existing = existingByCandidate.get(key) ?? added[key]}
-            <article class="omnibar-tj-row">
-              <span class="omnibar-tj-number">{candidate.tjNumber}</span>
-              <div class="omnibar-tj-copy">
-                <strong>{candidate.title}</strong>
-                <small>{candidate.artist}</small>
-              </div>
-              <button
-                type="button"
-                class={existing ? "secondary-button" : "primary-button"}
-                disabled={Boolean(pending[key])}
-                onclick={() => void addCandidate(candidate)}
-              >
-                {pending[key] ? "추가 중…" : existing ? "Songbook에서 열기" : "바로 추가"}
-              </button>
-            </article>
+            <SongRow tjNumber={candidate.tjNumber} title={candidate.title} artist={candidate.artist}>
+              {#snippet actions()}
+                <button
+                  type="button"
+                  class={existing ? "secondary-button" : "primary-button"}
+                  disabled={Boolean(pending[key])}
+                  onclick={() => void addCandidate(candidate)}
+                >
+                  {pending[key] ? "추가 중…" : existing ? "Songbook에서 열기" : "바로 추가"}
+                </button>
+              {/snippet}
+            </SongRow>
           {/each}
         </div>
       {/if}
