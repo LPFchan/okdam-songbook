@@ -260,13 +260,13 @@
   ];
 
   async function refreshQueue() {
-    const [items, counts] = await Promise.all([queueItems(), queueCounts()]);
+    const [items, counts] = await Promise.all([queueItems(auth.user?.email), queueCounts(auth.user?.email)]);
     queueList = items;
     queueCountsState = counts;
   }
 
   async function drainQueue() {
-    await drainOfflineQueue(auth.user ? { auth, onChange: () => void refreshQueue() } : { onChange: () => void refreshQueue() });
+    await drainOfflineQueue(auth.user ? { auth, ownerEmail: auth.user.email, onChange: () => void refreshQueue() } : { onChange: () => void refreshQueue() });
     await refreshQueue();
   }
 
@@ -318,7 +318,7 @@
     );
 
     if (!onlineStatus.online) {
-      await enqueuePerformanceCreate(song.id, clientRequestId, performedAt);
+      await enqueuePerformanceCreate(song.id, auth.user?.email ?? "unknown", clientRequestId, performedAt);
       snackbar.show("오프라인이라 큐에 저장했어요. 온라인 복귀 후 자동 동기화돼요.");
       return;
     }
@@ -333,11 +333,11 @@
             ? { ...item, performanceCount: Math.max(0, (item.performanceCount ?? 0) - 1) }
             : item
         );
-        await enqueuePerformanceCreate(song.id, clientRequestId, performedAt);
+        await enqueuePerformanceCreate(song.id, auth.user?.email ?? "unknown", clientRequestId, performedAt);
         snackbar.show("기록하려면 Google 로그인이 필요해요.");
         return;
       }
-      await enqueuePerformanceCreate(song.id, clientRequestId, performedAt);
+      await enqueuePerformanceCreate(song.id, auth.user?.email ?? "unknown", clientRequestId, performedAt);
       await markQueueItemFailed(clientRequestId, error, classifyQueueError(error));
       snackbar.show("기록에 실패해서 큐에 저장했어요.");
     }
@@ -358,17 +358,17 @@
     );
     const cancellationRequestId = crypto.randomUUID();
     if (!onlineStatus.online) {
-      await enqueuePerformanceCancel(target.songId, target.performanceId, cancellationRequestId);
+      await enqueuePerformanceCancel(target.songId, target.performanceId, auth.user?.email ?? "unknown", cancellationRequestId);
       snackbar.show("오프라인이라 취소는 큐에 저장했어요.");
       return;
     }
     try {
       await auth.requireValidCredential();
-      const result = await cancelPerformanceOrQueue(target.songId, target.performanceId, cancellationRequestId);
+      const result = await cancelPerformanceOrQueue(target.songId, target.performanceId, auth.user?.email ?? "unknown", cancellationRequestId);
       snackbar.show(result.queued ? "취소에 실패해서 큐에 저장했어요." : "방금 기록한 곡을 취소했어요.");
     } catch (error) {
       if (error instanceof AuthRequiredError) {
-        const queued = await enqueuePerformanceCancel(target.songId, target.performanceId, cancellationRequestId);
+        const queued = await enqueuePerformanceCancel(target.songId, target.performanceId, auth.user?.email ?? "unknown", cancellationRequestId);
         await markQueueItemFailed(queued.id, new Error("로그인 후 다시 시도할 수 있어요."), "auth");
         snackbar.show("취소하려면 Google 로그인이 필요해요.");
         return;

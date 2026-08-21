@@ -11,6 +11,8 @@ export interface OfflineQueueItem {
   id: string;
   action: "performance:create" | "performance:cancel";
   songId: string;
+  /** Email of the user who queued the write. "legacy" marks rows that predate owner stamping. */
+  ownerEmail: string;
   /** The id sent to the server. It must survive an offline replay. */
   clientRequestId: string;
   performanceId?: string;
@@ -45,6 +47,16 @@ class SongbookDatabase extends Dexie {
           : String(item.id);
         item.attemptCount = typeof item.attemptCount === "number" ? item.attemptCount : 0;
         item.status = item.status === "failed" ? "failed" : "pending";
+      });
+    });
+    this.version(3).stores({
+      snapshots: "id,savedAt",
+      queue: "id,status,createdAt,nextRetryAt,clientRequestId,ownerEmail"
+    }).upgrade((transaction) => {
+      return transaction.table("queue").toCollection().modify((item: Partial<OfflineQueueItem>) => {
+        // Rows from before owner stamping have no recorded author. Mark them
+        // legacy so the next signed-in user can flush them once.
+        item.ownerEmail = typeof item.ownerEmail === "string" ? item.ownerEmail : "legacy";
       });
     });
   }
