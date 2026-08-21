@@ -44,8 +44,8 @@
 
   function loadKeyFromSong(song: Song | null) {
     const candidate = song?.keyCandidates.find((key) => key.isPrimary) ?? song?.keyCandidates[0];
-    if (candidate && (candidate.baseMode === "female" || candidate.baseMode === "male")) {
-      keyMode = candidate.baseMode;
+    if (candidate) {
+      keyMode = candidate.baseMode === "female" || candidate.baseMode === "male" ? candidate.baseMode : "none";
       keyOffset = candidate.offset;
     } else {
       keyMode = "none";
@@ -57,16 +57,15 @@
     return Math.min(12, Math.max(-12, Math.trunc(value)));
   }
 
-  function setKeyMode(mode: KeyMode) {
-    keyMode = mode;
+  function syncKeyCandidate(mode: KeyMode) {
     const current = (draft.keyCandidates ?? []).filter((_, index) => index > 0);
-    if (mode === "none") {
+    if (mode === "none" && keyOffset === 0) {
       draft = { ...draft, keyCandidates: [] };
       return;
     }
     const primary = {
       id: draft.keyCandidates?.[0]?.id ?? crypto.randomUUID(),
-      baseMode: mode,
+      baseMode: (mode === "none" ? "original" : mode) as "original" | "male" | "female",
       offset: keyOffset,
       label: "추천",
       memo: "",
@@ -75,16 +74,21 @@
     draft = { ...draft, keyCandidates: [primary, ...current] };
   }
 
+  function setKeyMode(mode: KeyMode) {
+    keyMode = mode;
+    syncKeyCandidate(mode);
+  }
+
   function adjustOffset(delta: number) {
     keyOffset = clampOffset(keyOffset + delta);
-    if (keyMode !== "none") setKeyMode(keyMode);
+    syncKeyCandidate(keyMode);
   }
 
   function onOffsetInput(event: Event) {
     const value = Number((event.currentTarget as HTMLInputElement).value);
     if (!Number.isFinite(value)) return;
     keyOffset = clampOffset(value);
-    if (keyMode !== "none") setKeyMode(keyMode);
+    syncKeyCandidate(keyMode);
   }
 
   // Load an externally requested song into the form (detail-sheet edit, list edit).
@@ -262,7 +266,7 @@
       <h3 class="form-section-title">키</h3>
       <div class="key-control">
         <div class="key-stepper" role="group" aria-label="키 조절">
-          <button type="button" class="key-step-button" disabled={keyMode === "none"} aria-label="반음 내리기" onclick={() => adjustOffset(-1)}>
+          <button type="button" class="key-step-button" aria-label="반음 내리기" onclick={() => adjustOffset(-1)}>
             −
           </button>
           <input
@@ -271,12 +275,11 @@
             inputmode="numeric"
             min="-12"
             max="12"
-            disabled={keyMode === "none"}
             aria-label="키 오프셋"
             value={keyOffset}
             oninput={onOffsetInput}
           />
-          <button type="button" class="key-step-button" disabled={keyMode === "none"} aria-label="반음 올리기" onclick={() => adjustOffset(1)}>
+          <button type="button" class="key-step-button" aria-label="반음 올리기" onclick={() => adjustOffset(1)}>
             +
           </button>
         </div>
@@ -289,11 +292,10 @@
           </button>
         </div>
       </div>
-      <p class="hint">{keyMode === "none" ? "남/여를 눌러 추천 키를 정해요." : (keyMode === "female" ? "여성키" : "남성키") + " " + (keyOffset > 0 ? "+" : "") + keyOffset + "으로 저장돼요."}</p>
     </section>
     <section class="form-section" aria-label="메모">
       <h3 class="form-section-title">메모</h3>
-<textarea bind:value={draft.memo} placeholder="주의할 점 등"></textarea>
+      <textarea bind:value={draft.memo} placeholder="주의할 점 등"></textarea>
     </section>
     {#if !registerActions}
       <div class="admin-action-bar">

@@ -39,16 +39,23 @@ describe("SongForm", () => {
     });
 
     const offset = screen.getByRole("spinbutton", { name: "키 오프셋" });
-    expect(offset).toBeDisabled();
+
+    // 원키: offset without a 남/여 mode
+    await screen.getByRole("button", { name: "반음 내리기" }).click();
+    expect(offset).toHaveValue(-1);
+
+    await screen.getByRole("button", { name: "반음 올리기" }).click();
+    expect(offset).toHaveValue(0);
 
     await screen.getByRole("button", { name: "여" }).click();
-    expect(offset).not.toBeDisabled();
     await screen.getByRole("button", { name: "반음 올리기" }).click();
     await screen.getByRole("button", { name: "반음 올리기" }).click();
     expect(offset).toHaveValue(2);
-    expect(screen.getByText("여성키 +2으로 저장돼요.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "여" })).toHaveAttribute("aria-pressed", "true");
 
     await screen.getByRole("button", { name: "여" }).click();
-    expect(offset).toBeDisabled();
+    expect(screen.getByRole("button", { name: "여" })).toHaveAttribute("aria-pressed", "false");
+    // offset is kept, so the song stores 원키 +2
+    expect(offset).toHaveValue(2);
   });
 });
