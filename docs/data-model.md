@@ -13,7 +13,7 @@ mode toggles. Key text that used to live in `memo` was moved into this field
 by `scripts/migrate-memo-keys.mjs`, which only moves whole segments that are
 purely key notation and leaves the rest of the memo untouched.
 
-Public statuses: `active`, `favorite`, `practicing`, `hold`.
+Public statuses: `active`, `favorite`, `hold`.
 
 Hidden from public list: `deletion_candidate`, `deleted`.
 

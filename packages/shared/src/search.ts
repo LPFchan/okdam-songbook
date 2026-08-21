@@ -28,7 +28,6 @@ export interface SongFilters {
   performerIds?: PerformerId[];
   hasTjNumber?: boolean;
   favorite?: boolean;
-  practicing?: boolean;
 }
 
 export function primaryKey(song: Song): string {
@@ -80,7 +79,6 @@ export function filterSongs(songs: Song[], filters: SongFilters, includeHidden =
     if (filters.performerIds?.length && !filters.performerIds.some((id) => song.performerIds.includes(id))) return false;
     if (filters.hasTjNumber && !song.tjNumber) return false;
     if (filters.favorite && song.status !== "favorite") return false;
-    if (filters.practicing && song.status !== "practicing") return false;
     return true;
   });
 }

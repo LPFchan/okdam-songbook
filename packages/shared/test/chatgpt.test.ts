@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 // either changes, update both. Tested here so we can assert the contract
 // without pulling in the Apps Script runtime.
 
-type SongStatus = "active" | "favorite" | "practicing" | "hold" | "deletion_candidate" | "deleted";
+type SongStatus = "active" | "favorite" | "hold" | "deletion_candidate" | "deleted";
 
 interface SongRow {
   id: string;
@@ -371,7 +371,7 @@ function makeContext(): ChatGptContext {
     ],
     changeLog: [],
     appendRowsCalls: [],
-    publicStatuses: ["active", "favorite", "practicing", "hold"],
+    publicStatuses: ["active", "favorite", "hold"],
     performerIds: ["marie", "yeowool", "seongwook"],
     performerAliases: {
       "마리": ["marie"],

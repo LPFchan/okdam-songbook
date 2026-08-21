@@ -4,7 +4,6 @@ import { performerOrder } from "./performers.js";
 export const songStatusSchema = z.enum([
   "active",
   "favorite",
-  "practicing",
   "hold",
   "deletion_candidate",
   "deleted"

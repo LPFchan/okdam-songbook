@@ -61,7 +61,7 @@ const SHEETS = {
   ]
 };
 
-const PUBLIC_STATUSES = ["active", "favorite", "practicing", "hold"];
+const PUBLIC_STATUSES = ["active", "favorite", "hold"];
 const PERFORMER_IDS = ["marie", "yeowool", "seongwook"];
 const PERFORMER_ALIASES = {
   "마리": ["marie"],

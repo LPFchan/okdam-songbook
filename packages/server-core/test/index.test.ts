@@ -45,23 +45,29 @@ describe("SQLite storage foundation", () => {
 
   it("runs numbered migrations once and records them", () => {
     expect(runMigrations(database.sqlite)).toEqual([]);
-    expect(database.sqlite.prepare("SELECT id FROM schema_migrations").all()).toEqual(expect.arrayContaining([{ id: "0001_core" }, { id: "0100_mcp_token_resources" }, { id: "0101_tj_mirror" }, { id: "0102_drop_song_genres" }]));
+    expect(database.sqlite.prepare("SELECT id FROM schema_migrations").all()).toEqual(expect.arrayContaining([{ id: "0001_core" }, { id: "0100_mcp_token_resources" }, { id: "0101_tj_mirror" }, { id: "0102_drop_song_genres" }, { id: "0103_drop_practicing_status" }]));
     const songColumns = database.sqlite.prepare("PRAGMA table_info('songs')").all() as Array<{ name: string }>;
     expect(songColumns.map((column) => column.name)).not.toContain("genres_json");
   });
 
-  it("drops the legacy genre column without losing song data", () => {
+  it("removes retired song fields and statuses without losing related data", () => {
     const legacy = new Database(":memory:");
     try {
       legacy.exec(migrations[0].sql);
       legacy.exec("CREATE TABLE schema_migrations (id TEXT PRIMARY KEY NOT NULL, applied_at TEXT NOT NULL)");
       legacy.prepare("INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?)").run("0001_core", "2026-08-13T00:00:00.000Z");
-      legacy.prepare("INSERT INTO songs (id, title, artist, country, genres_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run("legacy-song", "Title", "Artist", "일본", '["J-POP"]', "2026-08-13T00:00:00.000Z", "2026-08-13T00:00:00.000Z");
+      legacy.prepare("INSERT INTO songs (id, title, artist, country, genres_json, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run("legacy-song", "Title", "Artist", "일본", '["J-POP"]', "practicing", "2026-08-13T00:00:00.000Z", "2026-08-13T00:00:00.000Z");
+      legacy.prepare("INSERT INTO performances (id, song_id, performed_at, created_at, client_request_id) VALUES (?, ?, ?, ?, ?)").run("performance-1", "legacy-song", "2026-08-13T00:00:00.000Z", "2026-08-13T00:00:00.000Z", "request-1");
+      legacy.pragma("foreign_keys = ON");
 
-      expect(runMigrations(legacy)).toContain("0102_drop_song_genres");
-      expect(legacy.prepare("SELECT id, title, artist, country FROM songs").get()).toEqual({ id: "legacy-song", title: "Title", artist: "Artist", country: "일본" });
+      expect(runMigrations(legacy)).toEqual(expect.arrayContaining(["0102_drop_song_genres", "0103_drop_practicing_status"]));
+      expect(legacy.prepare("SELECT id, title, artist, country, status FROM songs").get()).toEqual({ id: "legacy-song", title: "Title", artist: "Artist", country: "일본", status: "active" });
+      expect(legacy.prepare("SELECT song_id FROM performances").get()).toEqual({ song_id: "legacy-song" });
+      expect(legacy.pragma("foreign_keys", { simple: true })).toBe(1);
+      expect(legacy.pragma("foreign_key_check")).toEqual([]);
       const columns = legacy.prepare("PRAGMA table_info('songs')").all() as Array<{ name: string }>;
       expect(columns.map((column) => column.name)).not.toContain("genres_json");
+      expect(() => legacy.prepare("INSERT INTO songs (id, title, artist, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)").run("invalid", "Title", "Artist", "practicing", "2026-08-13T00:00:00.000Z", "2026-08-13T00:00:00.000Z")).toThrow();
     } finally {
       legacy.close();
     }

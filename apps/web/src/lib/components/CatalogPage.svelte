@@ -243,18 +243,16 @@
       filters.country ? { key: "country", label: filters.country } : null,
       ...(filters.performerIds ?? []).map((id) => ({ key: `performer:${id}` as const, label: `부를 사람: ${performers[id].displayName}` })),
       filters.hasKey ? { key: "hasKey", label: "추천 키 있음" } : null,
-      filters.favorite ? { key: "favorite", label: "즐겨찾기" } : null,
-      filters.practicing ? { key: "practicing", label: "연습 중" } : null
+      filters.favorite ? { key: "favorite", label: "즐겨찾기" } : null
     ];
     return list.filter(Boolean) as ActiveFilter[];
   });
 
-  const quickFilters: Array<{ key: PerformerId | "favorite" | "practicing"; label: string }> = [
+  const quickFilters: Array<{ key: PerformerId | "favorite"; label: string }> = [
     { key: "marie", label: "마리" },
     { key: "seongwook", label: "성욱" },
     { key: "yeowool", label: "여울" },
-    { key: "favorite", label: "즐겨찾기" },
-    { key: "practicing", label: "연습 중" }
+    { key: "favorite", label: "즐겨찾기" }
   ];
 
   async function refreshQueue() {
@@ -435,7 +433,7 @@
     filters = { ...filters, performerIds: next.length ? next : undefined };
   }
 
-  function toggleBooleanFilter(key: "hasKey" | "favorite" | "practicing") {
+  function toggleBooleanFilter(key: "hasKey" | "favorite") {
     filters = { ...filters, [key]: filters[key] ? undefined : true };
   }
 
@@ -517,18 +515,14 @@
       >
         {#each quickFilters as filter (filter.key)}
           {@const pressed =
-            filter.key === "favorite" || filter.key === "practicing"
-              ? Boolean(filters[filter.key])
-              : Boolean(filters.performerIds?.includes(filter.key))}
+            filter.key === "favorite" ? Boolean(filters[filter.key]) : Boolean(filters.performerIds?.includes(filter.key))}
           <button
             type="button"
             class="chip-toggle quick-chip"
             aria-pressed={pressed}
             data-selected={pressed ? "true" : undefined}
             onclick={() =>
-              filter.key === "favorite" || filter.key === "practicing"
-                ? toggleBooleanFilter(filter.key)
-                : togglePerformerFilter(filter.key)}
+              filter.key === "favorite" ? toggleBooleanFilter(filter.key) : togglePerformerFilter(filter.key)}
           >
             {filter.label}
           </button>

@@ -141,6 +141,68 @@ export const migrations = [
   {
     id: "0102_drop_song_genres",
     sql: `ALTER TABLE songs DROP COLUMN genres_json;`
+  },
+  {
+    id: "0103_drop_practicing_status",
+    disableForeignKeys: true,
+    sql: `
+      CREATE TABLE songs_next (
+        id TEXT PRIMARY KEY NOT NULL,
+        tj_number TEXT UNIQUE,
+        title TEXT NOT NULL,
+        title_reading_ko TEXT NOT NULL DEFAULT '',
+        title_romanized TEXT NOT NULL DEFAULT '',
+        title_aliases_json TEXT NOT NULL DEFAULT '[]',
+        artist TEXT NOT NULL,
+        artist_reading_ko TEXT NOT NULL DEFAULT '',
+        artist_aliases_json TEXT NOT NULL DEFAULT '[]',
+        country TEXT NOT NULL DEFAULT '',
+        original_work TEXT NOT NULL DEFAULT '',
+        key_candidates_json TEXT NOT NULL DEFAULT '[]',
+        performer_ids_json TEXT NOT NULL DEFAULT '[]',
+        memo TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','favorite','hold','deletion_candidate','deleted')),
+        youtube_url TEXT NOT NULL DEFAULT '',
+        youtube_video_id TEXT NOT NULL DEFAULT '',
+        is_official_tj_video INTEGER,
+        source_type TEXT NOT NULL DEFAULT '',
+        source_reference TEXT NOT NULL DEFAULT '',
+        created_by_email TEXT NOT NULL DEFAULT '',
+        created_by_name TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        updated_by_email TEXT NOT NULL DEFAULT '',
+        updated_by_name TEXT NOT NULL DEFAULT '',
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        deleted_by_email TEXT,
+        version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+        CHECK (tj_number IS NULL OR (length(tj_number) > 0 AND tj_number NOT GLOB '*[^0-9]*'))
+      );
+
+      INSERT INTO songs_next (
+        id,tj_number,title,title_reading_ko,title_romanized,title_aliases_json,
+        artist,artist_reading_ko,artist_aliases_json,country,original_work,
+        key_candidates_json,performer_ids_json,memo,status,youtube_url,
+        youtube_video_id,is_official_tj_video,source_type,source_reference,
+        created_by_email,created_by_name,created_at,updated_by_email,
+        updated_by_name,updated_at,deleted_at,deleted_by_email,version
+      )
+      SELECT
+        id,tj_number,title,title_reading_ko,title_romanized,title_aliases_json,
+        artist,artist_reading_ko,artist_aliases_json,country,original_work,
+        key_candidates_json,performer_ids_json,memo,
+        CASE WHEN status = 'practicing' THEN 'active' ELSE status END,
+        youtube_url,youtube_video_id,is_official_tj_video,source_type,
+        source_reference,created_by_email,created_by_name,created_at,
+        updated_by_email,updated_by_name,updated_at,deleted_at,deleted_by_email,
+        version
+      FROM songs;
+
+      DROP TABLE songs;
+      ALTER TABLE songs_next RENAME TO songs;
+      CREATE INDEX songs_status_idx ON songs(status);
+      CREATE INDEX songs_updated_at_idx ON songs(updated_at);
+    `
   }
 ] as const;
 
@@ -154,10 +216,19 @@ export function runMigrations(db: Database.Database): string[] {
   const ran: string[] = [];
   for (const migration of migrations) {
     if (applied.has(migration.id)) continue;
-    db.transaction(() => {
-      db.exec(migration.sql);
-      db.prepare("INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?)").run(migration.id, new Date().toISOString());
-    })();
+    const disableForeignKeys = "disableForeignKeys" in migration && migration.disableForeignKeys;
+    const foreignKeysWereEnabled = Number(db.pragma("foreign_keys", { simple: true })) === 1;
+    if (disableForeignKeys && foreignKeysWereEnabled) db.pragma("foreign_keys = OFF");
+    try {
+      db.transaction(() => {
+        db.exec(migration.sql);
+        const violations = db.pragma("foreign_key_check") as unknown[];
+        if (violations.length > 0) throw new Error(`Migration ${migration.id} introduced foreign key violations.`);
+        db.prepare("INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?)").run(migration.id, new Date().toISOString());
+      })();
+    } finally {
+      if (disableForeignKeys && foreignKeysWereEnabled) db.pragma("foreign_keys = ON");
+    }
     ran.push(migration.id);
   }
   return ran;
