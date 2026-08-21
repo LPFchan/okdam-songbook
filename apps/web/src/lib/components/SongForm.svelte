@@ -190,6 +190,13 @@
   }
 
   const canSave = $derived(Boolean(auth.user && can(auth.user.role, editingId ? "song:update" : "song:create")));
+
+  // Hoist the action row into the sheet's fixed footer. Runs from an effect
+  // because calling it from a template expression mutates the sheet's state
+  // during template evaluation, which Svelte forbids (state_unsafe_mutation).
+  $effect(() => {
+    if (tab === "add") registerActions?.(formActions);
+  });
 </script>
 
 {#if tab === "add"}
@@ -328,7 +335,3 @@
     </button>
   {/if}
 {/snippet}
-
-{#if registerActions && tab === "add"}
-  {registerActions(formActions)}
-{/if}

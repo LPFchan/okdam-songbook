@@ -18,6 +18,13 @@
 
   const performerIds = $derived(sortPerformerIds(song.performerIds));
   const canEdit = $derived(can(user?.role, "song:update"));
+
+  // Hoist the action row into the sheet's fixed footer. Runs from an effect
+  // because calling it from a template expression mutates the sheet's state
+  // during template evaluation, which Svelte forbids (state_unsafe_mutation).
+  $effect(() => {
+    registerActions?.(detailActions);
+  });
 </script>
 
 <div class="detail-grid">
@@ -77,7 +84,3 @@
     수정
   </button>
 {/snippet}
-
-{#if registerActions}
-  {registerActions(detailActions)}
-{/if}
