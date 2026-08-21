@@ -6,6 +6,13 @@
 
 `performerIdsJson` stores structured singer assignments as user IDs, not display names. Built-in IDs are `marie`, `seongwook`, and `yeowool`; legacy `뽀냐` input migrates to `["marie", "yeowool"]`.
 
+`keyCandidatesJson` stores the recommended key as structured candidates
+(`baseMode` `original|male|female|custom` plus a semitone `offset`). The web
+form edits the primary candidate with a `[-] 0 [+]` stepper and `남`/`여`
+mode toggles. Key text that used to live in `memo` was moved into this field
+by `scripts/migrate-memo-keys.mjs`, which only moves whole segments that are
+purely key notation and leaves the rest of the memo untouched.
+
 Public statuses: `active`, `favorite`, `practicing`, `hold`.
 
 Hidden from public list: `deletion_candidate`, `deleted`.
