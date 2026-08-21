@@ -137,6 +137,10 @@ export const migrations = [
         PRIMARY KEY (query_key, tj_number)
       );
     `
+  },
+  {
+    id: "0102_drop_song_genres",
+    sql: `ALTER TABLE songs DROP COLUMN genres_json;`
   }
 ] as const;
 

@@ -11,9 +11,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "J-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [
       {
@@ -55,9 +52,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "J-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [
       {
@@ -99,9 +93,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "J-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [
       {
@@ -143,9 +134,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "언어의 정원",
     "keyCandidates": [
       {
@@ -187,9 +175,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "J-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [
       {
@@ -231,9 +216,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -266,9 +248,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "J-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [
       {
@@ -310,9 +289,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "토라도라",
     "keyCandidates": [
       {
@@ -354,9 +330,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "쏘아올린 불꽃",
     "keyCandidates": [
       {
@@ -398,9 +371,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "나의 히어로 아카데미아",
     "keyCandidates": [
       {
@@ -442,9 +412,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "J-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -477,9 +444,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "J-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [
       {
@@ -521,9 +485,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "No.6",
     "keyCandidates": [
       {
@@ -565,9 +526,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "청춘돼지",
     "keyCandidates": [
       {
@@ -609,9 +567,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "J-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [
       {
@@ -653,9 +608,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "바라카몬",
     "keyCandidates": [
       {
@@ -697,9 +649,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "도로로",
     "keyCandidates": [
       {
@@ -741,9 +690,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -776,9 +722,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -811,9 +754,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -846,9 +786,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -881,9 +818,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -916,9 +850,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -951,9 +882,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -986,9 +914,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -1021,9 +946,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -1056,9 +978,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -1091,9 +1010,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -1126,9 +1042,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -1161,9 +1074,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [
       {
@@ -1205,9 +1115,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -1240,9 +1147,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -1275,9 +1179,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -1310,9 +1211,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -1345,9 +1243,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -1380,9 +1275,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -1415,9 +1307,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -1450,9 +1339,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -1485,9 +1371,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -1520,9 +1403,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -1555,9 +1435,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -1590,9 +1467,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "킬라킬",
     "keyCandidates": [],
     "performerIds": [
@@ -1625,9 +1499,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "너의 이름은",
     "keyCandidates": [],
     "performerIds": [
@@ -1660,9 +1531,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "케모노 프렌즈",
     "keyCandidates": [],
     "performerIds": [
@@ -1695,9 +1563,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "일상",
     "keyCandidates": [],
     "performerIds": [
@@ -1731,9 +1596,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "날씨의 아이",
     "keyCandidates": [],
     "performerIds": [
@@ -1766,9 +1628,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "날씨의 아이",
     "keyCandidates": [],
     "performerIds": [
@@ -1801,9 +1660,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "모노가타리",
     "keyCandidates": [],
     "performerIds": [
@@ -1836,9 +1692,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [
       {
@@ -1881,9 +1734,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "카드캡터 사쿠라",
     "keyCandidates": [],
     "performerIds": [
@@ -1917,9 +1767,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "모노가타리",
     "keyCandidates": [],
     "performerIds": [
@@ -1952,9 +1799,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "날씨의 아이",
     "keyCandidates": [],
     "performerIds": [
@@ -1988,9 +1832,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "케이온",
     "keyCandidates": [],
     "performerIds": [
@@ -2023,9 +1864,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "주문토끼",
     "keyCandidates": [],
     "performerIds": [
@@ -2058,9 +1896,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "https://namu.wiki/w/%EC%BD%94%EB%B0%94%EC%95%BC%EC%8B%9C%EB%84%A4%20%EB%A9%94%EC%9D%B4%EB%93%9C%EB%9E%98%EA%B3%A4",
     "keyCandidates": [],
     "performerIds": [
@@ -2093,9 +1928,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "날씨의 아이",
     "keyCandidates": [
       {
@@ -2138,9 +1970,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "일상",
     "keyCandidates": [],
     "performerIds": [
@@ -2174,9 +2003,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "카드캡터 사쿠라",
     "keyCandidates": [],
     "performerIds": [
@@ -2210,9 +2036,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -2245,9 +2068,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [
       {
@@ -2289,9 +2109,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -2324,9 +2141,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [
       {
@@ -2368,9 +2182,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "미국",
-    "genres": [
-      "POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -2403,9 +2214,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -2438,9 +2246,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [
       {
@@ -2483,9 +2288,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [
       {
@@ -2527,9 +2329,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -2562,9 +2361,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -2597,9 +2393,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [
       {
@@ -2641,9 +2434,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -2676,9 +2466,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -2711,9 +2498,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [
       {
@@ -2755,9 +2539,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -2790,9 +2571,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -2826,9 +2604,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -2861,9 +2636,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -2896,9 +2668,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "미국",
-    "genres": [
-      "POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -2931,9 +2700,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -2967,9 +2733,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "미국",
-    "genres": [
-      "POP"
-    ],
     "originalWork": "",
     "keyCandidates": [
       {
@@ -3011,9 +2774,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [
       {
@@ -3055,9 +2815,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -3091,9 +2848,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -3126,9 +2880,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -3161,9 +2912,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [
       {
@@ -3205,9 +2953,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "미국",
-    "genres": [
-      "POP"
-    ],
     "originalWork": "",
     "keyCandidates": [
       {
@@ -3249,9 +2994,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -3284,9 +3026,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -3319,9 +3058,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -3354,9 +3090,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -3389,9 +3122,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -3424,9 +3154,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [
       {
@@ -3469,9 +3196,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -3504,9 +3228,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -3540,9 +3261,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [
       {
@@ -3585,9 +3303,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -3620,9 +3335,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -3656,9 +3368,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -3691,9 +3400,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -3726,9 +3432,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -3761,9 +3464,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -3797,9 +3497,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -3833,9 +3530,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "J-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -3868,9 +3562,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "소녀종말여행",
     "keyCandidates": [],
     "performerIds": [
@@ -3904,9 +3595,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "애니메이션"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -3939,9 +3627,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -3974,9 +3659,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "미국",
-    "genres": [
-      "POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -4010,9 +3692,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "미국",
-    "genres": [
-      "POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -4046,9 +3725,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -4082,9 +3758,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -4117,9 +3790,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -4152,9 +3822,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -4187,9 +3854,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -4223,9 +3887,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "한국",
-    "genres": [
-      "K-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -4259,9 +3920,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "J-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [
@@ -4294,9 +3952,6 @@ const SEED_SONGS = [
     "artistReadingKo": "",
     "artistAliases": [],
     "country": "일본",
-    "genres": [
-      "J-POP"
-    ],
     "originalWork": "",
     "keyCandidates": [],
     "performerIds": [

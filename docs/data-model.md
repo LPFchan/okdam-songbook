@@ -2,7 +2,7 @@
 
 ## Songs
 
-`id`, `tjNumber`, `title`, `titleReadingKo`, `titleRomanized`, `titleAliasesJson`, `artist`, `artistReadingKo`, `artistAliasesJson`, `country`, `genresJson`, `originalWork`, `keyCandidatesJson`, `performerIdsJson`, `memo`, `status`, `youtubeUrl`, `youtubeVideoId`, `isOfficialTjVideo`, `sourceType`, `sourceReference`, `createdByEmail`, `createdByName`, `createdAt`, `updatedByEmail`, `updatedByName`, `updatedAt`, `deletedAt`, `deletedByEmail`, `version`.
+`id`, `tjNumber`, `title`, `titleReadingKo`, `titleRomanized`, `titleAliasesJson`, `artist`, `artistReadingKo`, `artistAliasesJson`, `country`, `originalWork`, `keyCandidatesJson`, `performerIdsJson`, `memo`, `status`, `youtubeUrl`, `youtubeVideoId`, `isOfficialTjVideo`, `sourceType`, `sourceReference`, `createdByEmail`, `createdByName`, `createdAt`, `updatedByEmail`, `updatedByName`, `updatedAt`, `deletedAt`, `deletedByEmail`, `version`.
 
 `performerIdsJson` stores structured singer assignments as user IDs, not display names. Built-in IDs are `marie`, `seongwook`, and `yeowool`; legacy `뽀냐` input migrates to `["marie", "yeowool"]`.
 

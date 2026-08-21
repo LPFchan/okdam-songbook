@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import Database from "better-sqlite3";
 import {
   createAuditRepository,
   createIdempotencyRepository,
@@ -9,6 +10,7 @@ import {
   createSongRepository,
   databasePragmas,
   IdempotencyMismatchError,
+  migrations,
   openDatabase,
   runMigrations,
   type SongbookDatabase
@@ -28,7 +30,7 @@ afterEach(() => {
 function song(overrides: Partial<Song> = {}): Song {
   return {
     id: "song-1", tjNumber: "12345", title: "Title", titleReadingKo: "", titleRomanized: "", titleAliases: [],
-    artist: "Artist", artistReadingKo: "", artistAliases: [], country: "", genres: [], originalWork: "", keyCandidates: [],
+    artist: "Artist", artistReadingKo: "", artistAliases: [], country: "", originalWork: "", keyCandidates: [],
     performerIds: [], memo: "", status: "active", youtubeUrl: "", youtubeVideoId: "", isOfficialTjVideo: null,
     sourceType: "test", sourceReference: "", createdByName: "Tester", createdAt: "2026-08-13T00:00:00.000Z",
     updatedByName: "Tester", updatedAt: "2026-08-13T00:00:00.000Z", deletedAt: "", version: 1, lastPerformedAt: "", performanceCount: 0,
@@ -43,7 +45,26 @@ describe("SQLite storage foundation", () => {
 
   it("runs numbered migrations once and records them", () => {
     expect(runMigrations(database.sqlite)).toEqual([]);
-    expect(database.sqlite.prepare("SELECT id FROM schema_migrations").all()).toEqual(expect.arrayContaining([{ id: "0001_core" }, { id: "0100_mcp_token_resources" }, { id: "0101_tj_mirror" }]));
+    expect(database.sqlite.prepare("SELECT id FROM schema_migrations").all()).toEqual(expect.arrayContaining([{ id: "0001_core" }, { id: "0100_mcp_token_resources" }, { id: "0101_tj_mirror" }, { id: "0102_drop_song_genres" }]));
+    const songColumns = database.sqlite.prepare("PRAGMA table_info('songs')").all() as Array<{ name: string }>;
+    expect(songColumns.map((column) => column.name)).not.toContain("genres_json");
+  });
+
+  it("drops the legacy genre column without losing song data", () => {
+    const legacy = new Database(":memory:");
+    try {
+      legacy.exec(migrations[0].sql);
+      legacy.exec("CREATE TABLE schema_migrations (id TEXT PRIMARY KEY NOT NULL, applied_at TEXT NOT NULL)");
+      legacy.prepare("INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?)").run("0001_core", "2026-08-13T00:00:00.000Z");
+      legacy.prepare("INSERT INTO songs (id, title, artist, country, genres_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run("legacy-song", "Title", "Artist", "일본", '["J-POP"]', "2026-08-13T00:00:00.000Z", "2026-08-13T00:00:00.000Z");
+
+      expect(runMigrations(legacy)).toContain("0102_drop_song_genres");
+      expect(legacy.prepare("SELECT id, title, artist, country FROM songs").get()).toEqual({ id: "legacy-song", title: "Title", artist: "Artist", country: "일본" });
+      const columns = legacy.prepare("PRAGMA table_info('songs')").all() as Array<{ name: string }>;
+      expect(columns.map((column) => column.name)).not.toContain("genres_json");
+    } finally {
+      legacy.close();
+    }
   });
 
   it("uses WAL for a file-backed database", () => {

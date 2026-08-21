@@ -13,7 +13,6 @@ export const songs = sqliteTable("songs", {
   artistReadingKo: text("artist_reading_ko").notNull().default(""),
   artistAliasesJson: jsonText("artist_aliases_json").notNull().default("[]"),
   country: text("country").notNull().default(""),
-  genresJson: jsonText("genres_json").notNull().default("[]"),
   originalWork: text("original_work").notNull().default(""),
   keyCandidatesJson: jsonText("key_candidates_json").notNull().default("[]"),
   performerIdsJson: jsonText("performer_ids_json").notNull().default("[]"),

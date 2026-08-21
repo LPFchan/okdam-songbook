@@ -2,13 +2,6 @@ import { parseCsvKey } from "./key.js";
 import { mergePerformerIds, migratePerformerMemo, normalizePerformerIds } from "./performers.js";
 import type { KeyCandidate, Song } from "./schemas.js";
 
-const GENRE_BY_COUNTRY: Record<string, string> = {
-  "한국": "K-POP",
-  "일본": "J-POP",
-  "미국": "POP",
-  "아니메": "애니메이션"
-};
-
 const NORMALIZED_COUNTRY: Record<string, string> = {
   "아니메": "일본"
 };
@@ -22,7 +15,6 @@ export interface CsvRowInput {
   country?: string;
   recommender?: string;
   key?: string;
-  genres?: string;
   memo?: string;
 }
 
@@ -123,9 +115,6 @@ export function csvRowToSong(row: CsvRowInput, rowIndex: number, options: CsvImp
   if (!artist) warnings.push(`아티스트가 비어있어 (행 ${rowIndex + 1})`);
   unknownPerformerNames.forEach((name) => warnings.push(`알 수 없는 부를 사람 '${name}' (행 ${rowIndex + 1})`));
 
-  const countryGenre = importedCountry && GENRE_BY_COUNTRY[importedCountry] ? GENRE_BY_COUNTRY[importedCountry] : "";
-  const genres = Array.from(new Set([countryGenre, ...(row.genres ? [row.genres] : [])].filter(Boolean)));
-
   const createdAt = toIsoFromKoreanDate(row.createdAt, generatedAt);
 
   const song: ImportedSong = {
@@ -139,7 +128,6 @@ export function csvRowToSong(row: CsvRowInput, rowIndex: number, options: CsvImp
     artistReadingKo: "",
     artistAliases: [],
     country,
-    genres,
     originalWork,
     keyCandidates,
     performerIds,

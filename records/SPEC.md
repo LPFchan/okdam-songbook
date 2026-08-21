@@ -42,7 +42,7 @@ history.
 
 - Dense mobile song list with TJ number priority and no album art.
 - Search by TJ number, title, artist, aliases, Korean reading, romanization,
-  genre, country, original work, memo, and assigned performer.
+  country, original work, memo, and assigned performer.
 - Authenticated users may generate editable Korean-reading candidates for a
   song title and artist; generated values are never saved automatically.
 - Quick filter chips plus a complete responsive filter surface; sort remains

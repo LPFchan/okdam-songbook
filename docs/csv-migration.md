@@ -6,7 +6,7 @@ Supported legacy headers include:
 - `번호` -> `tjNumber`
 - `아티스트` -> `artist`
 - `원작` -> `originalWork`
-- `장르` -> `genres`
+- `장르` -> `country` (legacy exports stored country buckets in this column)
 - `추천인` -> `performerIds`
 - `키` -> `keyCandidates`
 

@@ -17,7 +17,6 @@ interface SongRow {
   artistReadingKo?: string;
   artistAliases?: string[];
   country?: string;
-  genres?: string[];
   originalWork?: string;
   keyCandidates?: Array<Record<string, unknown>>;
   performerIds?: string[];
@@ -119,7 +118,6 @@ function serializeSong(ctx: ChatGptContext, row: SongRow): Record<string, unknow
     artistReadingKo: row.artistReadingKo ?? "",
     artistAliases: row.artistAliases ?? [],
     country: row.country ?? "",
-    genres: row.genres ?? [],
     originalWork: row.originalWork ?? "",
     keyCandidates: row.keyCandidates ?? [],
     performerIds: row.performerIds ?? [],
@@ -224,7 +222,6 @@ function normalizeSongInput(ctx: ChatGptContext, song: Record<string, unknown>):
     artistReadingKo: String(song.artistReadingKo ?? "").trim(),
     artistAliases: (song.artistAliases as string[] | undefined) ?? [],
     country: String(song.country ?? "").trim(),
-    genres: (song.genres as string[] | undefined) ?? [],
     originalWork: String(song.originalWork ?? "").trim(),
     keyCandidates: (song.keyCandidates as Array<Record<string, unknown>> | undefined) ?? [],
     performerIds,
@@ -264,8 +261,7 @@ function gptSearchSongs(ctx: ChatGptContext, body: Record<string, unknown>): { q
         song.artistReadingKo,
         (song.artistAliases as string[]).join(" "),
         song.tjNumber,
-        (song.performerIds as string[]).join(" "),
-        (song.genres as string[]).join(" ")
+        (song.performerIds as string[]).join(" ")
       ].join(" ").toLowerCase();
       return haystack.indexOf(query) !== -1;
     });
@@ -311,7 +307,6 @@ function gptAddSong(ctx: ChatGptContext, body: Record<string, unknown>): { dupli
     artistReadingKo: body.artistReadingKo,
     artistAliases: body.artistAliases,
     country: body.country,
-    genres: body.genres,
     originalWork: body.originalWork,
     performerIds: strictPerformerIds(ctx, body.performerIds),
     keyCandidates: body.keyCandidates,
@@ -426,7 +421,7 @@ describe("gptSearchSongs", () => {
     expect(gptSearchSongs(ctx, {})).toEqual({ query: "", total: 0, songs: [] });
   });
 
-  it("matches across title, artist, tjNumber, performerIds, genres", () => {
+  it("matches across title, artist, tjNumber, and performerIds", () => {
     const ctx = makeContext();
     ctx.songs.push({
       id: "tsuki",
@@ -434,15 +429,13 @@ describe("gptSearchSongs", () => {
       title: "月光花",
       artist: "Janne Da Arc",
       status: "active",
-      performerIds: ["yeowool"],
-      genres: ["J-rock"]
+      performerIds: ["yeowool"]
     });
     expect(gptSearchSongs(ctx, { query: "tsuki" }).total).toBe(0);
     expect(gptSearchSongs(ctx, { query: "月光" }).total).toBe(1);
     expect(gptSearchSongs(ctx, { query: "janne" }).total).toBe(1);
     expect(gptSearchSongs(ctx, { query: "99999" }).total).toBe(1);
     expect(gptSearchSongs(ctx, { query: "yeowool" }).total).toBe(1);
-    expect(gptSearchSongs(ctx, { query: "J-rock" }).total).toBe(1);
   });
 
   it("hides deleted or hidden songs", () => {

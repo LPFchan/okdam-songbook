@@ -37,7 +37,7 @@ describe("importSongsFromCsv", () => {
     expect(report.skipped).toBe(2);
   });
 
-  it("stores anime imports as Japanese songs while preserving the animation genre", () => {
+  it("stores anime imports as Japanese songs", () => {
     const report = importSongsFromCsv([{
       title: "オレンジ",
       tjNumber: "28187",
@@ -45,7 +45,7 @@ describe("importSongsFromCsv", () => {
       country: "아니메"
     }], { csvFileName: "test.csv" });
 
-    expect(report.songs[0]).toMatchObject({ country: "일본", genres: ["애니메이션"] });
+    expect(report.songs[0]).toMatchObject({ country: "일본" });
   });
 
   it("preserves ambiguous key values as warnings", () => {

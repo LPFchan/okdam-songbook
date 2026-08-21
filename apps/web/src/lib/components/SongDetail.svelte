@@ -64,10 +64,6 @@
     <span>{song.artistReadingKo || "미입력"}</span>
   </div>
   <div>
-    <span class="detail-label">장르</span>
-    <span>{song.genres.join(", ") || "미입력"}</span>
-  </div>
-  <div>
     <span class="detail-label">원작</span>
     <span>{song.originalWork || "미입력"}</span>
   </div>

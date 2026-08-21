@@ -81,8 +81,7 @@ function songMatchesQuery(song, query) {
     song.artistReadingKo,
     (song.artistAliases || []).join(" "),
     song.tjNumber,
-    (song.performerIds || []).join(" "),
-    (song.genres || []).join(" ")
+    (song.performerIds || []).join(" ")
   ].join(" ").toLowerCase();
   return haystack.indexOf(query) !== -1;
 }
@@ -151,7 +150,6 @@ function gptAddSong(body, requestId, e) {
       artistReadingKo: body.artistReadingKo,
       artistAliases: body.artistAliases,
       country: body.country,
-      genres: body.genres,
       originalWork: body.originalWork,
       performerIds: performerIds,
       keyCandidates: body.keyCandidates,

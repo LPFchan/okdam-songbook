@@ -49,7 +49,6 @@
       </span>
     {/if}
     {#if song.country}<span>{song.country}</span>{/if}
-    {#if song.genres[0]}<span>{song.genres[0]}</span>{/if}
     {#if keyLabel}<span>{keyLabel}</span>{/if}
     {#if song.lastPerformedAt}<span>최근 부름</span>{/if}
   {/snippet}

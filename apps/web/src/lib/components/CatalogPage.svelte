@@ -36,7 +36,6 @@
   import { chipsHeight } from "../chipsHeight";
 
   type QueueItem = Awaited<ReturnType<typeof queueItems>>[number];
-  const countryDerivedGenres = new Set(["J-POP", "POP", "K-POP", "애니메이션"]);
 
   let songs = $state<Song[]>([]);
   let catalogVersion = $state(0);
@@ -233,7 +232,6 @@
     return () => window.clearTimeout(settle);
   });
   const countries = $derived([...new Set(songs.map((song) => song.country).filter(Boolean))]);
-  const genres = $derived([...new Set(songs.flatMap((song) => song.genres))].filter((genre) => !countryDerivedGenres.has(genre)));
 
   interface ActiveFilter {
     key: keyof SongFilters | `performer:${PerformerId}`;
@@ -243,7 +241,6 @@
   const activeFilters = $derived.by((): ActiveFilter[] => {
     const list: Array<ActiveFilter | null> = [
       filters.country ? { key: "country", label: filters.country } : null,
-      filters.genre ? { key: "genre", label: filters.genre } : null,
       ...(filters.performerIds ?? []).map((id) => ({ key: `performer:${id}` as const, label: `부를 사람: ${performers[id].displayName}` })),
       filters.hasKey ? { key: "hasKey", label: "추천 키 있음" } : null,
       filters.favorite ? { key: "favorite", label: "즐겨찾기" } : null,
@@ -442,7 +439,7 @@
     filters = { ...filters, [key]: filters[key] ? undefined : true };
   }
 
-  function selectSingleFilter(key: "country" | "genre", value: string) {
+  function selectSingleFilter(key: "country", value: string) {
     filters = { ...filters, [key]: value || undefined };
   }
 
@@ -556,17 +553,6 @@
             {country}
           </button>
         {/each}
-        {#each genres as genre (genre)}
-          <button
-            type="button"
-            class="chip-toggle"
-            aria-pressed={filters.genre === genre}
-            data-selected={filters.genre === genre ? "true" : undefined}
-            onclick={() => selectSingleFilter("genre", filters.genre === genre ? "" : genre)}
-          >
-            {genre}
-          </button>
-          {/each}
       </div>
       <button
         type="button"

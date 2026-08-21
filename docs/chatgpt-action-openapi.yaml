@@ -190,9 +190,6 @@ components:
           type: array
           items: { type: string }
         country: { type: string }
-        genres:
-          type: array
-          items: { type: string }
         originalWork: { type: string }
         performerIds:
           type: array
@@ -228,9 +225,6 @@ components:
           type: array
           items: { type: string }
         country: { type: string }
-        genres:
-          type: array
-          items: { type: string }
         originalWork: { type: string }
         keyCandidates:
           type: array

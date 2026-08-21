@@ -21,7 +21,6 @@ export type SortKey = "title" | "tjNumber" | "recentAdded" | "recentUpdated" | "
 
 export interface SongFilters {
   country?: string;
-  genre?: string;
   status?: string;
   hasKey?: boolean;
   recentOnly?: boolean;
@@ -47,7 +46,6 @@ export function buildSearchDocument(song: Song): string {
     song.artistReadingKo,
     song.artistAliases.join(" "),
     song.country,
-    song.genres.join(" "),
     song.originalWork,
     song.memo,
     performerSearchText(song.performerIds),
@@ -75,7 +73,6 @@ export function filterSongs(songs: Song[], filters: SongFilters, includeHidden =
   return songs.filter((song) => {
     if (!includeHidden && !isPublicSongStatus(song.status)) return false;
     if (filters.country && song.country !== filters.country) return false;
-    if (filters.genre && !song.genres.includes(filters.genre)) return false;
     if (filters.status && song.status !== filters.status) return false;
     if (filters.hasKey && song.keyCandidates.length === 0) return false;
     if (filters.recentOnly && !song.lastPerformedAt) return false;

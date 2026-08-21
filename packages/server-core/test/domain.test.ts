@@ -20,7 +20,7 @@ const allowedPeer = { email: "peer@example.com", displayName: "Peer" };
 
 function songInput(overrides: Partial<Omit<Song, "id" | "createdAt" | "updatedAt" | "deletedAt" | "version" | "lastPerformedAt" | "lastPerformedByName" | "performanceCount"> & { clientRequestId: string }> = {}) {
   return {
-    tjNumber: "12345", title: "Title", titleReadingKo: "", titleRomanized: "", titleAliases: [], artist: "Artist", artistReadingKo: "", artistAliases: [], country: "", genres: [], originalWork: "", keyCandidates: [], performerIds: [], memo: "", status: "active" as const, youtubeUrl: "", youtubeVideoId: "", isOfficialTjVideo: null, sourceType: "test", sourceReference: "", createdByName: "", updatedByName: "", clientRequestId: crypto.randomUUID(), ...overrides
+    tjNumber: "12345", title: "Title", titleReadingKo: "", titleRomanized: "", titleAliases: [], artist: "Artist", artistReadingKo: "", artistAliases: [], country: "", originalWork: "", keyCandidates: [], performerIds: [], memo: "", status: "active" as const, youtubeUrl: "", youtubeVideoId: "", isOfficialTjVideo: null, sourceType: "test", sourceReference: "", createdByName: "", updatedByName: "", clientRequestId: crypto.randomUUID(), ...overrides
   };
 }
 

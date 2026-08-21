@@ -5,7 +5,7 @@ import { applyImport, exportRollback, exportSheetCsv, ImportValidationError, ope
 const seedPayload = JSON.parse(readFileSync(new URL("../../../apps-script/seed/songs.json", import.meta.url), "utf8")) as { songs: unknown[] };
 
 const baseSong = (overrides: Record<string, unknown> = {}) => ({
-  id: "song-1", tjNumber: "12345", title: "Title", artist: "Artist", titleAliases: [], artistAliases: [], genres: [], keyCandidates: [], performerIds: [], status: "active", createdAt: "2026-08-13T00:00:00.000Z", updatedAt: "2026-08-13T00:00:00.000Z", ...overrides
+  id: "song-1", tjNumber: "12345", title: "Title", artist: "Artist", titleAliases: [], artistAliases: [], keyCandidates: [], performerIds: [], status: "active", createdAt: "2026-08-13T00:00:00.000Z", updatedAt: "2026-08-13T00:00:00.000Z", ...overrides
 });
 
 describe("database migration tools", () => {

@@ -33,7 +33,6 @@ export const songSchema = z.object({
   artistReadingKo: z.string().trim().max(300).optional().default(""),
   artistAliases: z.array(z.string().trim().max(160)).default([]),
   country: z.string().trim().max(80).optional().default(""),
-  genres: z.array(z.string().trim().max(80)).default([]),
   originalWork: z.string().trim().max(200).optional().default(""),
   keyCandidates: z.array(keyCandidateSchema).default([]),
   performerIds: z.array(performerIdSchema).default([]).transform((ids) => Array.from(new Set(ids))),
