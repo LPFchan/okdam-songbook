@@ -262,7 +262,7 @@
           <button type="button" class="key-step-button" aria-label="반음 내리기" onclick={() => adjustOffset(-1)}>
             −
           </button>
-          <span class="key-offset-display" aria-live="polite">{keyOffset}</span>
+          <span class="key-offset-display" aria-live="polite">{keyOffset > 0 ? "+" + keyOffset : keyOffset}</span>
           <button type="button" class="key-step-button" aria-label="반음 올리기" onclick={() => adjustOffset(1)}>
             +
           </button>

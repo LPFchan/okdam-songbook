@@ -51,12 +51,12 @@ describe("SongForm", () => {
     await screen.getByRole("button", { name: "여" }).click();
     await screen.getByRole("button", { name: "반음 올리기" }).click();
     await screen.getByRole("button", { name: "반음 올리기" }).click();
-    expect(offset()?.textContent).toBe("2");
+    expect(offset()?.textContent).toBe("+2");
     expect(screen.getByRole("button", { name: "여" })).toHaveAttribute("aria-pressed", "true");
 
     await screen.getByRole("button", { name: "여" }).click();
     expect(screen.getByRole("button", { name: "여" })).toHaveAttribute("aria-pressed", "false");
     // offset is kept, so the song stores 원키 +2
-    expect(offset()?.textContent).toBe("2");
+    expect(offset()?.textContent).toBe("+2");
   });
 });
