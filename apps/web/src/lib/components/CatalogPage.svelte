@@ -32,6 +32,7 @@
   import { onlineStatus } from "../online.svelte";
   import { snackbar } from "../snackbar.svelte";
   import { createSpring, GENTLE } from "../spring";
+  import { chipStagger } from "../chipStagger";
 
   type QueueItem = Awaited<ReturnType<typeof queueItems>>[number];
 
@@ -506,7 +507,13 @@
           <option value="performanceCount">많이 부른 순</option>
         </select>
       </label>
-      <div class="controls-bar-scroll" class:chips-expanded={chipsExpanded} role="group" aria-label="필터">
+      <div
+        class="controls-bar-scroll"
+        class:chips-expanded={chipsExpanded}
+        role="group"
+        aria-label="필터"
+        use:chipStagger={chipsExpanded}
+      >
         {#each quickFilters as filter (filter.key)}
           {@const pressed =
             filter.key === "favorite" || filter.key === "practicing"

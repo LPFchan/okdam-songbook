@@ -26,6 +26,8 @@ button:disabled{cursor:not-allowed;opacity:.55}
 .controls-bar-scroll::-webkit-scrollbar{display:none}
 .controls-bar-scroll .chip-toggle{display:inline-flex;align-items:center;gap:5px;flex-shrink:0}
 .controls-bar-scroll.chips-expanded{flex-wrap:wrap;overflow:visible}
+@keyframes chip-row-wave{from{opacity:0;transform:translateY(-8px) scale(0.92)}to{opacity:1;transform:translateY(0) scale(1)}}
+.chips-stagger .chip-toggle{animation:chip-row-wave 380ms cubic-bezier(0.22,1.1,0.36,1) both;animation-delay:calc(var(--stagger-row,0)*70ms + var(--stagger-col,0)*12ms)}
 .chips-expand-button{display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent;color:var(--color-muted);padding:7px 4px;border-radius:8px;flex-shrink:0;transition:transform 220ms ease}
 .chips-expand-button[aria-expanded=true]{transform:rotate(180deg)}
 .sort-select{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--color-line);background:var(--color-surface);color:var(--color-ink);border-radius:999px;padding:5px 12px;font-size:13px;line-height:1.4;white-space:nowrap;flex-shrink:0;min-height:32px}
@@ -78,7 +80,7 @@ mark.hit{background:transparent;color:var(--color-primary);font-weight:700}
 .icon-button{border:0;background:transparent;color:var(--color-muted);padding:6px;border-radius:8px;transition:color 160ms ease,transform 120ms ease}
 .icon-button:active{transform:scale(0.88)}
 @keyframes snackbar-pop{from{transform:translate(-50%,-12px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
-@media (prefers-reduced-motion:reduce){.controls-bar,.chip-toggle,.song-card,.heart-button,.icon-button,.primary-button,.secondary-button,.topbar,.chips-expand-button{transition:none}}
+@media (prefers-reduced-motion:reduce){.controls-bar,.chip-toggle,.song-card,.heart-button,.icon-button,.primary-button,.secondary-button,.topbar,.chips-expand-button{transition:none}.chips-stagger .chip-toggle{animation:none}}
 .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
 .detail-grid>div{display:flex;flex-direction:column;gap:2px;min-width:0}
 .detail-wide{grid-column:1/-1}
