@@ -7,15 +7,16 @@
   interface Props {
     song: Song;
     query: string;
+    favorite: boolean;
+    favoritePending?: boolean;
     onOpen(song: Song): void;
     onFavoriteClick(song: Song): void;
   }
 
-  const { song, query, onOpen, onFavoriteClick }: Props = $props();
+  const { song, query, favorite, favoritePending = false, onOpen, onFavoriteClick }: Props = $props();
 
   const keyLabel = $derived(primaryKey(song));
   const performerLabel = $derived(formatPerformerNames(song.performerIds, true));
-  const favorite = $derived(song.status === "favorite");
 </script>
 
 <SongRow
@@ -33,6 +34,7 @@
       class="heart-button"
       aria-label={favorite ? "즐겨찾기에서 제거" : "즐겨찾기에 추가"}
       aria-pressed={favorite}
+      disabled={favoritePending}
       onclick={(event) => {
         event.stopPropagation();
         onFavoriteClick(song);

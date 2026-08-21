@@ -6,8 +6,8 @@ Recorded by agent: codex-orchestrator
 ## Snapshot
 
 - Last updated: 2026-08-22 (country-only classification is live, `아니메` is
-  normalized into `일본`, and public song statuses are `active`, `favorite`,
-  and `hold`).
+  normalized into `일본`, and public song statuses are `active` and `hold`;
+  favorites are private to each signed-in account).
 - Overall posture: `live in production on OCI single-server`.
 - Production baseline: current `main` with single-role authorization and an
   exact email-to-public-name allowlist, running as `songbook:local` (ARM64) on
@@ -62,6 +62,10 @@ Recorded by agent: codex-orchestrator
   detail sheet publicly shows the latest mapped name, timestamp, and shared
   count; unknown historical creators keep the timestamp-only display. The
   anonymous catalog exposes no email fields.
+- The catalog heart writes a private account-to-song favorite relationship.
+  Each account sees only its own favorite IDs through the protected API, and
+  the favorite-only chip requires login. Anonymous catalog reads contain no
+  favorite state.
 
 ### TJ-assisted entry
 
@@ -84,7 +88,7 @@ Recorded by agent: codex-orchestrator
 
 - One executable Hono server serves the built PWA, anonymous catalog API,
   protected browser API, Better Auth, health checks, and `/mcp`.
-- SQLite owns domain, audit, idempotency, Better Auth, and MCP
+- SQLite owns domain, private favorites, audit, idempotency, Better Auth, and MCP
   resource-binding state. Import/reconciliation, CSV recovery, backup,
   integrity-check, and guarded restore tools are checked in.
 - Browser access uses same-origin HTTP-only sessions, exact-origin mutation

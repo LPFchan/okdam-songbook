@@ -1,6 +1,8 @@
 import {
   apiFailureSchema,
   currentUserSchema,
+  favoriteListSchema,
+  favoriteSetResultSchema,
   publicDataSchema,
   readingGenerateResultSchema,
   sampleSongs,
@@ -9,6 +11,7 @@ import {
   tjLookupResultSchema,
   tjSearchResultSchema,
   type CurrentUser,
+  type FavoriteSetResult,
   type PublicData,
   type Song,
   type TjAddResult,
@@ -20,6 +23,7 @@ import {
 } from "@songbook/shared";
 
 const mockTjAdds = new Map<string, TjAddResult>();
+const mockFavoriteSongIds = new Set<string>();
 
 function normalizeTjDuplicateText(value: string): string {
   return value.normalize("NFKC").toLocaleLowerCase().replace(/[\s\p{P}\p{S}]+/gu, "");
@@ -97,6 +101,23 @@ export async function fetchPublicData(): Promise<PublicData> {
 export async function fetchCurrentUser(): Promise<CurrentUser> {
   if (mockMode()) return currentUserSchema.parse({ email: "allowed@example.com", displayName: "마리", role: "allowed" });
   return request("/api/me", { method: "GET" }, (data) => currentUserSchema.parse(data));
+}
+
+export async function fetchFavoriteSongIds(): Promise<string[]> {
+  if (mockMode()) return [...mockFavoriteSongIds];
+  return request("/api/favorites", { method: "GET" }, (data) => favoriteListSchema.parse(data).songIds);
+}
+
+export async function setSongFavorite(songId: string, favorite: boolean, clientRequestId: string): Promise<FavoriteSetResult> {
+  if (mockMode()) {
+    if (favorite) mockFavoriteSongIds.add(songId);
+    else mockFavoriteSongIds.delete(songId);
+    return favoriteSetResultSchema.parse({ songId, favorite });
+  }
+  return request(`/api/favorites/${encodeURIComponent(songId)}`, {
+    method: "POST",
+    body: JSON.stringify({ favorite, clientRequestId })
+  }, (data) => favoriteSetResultSchema.parse(data));
 }
 
 export async function createPerformance(songId: string, clientRequestId: string, performedAt = nowIso()): Promise<{ id: string; duplicate?: boolean }> {

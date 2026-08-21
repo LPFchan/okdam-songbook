@@ -5,6 +5,9 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import {
   currentUserSchema,
+  favoriteListSchema,
+  favoriteSetRequestSchema,
+  favoriteSetResultSchema,
   performanceCancelRequestSchema,
   performanceCreateRequestSchema,
   publicDataSchema,
@@ -303,6 +306,23 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     if (!user) return failure(c, new DomainError("UNAUTHORIZED", "허용된 계정이 필요해."), now);
     return envelope(c, { user: { id: principal.id ?? principal.email, email: user.email, name: user.displayName, role: user.role }, session: { id: principal.id ?? principal.email, expiresAt: principal.expiresAt ?? now() } }, now);
   });
+
+  app.get("/api/favorites", async (c) => {
+    const principal = await protectBrowser(c);
+    if (principal instanceof Response) return principal;
+    try {
+      const response = envelope(c, favoriteListSchema.parse({ songIds: service.favoriteSongIds(principal) }), now);
+      response.headers.set("Cache-Control", "private, no-store");
+      return response;
+    } catch (error) {
+      return failure(c, error, now);
+    }
+  });
+  app.post("/api/favorites/:songId", (c) => mutate(c, async (actor) => {
+    const parsed = favoriteSetRequestSchema.safeParse({ ...(await c.req.json()), songId: c.req.param("songId") });
+    if (!parsed.success) throw parsed.error;
+    return favoriteSetResultSchema.parse(service.setFavorite(actor, parsed.data));
+  }));
 
   app.post("/api/performances", (c) => mutate(c, async (actor) => {
     const parsed = performanceCreateRequestSchema.safeParse(await c.req.json());

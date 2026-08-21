@@ -7,7 +7,7 @@ Recorded by agent: codex-orchestrator
 - Project id: `songbook`
 - Canonical repo: https://github.com/devuterian/okdam-songbook
 - Operator: Marie
-- Last updated: 2026-08-21
+- Last updated: 2026-08-22
 - Related decisions: DEC-20260701-001 through DEC-20260701-008,
   DEC-20260813-001 through DEC-20260813-005, DEC-20260820-001 through
   DEC-20260820-003, DEC-20260821-001
@@ -25,7 +25,8 @@ history.
   Better Auth routes, TJ integration, health endpoint, and MCP endpoint.
 - Cloudflare Tunnel may provide ingress to the OCI service, but no application
   logic runs in a Cloudflare Worker.
-- SQLite is the operational database for songs, performers, performances,
+- SQLite is the operational database for songs, private per-account favorites,
+  performers, performances,
   audit events, idempotency records, Better Auth state, MCP token-resource
   bindings, and the search-driven TJ mirror.
 - The catalog is the primary surface for search, filters, account/session
@@ -47,6 +48,9 @@ history.
   song title and artist; generated values are never saved automatically.
 - Quick filter chips plus a complete responsive filter surface; sort remains
   separate.
+- Favorites belong to the signed-in account, not to the song. The heart toggles
+  that private relationship directly, and the favorite-only filter requires a
+  valid session. Favorite state is never included in the anonymous catalog.
 - Song add/edit uses one country chip: `일본`, `미국`, `한국`, or `그 외`.
 - Bottom-sheet song details with performance history and `오늘 불렀습니다!`.
   Each tap records the signed-in account as the singer. The latest record shows

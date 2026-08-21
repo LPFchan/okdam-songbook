@@ -56,6 +56,33 @@ describe("same-origin server surface", () => {
     expect(second.status).toBe(304);
   });
 
+  it("keeps favorites behind the session and isolated by account", async () => {
+    let email = "allowed@example.com";
+    const server = app({
+      sessionResolver: async () => email ? { email, displayName: email } : null,
+      roleResolver: createAllowlistRoleResolver({ "allowed@example.com": "Allowed", "peer@example.com": "Peer" })
+    });
+    const headers = { Origin: origin, "Content-Type": "application/json" };
+    const createdResponse = await server.request(request("/api/songs", {
+      method: "POST", headers, body: JSON.stringify({ title: "Private favorite", artist: "Artist", clientRequestId: crypto.randomUUID() })
+    }));
+    const created = (await createdResponse.json()).data;
+    const set = await server.request(request(`/api/favorites/${created.id}`, {
+      method: "POST", headers, body: JSON.stringify({ favorite: true, clientRequestId: crypto.randomUUID() })
+    }));
+    expect(set.status).toBe(200);
+    expect((await set.json()).data).toEqual({ songId: created.id, favorite: true });
+    expect((await (await server.request(request("/api/favorites"))).json()).data.songIds).toEqual([created.id]);
+
+    email = "peer@example.com";
+    expect((await (await server.request(request("/api/favorites"))).json()).data.songIds).toEqual([]);
+    email = "";
+    expect((await server.request(request("/api/favorites"))).status).toBe(401);
+    const catalog = await (await server.request(request("/api/catalog"))).json();
+    expect(Object.hasOwn(catalog.data.songs[0], "favorite")).toBe(false);
+    expect(JSON.stringify(catalog.data)).not.toContain("allowed@example.com");
+  });
+
   it("publishes the mapped latest singer name without publishing an email", async () => {
     const server = app({
       sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Untrusted Google Name" }),

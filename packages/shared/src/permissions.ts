@@ -5,6 +5,7 @@ export type PermissionAction =
   | "song:update"
   | "song:markDeletionCandidate"
   | "song:delete"
+  | "favorite:update"
   | "performance:create"
   | "performance:cancel"
   | "changeLog:read"
@@ -19,6 +20,7 @@ const allActions = new Set<PermissionAction>([
   "song:update",
   "song:markDeletionCandidate",
   "song:delete",
+  "favorite:update",
   "performance:create",
   "performance:cancel",
   "changeLog:read",

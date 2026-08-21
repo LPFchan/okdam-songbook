@@ -185,6 +185,11 @@ function field(raw: Record<string, unknown>, camel: string, sheet: string): unkn
   return raw[camel] ?? raw[sheet] ?? raw[camel.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)];
 }
 
+function importedSongStatus(value: unknown): string {
+  const status = stringValue(value, "active");
+  return status === "favorite" || status === "practicing" ? "active" : status;
+}
+
 function normalizeSong(raw: Record<string, unknown>, index: number, generatedAt: string): ImportedSong {
   const songInput = {
     id: stringValue(field(raw, "id", "id"), canonicalId("import-song", { index, title: field(raw, "title", "title"), artist: field(raw, "artist", "artist"), tjNumber: field(raw, "tjNumber", "tjNumber") })),
@@ -201,7 +206,7 @@ function normalizeSong(raw: Record<string, unknown>, index: number, generatedAt:
     keyCandidates: jsonValue(field(raw, "keyCandidates", "keyCandidatesJson"), [], "keyCandidatesJson"),
     performerIds: jsonValue(field(raw, "performerIds", "performerIdsJson"), [], "performerIdsJson"),
     memo: stringValue(field(raw, "memo", "memo")),
-    status: stringValue(field(raw, "status", "status"), "active"),
+    status: importedSongStatus(field(raw, "status", "status")),
     youtubeUrl: stringValue(field(raw, "youtubeUrl", "youtubeUrl")),
     youtubeVideoId: stringValue(field(raw, "youtubeVideoId", "youtubeVideoId")),
     isOfficialTjVideo: field(raw, "isOfficialTjVideo", "isOfficialTjVideo") === "" || field(raw, "isOfficialTjVideo", "isOfficialTjVideo") === undefined ? null : field(raw, "isOfficialTjVideo", "isOfficialTjVideo"),

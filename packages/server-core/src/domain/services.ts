@@ -1,7 +1,7 @@
-import type { Performance, Song, TjAddResult, TjSongCandidate } from "@songbook/shared";
+import type { FavoriteSetResult, Performance, Song, TjAddResult, TjSongCandidate } from "@songbook/shared";
 import { can, detectSongCountry, filterSongs, normalizePerformerIds, searchSongs, sortSongs, type PermissionAction, type SongFilters, type SortKey } from "@songbook/shared";
 import type { SongbookDatabase } from "../db/connection.js";
-import { createAuditRepository, createIdempotencyRepository, createPerformanceRepository, createSongRepository, IdempotencyMismatchError, type AuditRepository, type IdempotencyRepository, type PerformanceRepository, type SongRepository } from "../db/repositories.js";
+import { createAuditRepository, createFavoriteRepository, createIdempotencyRepository, createPerformanceRepository, createSongRepository, IdempotencyMismatchError, type AuditRepository, type FavoriteRepository, type IdempotencyRepository, type PerformanceRepository, type SongRepository } from "../db/repositories.js";
 import { DomainError } from "./errors.js";
 import { requestHash } from "./hash.js";
 import { denyAllRoleResolver, type RequestActor, type ResolvedActor, type RoleResolver } from "./auth.js";
@@ -12,6 +12,7 @@ export interface ServiceOptions {
   idFactory?: () => string;
   songRepository?: SongRepository;
   performanceRepository?: PerformanceRepository;
+  favoriteRepository?: FavoriteRepository;
   auditRepository?: AuditRepository;
   idempotencyRepository?: IdempotencyRepository;
 }
@@ -65,6 +66,8 @@ export interface SongbookService {
   deleteSong(actor: RequestActor, input: { id: string; expectedVersion: number; clientRequestId: string }): Song;
   createPerformance(actor: RequestActor, input: PerformanceCreate): Performance;
   cancelPerformance(actor: RequestActor, input: PerformanceCancel): Performance;
+  favoriteSongIds(actor: RequestActor): string[];
+  setFavorite(actor: RequestActor, input: { songId: string; favorite: boolean; clientRequestId: string }): FavoriteSetResult;
   performanceStats(songId: string): PerformanceStats;
   checkDuplicate(input: { tjNumber?: string | null; title: string; artist: string }, excludeId?: string): Song | null;
 }
@@ -127,6 +130,7 @@ export function createSongbookService(database: SongbookDatabase, options: Servi
   const roleResolver = options.roleResolver ?? denyAllRoleResolver;
   const songs = options.songRepository ?? createSongRepository(database.sqlite, (email) => roleResolver.resolve({ email })?.displayName ?? "");
   const performances = options.performanceRepository ?? createPerformanceRepository(database.sqlite);
+  const favorites = options.favoriteRepository ?? createFavoriteRepository(database.sqlite);
   const audit = options.auditRepository ?? createAuditRepository(database.sqlite);
   const idempotency = options.idempotencyRepository ?? createIdempotencyRepository(database.sqlite);
   const now = options.now ?? (() => new Date().toISOString());
@@ -292,6 +296,15 @@ export function createSongbookService(database: SongbookDatabase, options: Servi
       const after = performances.get(input.performanceId)!;
       appendAudit(resolved, "performance", input.performanceId, "cancel", before, after, input.clientRequestId, before.version, after.version);
       return after;
+    }),
+    favoriteSongIds: (actor) => favorites.listSongIds(actorFor(actor).email),
+    setFavorite: (actor, input) => withMutation(actor, "favorite:update", "favorite.set", input.clientRequestId, input, (resolved) => {
+      const song = songs.get(input.songId);
+      if (!song || isDeletedSong(song) || song.status === "deletion_candidate") throw new DomainError("NOT_FOUND", "곡을 찾을 수 없어.");
+      const before = favorites.has(resolved.email, input.songId);
+      favorites.set(resolved.email, input.songId, input.favorite, now());
+      appendAudit(resolved, "favorite", input.songId, input.favorite ? "add" : "remove", { favorite: before }, { favorite: input.favorite }, input.clientRequestId, null, null);
+      return { songId: input.songId, favorite: input.favorite };
     }),
     performanceStats: (songId) => {
       const song = songs.get(songId);

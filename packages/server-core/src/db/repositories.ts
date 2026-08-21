@@ -102,6 +102,26 @@ export function createPerformanceRepository(sqlite: Database.Database): Performa
   };
 }
 
+export interface FavoriteRepository {
+  listSongIds(userEmail: string): string[];
+  has(userEmail: string, songId: string): boolean;
+  set(userEmail: string, songId: string, favorite: boolean, createdAt: string): void;
+}
+
+export function createFavoriteRepository(sqlite: Database.Database): FavoriteRepository {
+  return {
+    listSongIds: (userEmail) => (sqlite.prepare("SELECT f.song_id FROM song_favorites f JOIN songs s ON s.id=f.song_id WHERE f.user_email=? AND s.deleted_at IS NULL AND s.status NOT IN ('deletion_candidate','deleted') ORDER BY f.created_at DESC, f.song_id ASC").all(userEmail) as Array<{ song_id: string }>).map((row) => row.song_id),
+    has: (userEmail, songId) => Boolean(sqlite.prepare("SELECT 1 FROM song_favorites WHERE user_email=? AND song_id=?").get(userEmail, songId)),
+    set: (userEmail, songId, favorite, createdAt) => {
+      if (favorite) {
+        sqlite.prepare("INSERT OR IGNORE INTO song_favorites (user_email,song_id,created_at) VALUES (?,?,?)").run(userEmail, songId, createdAt);
+      } else {
+        sqlite.prepare("DELETE FROM song_favorites WHERE user_email=? AND song_id=?").run(userEmail, songId);
+      }
+    }
+  };
+}
+
 export interface AuditRepository {
   append(event: Omit<AuditEventRow, "id"> & { id?: string }): string;
   list(entityType?: string, entityId?: string): AuditEventRow[];

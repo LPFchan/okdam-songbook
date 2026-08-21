@@ -64,6 +64,19 @@ describe("songbook domain services", () => {
     expect(service.catalog()).toHaveLength(1);
   });
 
+  it("keeps favorites private to each signed-in account", () => {
+    const service = createSongbookService(database, { roleResolver: roleResolver() });
+    const created = service.createSong(allowed, songInput());
+    const request = { songId: created.id, favorite: true, clientRequestId: crypto.randomUUID() };
+    expect(service.setFavorite(allowed, request)).toEqual({ songId: created.id, favorite: true });
+    expect(service.setFavorite(allowed, request)).toEqual({ songId: created.id, favorite: true });
+    expect(service.favoriteSongIds(allowed)).toEqual([created.id]);
+    expect(service.favoriteSongIds(allowedPeer)).toEqual([]);
+    expect(JSON.stringify(service.catalog())).not.toContain(allowed.email);
+    service.setFavorite(allowed, { songId: created.id, favorite: false, clientRequestId: crypto.randomUUID() });
+    expect(service.favoriteSongIds(allowed)).toEqual([]);
+  });
+
   it("rejects duplicates and reports version conflicts", () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
     const first = service.createSong(allowed, songInput());

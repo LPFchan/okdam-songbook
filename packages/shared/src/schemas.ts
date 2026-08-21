@@ -3,7 +3,6 @@ import { performerOrder } from "./performers.js";
 
 export const songStatusSchema = z.enum([
   "active",
-  "favorite",
   "hold",
   "deletion_candidate",
   "deleted"
@@ -81,6 +80,21 @@ export const currentUserSchema = z.object({
   role: userRoleSchema
 });
 
+export const favoriteListSchema = z.object({
+  songIds: z.array(z.string().min(1))
+});
+
+export const favoriteSetRequestSchema = z.object({
+  songId: z.string().min(1),
+  favorite: z.boolean(),
+  clientRequestId: z.string().uuid()
+});
+
+export const favoriteSetResultSchema = z.object({
+  songId: z.string().min(1),
+  favorite: z.boolean()
+});
+
 export const publicDataSchema = z.object({
   songs: z.array(songSchema),
   serverVersion: z.string().min(1),
@@ -123,4 +137,7 @@ export type KeyCandidate = z.infer<typeof keyCandidateSchema>;
 export type Song = z.infer<typeof songSchema>;
 export type Performance = z.infer<typeof performanceSchema>;
 export type CurrentUser = z.infer<typeof currentUserSchema>;
+export type FavoriteList = z.infer<typeof favoriteListSchema>;
+export type FavoriteSetRequest = z.infer<typeof favoriteSetRequestSchema>;
+export type FavoriteSetResult = z.infer<typeof favoriteSetResultSchema>;
 export type PublicData = z.infer<typeof publicDataSchema>;

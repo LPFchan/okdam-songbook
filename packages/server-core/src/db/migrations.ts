@@ -203,6 +203,76 @@ export const migrations = [
       CREATE INDEX songs_status_idx ON songs(status);
       CREATE INDEX songs_updated_at_idx ON songs(updated_at);
     `
+  },
+  {
+    id: "0104_personal_favorites",
+    disableForeignKeys: true,
+    sql: `
+      CREATE TABLE songs_next (
+        id TEXT PRIMARY KEY NOT NULL,
+        tj_number TEXT UNIQUE,
+        title TEXT NOT NULL,
+        title_reading_ko TEXT NOT NULL DEFAULT '',
+        title_romanized TEXT NOT NULL DEFAULT '',
+        title_aliases_json TEXT NOT NULL DEFAULT '[]',
+        artist TEXT NOT NULL,
+        artist_reading_ko TEXT NOT NULL DEFAULT '',
+        artist_aliases_json TEXT NOT NULL DEFAULT '[]',
+        country TEXT NOT NULL DEFAULT '',
+        original_work TEXT NOT NULL DEFAULT '',
+        key_candidates_json TEXT NOT NULL DEFAULT '[]',
+        performer_ids_json TEXT NOT NULL DEFAULT '[]',
+        memo TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','hold','deletion_candidate','deleted')),
+        youtube_url TEXT NOT NULL DEFAULT '',
+        youtube_video_id TEXT NOT NULL DEFAULT '',
+        is_official_tj_video INTEGER,
+        source_type TEXT NOT NULL DEFAULT '',
+        source_reference TEXT NOT NULL DEFAULT '',
+        created_by_email TEXT NOT NULL DEFAULT '',
+        created_by_name TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        updated_by_email TEXT NOT NULL DEFAULT '',
+        updated_by_name TEXT NOT NULL DEFAULT '',
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        deleted_by_email TEXT,
+        version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+        CHECK (tj_number IS NULL OR (length(tj_number) > 0 AND tj_number NOT GLOB '*[^0-9]*'))
+      );
+
+      INSERT INTO songs_next (
+        id,tj_number,title,title_reading_ko,title_romanized,title_aliases_json,
+        artist,artist_reading_ko,artist_aliases_json,country,original_work,
+        key_candidates_json,performer_ids_json,memo,status,youtube_url,
+        youtube_video_id,is_official_tj_video,source_type,source_reference,
+        created_by_email,created_by_name,created_at,updated_by_email,
+        updated_by_name,updated_at,deleted_at,deleted_by_email,version
+      )
+      SELECT
+        id,tj_number,title,title_reading_ko,title_romanized,title_aliases_json,
+        artist,artist_reading_ko,artist_aliases_json,country,original_work,
+        key_candidates_json,performer_ids_json,memo,
+        CASE WHEN status = 'favorite' THEN 'active' ELSE status END,
+        youtube_url,youtube_video_id,is_official_tj_video,source_type,
+        source_reference,created_by_email,created_by_name,created_at,
+        updated_by_email,updated_by_name,updated_at,deleted_at,deleted_by_email,
+        version
+      FROM songs;
+
+      DROP TABLE songs;
+      ALTER TABLE songs_next RENAME TO songs;
+      CREATE INDEX songs_status_idx ON songs(status);
+      CREATE INDEX songs_updated_at_idx ON songs(updated_at);
+
+      CREATE TABLE song_favorites (
+        user_email TEXT NOT NULL,
+        song_id TEXT NOT NULL REFERENCES songs(id) ON DELETE CASCADE ON UPDATE CASCADE,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (user_email, song_id)
+      );
+      CREATE INDEX song_favorites_song_idx ON song_favorites(song_id);
+    `
   }
 ] as const;
 

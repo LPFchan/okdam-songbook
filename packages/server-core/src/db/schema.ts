@@ -55,6 +55,15 @@ export const performances = sqliteTable("performances", {
   performedAt: index("performances_performed_at_idx").on(table.performedAt)
 }));
 
+export const songFavorites = sqliteTable("song_favorites", {
+  userEmail: text("user_email").notNull(),
+  songId: text("song_id").notNull().references(() => songs.id, { onDelete: "cascade", onUpdate: "cascade" }),
+  createdAt: text("created_at").notNull()
+}, (table) => ({
+  primary: primaryKey({ columns: [table.userEmail, table.songId] }),
+  song: index("song_favorites_song_idx").on(table.songId)
+}));
+
 export const auditEvents = sqliteTable("audit_events", {
   id: text("id").primaryKey(),
   entityType: text("entity_type").notNull(),
@@ -121,12 +130,13 @@ export const tjMirrorQueryResults = sqliteTable("tj_mirror_query_results", {
   primary: primaryKey({ columns: [table.queryKey, table.tjNumber] })
 }));
 
-export const schema = { songs, performances, auditEvents, idempotencyKeys, tjMirrorSongs, tjMirrorQueries, tjMirrorQueryResults };
+export const schema = { songs, performances, songFavorites, auditEvents, idempotencyKeys, tjMirrorSongs, tjMirrorQueries, tjMirrorQueryResults };
 
 export type SongRow = typeof songs.$inferSelect;
 export type NewSongRow = typeof songs.$inferInsert;
 export type PerformanceRow = typeof performances.$inferSelect;
 export type NewPerformanceRow = typeof performances.$inferInsert;
+export type SongFavoriteRow = typeof songFavorites.$inferSelect;
 export type AuditEventRow = typeof auditEvents.$inferSelect;
 export type NewAuditEventRow = typeof auditEvents.$inferInsert;
 export type IdempotencyKeyRow = typeof idempotencyKeys.$inferSelect;

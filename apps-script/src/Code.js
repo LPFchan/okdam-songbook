@@ -61,7 +61,7 @@ const SHEETS = {
   ]
 };
 
-const PUBLIC_STATUSES = ["active", "favorite", "hold"];
+const PUBLIC_STATUSES = ["active", "hold"];
 const PERFORMER_IDS = ["marie", "yeowool", "seongwook"];
 const PERFORMER_ALIASES = {
   "마리": ["marie"],
@@ -480,7 +480,7 @@ function normalizeImportedSong(raw, now) {
     keyCandidatesJson: JSON.stringify(Array.isArray(raw.keyCandidates) ? raw.keyCandidates : []),
     performerIdsJson: JSON.stringify(performerMigration.ids),
     memo: String(performerMigration.memo || "").trim().slice(0, 2000),
-    status: raw.status || "active",
+    status: raw.status === "favorite" || raw.status === "practicing" ? "active" : raw.status || "active",
     youtubeUrl: String(raw.youtubeUrl || "").trim(),
     youtubeVideoId: String(raw.youtubeVideoId || "").trim(),
     isOfficialTjVideo: raw.isOfficialTjVideo === true || raw.isOfficialTjVideo === false ? raw.isOfficialTjVideo : "",
@@ -636,7 +636,7 @@ function serializeSong(row, performanceStats) {
     keyCandidates: parseJsonCell(row.keyCandidatesJson, []),
     performerIds: performerMigration.ids,
     memo: String(performerMigration.memo || ""),
-    status: String(row.status || "active"),
+    status: row.status === "favorite" || row.status === "practicing" ? "active" : String(row.status || "active"),
     youtubeUrl: String(row.youtubeUrl || ""),
     youtubeVideoId: String(row.youtubeVideoId || ""),
     isOfficialTjVideo: row.isOfficialTjVideo === "" ? null : Boolean(row.isOfficialTjVideo),
@@ -1078,7 +1078,7 @@ function normalizeSongInput(song) {
     keyCandidatesJson: JSON.stringify(song.keyCandidates || []),
     performerIdsJson: JSON.stringify(performerIds),
     memo: String(song.memo || "").trim(),
-    status: String(song.status || "active"),
+    status: song.status === "favorite" || song.status === "practicing" ? "active" : String(song.status || "active"),
     youtubeUrl: String(song.youtubeUrl || "").trim(),
     youtubeVideoId: String(song.youtubeVideoId || "").trim(),
     isOfficialTjVideo: song.isOfficialTjVideo === null || song.isOfficialTjVideo === undefined ? "" : Boolean(song.isOfficialTjVideo),

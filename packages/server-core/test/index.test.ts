@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import Database from "better-sqlite3";
 import {
   createAuditRepository,
+  createFavoriteRepository,
   createIdempotencyRepository,
   createPerformanceRepository,
   createSongRepository,
@@ -45,7 +46,7 @@ describe("SQLite storage foundation", () => {
 
   it("runs numbered migrations once and records them", () => {
     expect(runMigrations(database.sqlite)).toEqual([]);
-    expect(database.sqlite.prepare("SELECT id FROM schema_migrations").all()).toEqual(expect.arrayContaining([{ id: "0001_core" }, { id: "0100_mcp_token_resources" }, { id: "0101_tj_mirror" }, { id: "0102_drop_song_genres" }, { id: "0103_drop_practicing_status" }]));
+    expect(database.sqlite.prepare("SELECT id FROM schema_migrations").all()).toEqual(expect.arrayContaining([{ id: "0001_core" }, { id: "0100_mcp_token_resources" }, { id: "0101_tj_mirror" }, { id: "0102_drop_song_genres" }, { id: "0103_drop_practicing_status" }, { id: "0104_personal_favorites" }]));
     const songColumns = database.sqlite.prepare("PRAGMA table_info('songs')").all() as Array<{ name: string }>;
     expect(songColumns.map((column) => column.name)).not.toContain("genres_json");
   });
@@ -57,17 +58,19 @@ describe("SQLite storage foundation", () => {
       legacy.exec("CREATE TABLE schema_migrations (id TEXT PRIMARY KEY NOT NULL, applied_at TEXT NOT NULL)");
       legacy.prepare("INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?)").run("0001_core", "2026-08-13T00:00:00.000Z");
       legacy.prepare("INSERT INTO songs (id, title, artist, country, genres_json, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run("legacy-song", "Title", "Artist", "일본", '["J-POP"]', "practicing", "2026-08-13T00:00:00.000Z", "2026-08-13T00:00:00.000Z");
+      legacy.prepare("INSERT INTO songs (id, title, artist, country, genres_json, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run("legacy-favorite", "Favorite", "Artist", "한국", '[]', "favorite", "2026-08-13T00:00:00.000Z", "2026-08-13T00:00:00.000Z");
       legacy.prepare("INSERT INTO performances (id, song_id, performed_at, created_at, client_request_id) VALUES (?, ?, ?, ?, ?)").run("performance-1", "legacy-song", "2026-08-13T00:00:00.000Z", "2026-08-13T00:00:00.000Z", "request-1");
       legacy.pragma("foreign_keys = ON");
 
-      expect(runMigrations(legacy)).toEqual(expect.arrayContaining(["0102_drop_song_genres", "0103_drop_practicing_status"]));
-      expect(legacy.prepare("SELECT id, title, artist, country, status FROM songs").get()).toEqual({ id: "legacy-song", title: "Title", artist: "Artist", country: "일본", status: "active" });
+      expect(runMigrations(legacy)).toEqual(expect.arrayContaining(["0102_drop_song_genres", "0103_drop_practicing_status", "0104_personal_favorites"]));
+      expect(legacy.prepare("SELECT id, status FROM songs ORDER BY id").all()).toEqual([{ id: "legacy-favorite", status: "active" }, { id: "legacy-song", status: "active" }]);
       expect(legacy.prepare("SELECT song_id FROM performances").get()).toEqual({ song_id: "legacy-song" });
       expect(legacy.pragma("foreign_keys", { simple: true })).toBe(1);
       expect(legacy.pragma("foreign_key_check")).toEqual([]);
       const columns = legacy.prepare("PRAGMA table_info('songs')").all() as Array<{ name: string }>;
       expect(columns.map((column) => column.name)).not.toContain("genres_json");
       expect(() => legacy.prepare("INSERT INTO songs (id, title, artist, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)").run("invalid", "Title", "Artist", "practicing", "2026-08-13T00:00:00.000Z", "2026-08-13T00:00:00.000Z")).toThrow();
+      expect(() => legacy.prepare("INSERT INTO songs (id, title, artist, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)").run("invalid-favorite", "Title", "Artist", "favorite", "2026-08-13T00:00:00.000Z", "2026-08-13T00:00:00.000Z")).toThrow();
     } finally {
       legacy.close();
     }
@@ -89,6 +92,7 @@ describe("SQLite storage foundation", () => {
     expect(names).toEqual(expect.arrayContaining([
       "songs_status_idx",
       "songs_updated_at_idx",
+      "song_favorites_song_idx",
       "performances_song_cancelled_idx",
       "performances_performed_at_idx",
       "audit_events_entity_idx",
@@ -97,6 +101,20 @@ describe("SQLite storage foundation", () => {
       "idempotency_keys_expiry_idx",
       "idempotency_keys_actor_operation_idx"
     ]));
+  });
+
+  it("stores favorites per user and cascades them when a song is deleted", () => {
+    const songs = createSongRepository(database.sqlite);
+    songs.insert(song());
+    const favorites = createFavoriteRepository(database.sqlite);
+    favorites.set("one@example.com", "song-1", true, "2026-08-13T00:00:00.000Z");
+    favorites.set("two@example.com", "song-1", true, "2026-08-13T01:00:00.000Z");
+    expect(favorites.listSongIds("one@example.com")).toEqual(["song-1"]);
+    expect(favorites.listSongIds("other@example.com")).toEqual([]);
+    favorites.set("one@example.com", "song-1", false, "2026-08-13T02:00:00.000Z");
+    expect(favorites.listSongIds("one@example.com")).toEqual([]);
+    expect(songs.remove("song-1", 1)).toBe(true);
+    expect(favorites.listSongIds("two@example.com")).toEqual([]);
   });
 
   it("enforces foreign keys and keeps nullable TJ values unique when present", () => {

@@ -145,7 +145,7 @@ const songFields = {
   keyCandidates: z.array(keyCandidateInput).default([]),
   performerIds: z.array(z.enum(["marie", "seongwook", "yeowool"])).default([]),
   memo: z.string().trim().max(2000).default(""),
-  status: z.enum(["active", "favorite", "hold", "deletion_candidate", "deleted"]).default("active"),
+  status: z.enum(["active", "hold", "deletion_candidate", "deleted"]).default("active"),
   youtubeUrl: z.string().trim().url().or(z.literal("")).default(""),
   youtubeVideoId: z.string().trim().max(40).default(""),
   isOfficialTjVideo: z.boolean().nullable().default(null),

@@ -11,7 +11,7 @@
   import SongForm, { type AdminTab } from "./SongForm.svelte";
   import TjOmnibar from "./TjOmnibar.svelte";
   import Snackbar from "./Snackbar.svelte";
-  import { createPerformance, fetchPublicData } from "../api";
+  import { createPerformance, fetchFavoriteSongIds, fetchPublicData, setSongFavorite } from "../api";
   import { readCachedPublicData, saveCachedPublicData } from "../db";
   import {
     drainOfflineQueue,
@@ -42,6 +42,9 @@
   let query = $state("");
   let sortKey = $state<SortKey>("recentAdded");
   let filters = $state<SongFilters>({});
+  let favoriteSongIds = $state<string[]>([]);
+  let favoriteOnly = $state(false);
+  let pendingFavoriteSongIds = $state<string[]>([]);
   let selected = $state<Song | null>(null);
   let chipsExpanded = $state(false);
   // chipsHeight owns the chips-expanded class on this element, so the wrap
@@ -210,7 +213,18 @@
     if (auth.status === "authenticated" || auth.forceUpdateToken > 0) void drainQueue();
   });
 
-  const visibleSongs = $derived(sortSongs(searchSongs(filterSongs(songs, filters), query), sortKey));
+  $effect(() => {
+    const email = auth.user?.email;
+    const refreshToken = auth.forceUpdateToken;
+    if (!email) {
+      favoriteSongIds = [];
+      favoriteOnly = false;
+    } else {
+      void refreshFavorites(email, refreshToken);
+    }
+  });
+
+  const visibleSongs = $derived(sortSongs(searchSongs(filterSongs(songs, filters), query), sortKey).filter((song) => !favoriteOnly || favoriteSongIds.includes(song.id)));
 
   // Briefly fade the list out and back in whenever the visible set changes
   // order or membership, instead of animating each card's position.
@@ -234,7 +248,7 @@
   const countries = $derived([...new Set(songs.map((song) => song.country).filter(Boolean))]);
 
   interface ActiveFilter {
-    key: keyof SongFilters | `performer:${PerformerId}`;
+    key: keyof SongFilters | "favorite" | `performer:${PerformerId}`;
     label: string;
   }
 
@@ -243,7 +257,7 @@
       filters.country ? { key: "country", label: filters.country } : null,
       ...(filters.performerIds ?? []).map((id) => ({ key: `performer:${id}` as const, label: `부를 사람: ${performers[id].displayName}` })),
       filters.hasKey ? { key: "hasKey", label: "추천 키 있음" } : null,
-      filters.favorite ? { key: "favorite", label: "즐겨찾기" } : null
+      favoriteOnly ? { key: "favorite", label: "즐겨찾기" } : null
     ];
     return list.filter(Boolean) as ActiveFilter[];
   });
@@ -259,6 +273,16 @@
     const [items, counts] = await Promise.all([queueItems(auth.user?.email), queueCounts(auth.user?.email)]);
     queueList = items;
     queueCountsState = counts;
+  }
+
+  async function refreshFavorites(email: string, _refreshToken: number) {
+    try {
+      const songIds = await fetchFavoriteSongIds();
+      if (auth.user?.email === email) favoriteSongIds = songIds;
+    } catch (error) {
+      if (auth.user?.email === email) favoriteSongIds = [];
+      if (!(error instanceof AuthRequiredError)) snackbar.show(error instanceof Error ? error.message : "즐겨찾기를 불러오지 못했어요.");
+    }
   }
 
   async function drainQueue() {
@@ -433,7 +457,7 @@
     filters = { ...filters, performerIds: next.length ? next : undefined };
   }
 
-  function toggleBooleanFilter(key: "hasKey" | "favorite") {
+  function toggleBooleanFilter(key: "hasKey") {
     filters = { ...filters, [key]: filters[key] ? undefined : true };
   }
 
@@ -447,13 +471,43 @@
       togglePerformerFilter(id);
       return;
     }
+    if (key === "favorite") {
+      favoriteOnly = false;
+      return;
+    }
     filters = { ...filters, [key]: undefined };
   }
 
-  function handleFavorite(song: Song) {
-    snackbar.show(
-      song.status === "favorite" ? "즐겨찾기 해제는 곡 수정에서 할 수 있어요." : "즐겨찾기는 곡 수정에서 추가할 수 있어요."
-    );
+  async function toggleFavoriteFilter() {
+    try {
+      await auth.requireValidCredential();
+      favoriteOnly = !favoriteOnly;
+    } catch (error) {
+      snackbar.show(error instanceof AuthRequiredError ? "즐겨찾기를 보려면 Google 로그인이 필요해요." : error instanceof Error ? error.message : "즐겨찾기를 열지 못했어요.");
+    }
+  }
+
+  async function handleFavorite(song: Song) {
+    if (pendingFavoriteSongIds.includes(song.id)) return;
+    try {
+      await auth.requireValidCredential();
+    } catch (error) {
+      snackbar.show(error instanceof AuthRequiredError ? "즐겨찾기를 쓰려면 Google 로그인이 필요해요." : error instanceof Error ? error.message : "로그인이 필요해요.");
+      return;
+    }
+    const wasFavorite = favoriteSongIds.includes(song.id);
+    const favorite = !wasFavorite;
+    favoriteSongIds = favorite ? [...favoriteSongIds, song.id] : favoriteSongIds.filter((id) => id !== song.id);
+    pendingFavoriteSongIds = [...pendingFavoriteSongIds, song.id];
+    try {
+      await setSongFavorite(song.id, favorite, crypto.randomUUID());
+      snackbar.show(favorite ? "즐겨찾기에 추가했어요." : "즐겨찾기에서 제거했어요.");
+    } catch (error) {
+      favoriteSongIds = wasFavorite ? [...new Set([...favoriteSongIds, song.id])] : favoriteSongIds.filter((id) => id !== song.id);
+      snackbar.show(error instanceof Error ? error.message : "즐겨찾기를 바꾸지 못했어요.");
+    } finally {
+      pendingFavoriteSongIds = pendingFavoriteSongIds.filter((id) => id !== song.id);
+    }
   }
 
   function managementTitle(tab: AdminTab): string {
@@ -515,14 +569,14 @@
       >
         {#each quickFilters as filter (filter.key)}
           {@const pressed =
-            filter.key === "favorite" ? Boolean(filters[filter.key]) : Boolean(filters.performerIds?.includes(filter.key))}
+            filter.key === "favorite" ? favoriteOnly : Boolean(filters.performerIds?.includes(filter.key))}
           <button
             type="button"
             class="chip-toggle quick-chip"
             aria-pressed={pressed}
             data-selected={pressed ? "true" : undefined}
             onclick={() =>
-              filter.key === "favorite" ? toggleBooleanFilter(filter.key) : togglePerformerFilter(filter.key)}
+              filter.key === "favorite" ? void toggleFavoriteFilter() : togglePerformerFilter(filter.key)}
           >
             {filter.label}
           </button>
@@ -563,7 +617,7 @@
         {#each activeFilters as filter (filter.key)}
           <button type="button" onclick={() => removeFilter(filter.key)}>{filter.label} ×</button>
         {/each}
-        <button type="button" class="clear-filters" onclick={() => (filters = {})}>모두 초기화</button>
+        <button type="button" class="clear-filters" onclick={() => { filters = {}; favoriteOnly = false; }}>모두 초기화</button>
       </div>
     {/if}
     <p class="result-count">{visibleSongs.length}곡</p>
@@ -614,7 +668,7 @@
   <section class="song-list" class:list-faded={listFaded} aria-label="곡 목록">
     {#if visibleSongs.length > 0}
       {#each visibleSongs as song (song.id)}
-        <SongCard {song} {query} onOpen={(next) => (selected = next)} onFavoriteClick={handleFavorite} />
+        <SongCard {song} {query} favorite={favoriteSongIds.includes(song.id)} favoritePending={pendingFavoriteSongIds.includes(song.id)} onOpen={(next) => (selected = next)} onFavoriteClick={(next) => void handleFavorite(next)} />
       {/each}
     {:else}
       <div class="empty-state">
