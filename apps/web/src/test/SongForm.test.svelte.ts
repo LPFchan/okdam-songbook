@@ -1,5 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { sampleSongs } from "@songbook/shared";
 import SongForm from "../lib/components/SongForm.svelte";
 import { auth } from "../lib/auth.svelte";
 
@@ -62,30 +63,55 @@ describe("SongForm", () => {
     expect(screen.getByRole("button", { name: "한국" })).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("writes the primary key candidate from the key control", async () => {
+  it("edits all catalog metadata fields", () => {
+    const song = {
+      ...sampleSongs[0]!,
+      originalWork: "원작 이름",
+      titleRomanized: "Romanized title",
+      titleAliases: ["첫 별칭", "둘째 별칭"],
+      artistAliases: ["가수 별칭"],
+      youtubeUrl: "https://www.youtube.com/watch?v=abc123",
+      status: "hold" as const
+    };
+
+    render(SongForm, {
+      props: { tab: "add", songs: [song], editSong: song, onSongSaved: () => {}, onSongDeleted: () => {}, onRequestTab: () => {}, onClose: () => {} }
+    });
+
+    expect(screen.getByLabelText("원작")).toHaveValue("원작 이름");
+    expect(screen.getByLabelText("로마자 곡명")).toHaveValue("Romanized title");
+    expect(screen.getByLabelText("곡명 별칭")).toHaveValue("첫 별칭\n둘째 별칭");
+    expect(screen.getByLabelText("아티스트 별칭")).toHaveValue("가수 별칭");
+    expect(screen.getByLabelText("YouTube URL")).toHaveValue("https://www.youtube.com/watch?v=abc123");
+    expect(screen.getByRole("button", { name: "보류" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("manages multiple detailed key candidates", async () => {
     render(SongForm, {
       props: { tab: "add", songs: [], onSongSaved: () => {}, onSongDeleted: () => {}, onRequestTab: () => {}, onClose: () => {} }
     });
 
-    const stepper = screen.getByRole("group", { name: "키 조절" });
+    expect(screen.getByText("추천 키가 없어요.")).toBeInTheDocument();
+    await screen.getByRole("button", { name: "키 추가" }).click();
+
+    const stepper = screen.getByRole("group", { name: "키 1 조절" });
     const offset = () => stepper.querySelector(".key-offset-display"); 
 
-    // 원키: offset without a 남/여 mode
-    await screen.getByRole("button", { name: "반음 내리기" }).click();
+    await screen.getByRole("button", { name: "키 1 반음 내리기" }).click();
     expect(offset()?.textContent).toBe("-1");
 
-    await screen.getByRole("button", { name: "반음 올리기" }).click();
+    await screen.getByRole("button", { name: "키 1 반음 올리기" }).click();
     expect(offset()?.textContent).toBe("0");
 
     await screen.getByRole("button", { name: "여" }).click();
-    await screen.getByRole("button", { name: "반음 올리기" }).click();
-    await screen.getByRole("button", { name: "반음 올리기" }).click();
+    await screen.getByRole("button", { name: "키 1 반음 올리기" }).click();
+    await screen.getByRole("button", { name: "키 1 반음 올리기" }).click();
     expect(offset()?.textContent).toBe("+2");
     expect(screen.getByRole("button", { name: "여" })).toHaveAttribute("aria-pressed", "true");
 
-    await screen.getByRole("button", { name: "여" }).click();
-    expect(screen.getByRole("button", { name: "여" })).toHaveAttribute("aria-pressed", "false");
-    // offset is kept, so the song stores 원키 +2
-    expect(offset()?.textContent).toBe("+2");
+    await screen.getByRole("button", { name: "키 추가" }).click();
+    expect(screen.getByRole("group", { name: "키 2 조절" })).toBeInTheDocument();
+    await screen.getByRole("button", { name: "대표로 지정" }).click();
+    expect(screen.getAllByRole("button", { name: "대표 키" })).toHaveLength(1);
   });
 });

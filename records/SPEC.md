@@ -51,7 +51,10 @@ history.
 - Favorites belong to the signed-in account, not to the song. The heart toggles
   that private relationship directly, and the favorite-only filter requires a
   valid session. Favorite state is never included in the anonymous catalog.
-- Song add/edit uses one country chip: `일본`, `미국`, `한국`, or `그 외`.
+- Song add/edit covers original work, Korean readings, title romanization,
+  title and artist aliases, country, assigned performers, multiple detailed key
+  candidates, YouTube URL, active/hold status, and memo. Country uses one chip:
+  `일본`, `미국`, `한국`, or `그 외`.
 - Bottom-sheet song details with performance history and `오늘 불렀습니다!`.
   Each tap records the signed-in account as the singer. The latest record shows
   that account's configured public name when it is known, while joint singing
