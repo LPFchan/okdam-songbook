@@ -2,20 +2,16 @@
 
 ## Songs
 
-`id`, `tjNumber`, `title`, `titleReadingKo`, `titleRomanized`, `titleAliasesJson`, `artist`, `artistReadingKo`, `artistAliasesJson`, `country`, `originalWork`, `keyCandidatesJson`, `performerIdsJson`, `memo`, `status`, `youtubeUrl`, `youtubeVideoId`, `isOfficialTjVideo`, `sourceType`, `sourceReference`, `createdByEmail`, `createdByName`, `createdAt`, `updatedByEmail`, `updatedByName`, `updatedAt`, `deletedAt`, `deletedByEmail`, `version`.
+`id`, `tjNumber`, `title`, `titleReadingKo`, `artist`, `artistReadingKo`, `country`, `recommendedKeyJson`, `performerIdsJson`, `memo`, `sourceType`, `sourceReference`, `createdByEmail`, `createdByName`, `createdAt`, `updatedByEmail`, `updatedByName`, `updatedAt`, `deletedAt`, `deletedByEmail`, `version`.
 
 `performerIdsJson` stores structured singer assignments as user IDs, not display names. Built-in IDs are `marie`, `seongwook`, and `yeowool`; legacy `뽀냐` input migrates to `["marie", "yeowool"]`.
 
-`keyCandidatesJson` stores the recommended key as structured candidates
-(`baseMode` `original|male|female|custom` plus a semitone `offset`). The web
-form edits the primary candidate with a `[-] 0 [+]` stepper and `남`/`여`
-mode toggles. Key text that used to live in `memo` was moved into this field
-by `scripts/migrate-memo-keys.mjs`, which only moves whole segments that are
-purely key notation and leaves the rest of the memo untouched.
+`recommendedKeyJson` stores one optional recommendation: `baseMode`
+`original|male|female` plus a semitone `offset`. The web form edits it with a
+`[-] 0 [+]` stepper and `남`/`여` mode toggles.
 
-Public statuses: `active`, `favorite`, `hold`.
-
-Hidden from public list: `deletion_candidate`, `deleted`.
+An existing `originalWork` value is migrated into `memo` as `원작: <value>`.
+Songs have no status field; a non-null `deletedAt` marks a deleted row.
 
 ## Performances
 

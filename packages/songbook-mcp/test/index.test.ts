@@ -6,7 +6,7 @@ const actor = { email: "allowed@example.com", displayName: "Allowed" };
 const authInfo = authInfoForPrincipal({ actor, userId: "user-1", scopes: ["songbook:read", "songbook:write"] }, "token-1");
 
 const song = {
-  id: "song-1", tjNumber: "123", title: "Song", titleReadingKo: "", titleRomanized: "", titleAliases: [], artist: "Artist", artistReadingKo: "", artistAliases: [], country: "", originalWork: "", keyCandidates: [], performerIds: [], memo: "", status: "active", youtubeUrl: "", youtubeVideoId: "", isOfficialTjVideo: null, sourceType: "", sourceReference: "", createdByName: "", createdAt: "2026-01-01T00:00:00.000Z", updatedByName: "", updatedAt: "2026-01-01T00:00:00.000Z", deletedAt: "", version: 1, lastPerformedAt: "", performanceCount: 0
+  id: "song-1", tjNumber: "123", title: "Song", titleReadingKo: "", artist: "Artist", artistReadingKo: "", country: "", recommendedKey: null, performerIds: [], memo: "", sourceType: "", sourceReference: "", createdByName: "", createdAt: "2026-01-01T00:00:00.000Z", updatedByName: "", updatedAt: "2026-01-01T00:00:00.000Z", deletedAt: "", version: 1, lastPerformedAt: "", performanceCount: 0
 } as const;
 
 function tjResult(query: string, searchType: "all" | "number", candidates: Awaited<ReturnType<TjAdapter["search"]>>["candidates"] = []): Awaited<ReturnType<TjAdapter["search"]>> {

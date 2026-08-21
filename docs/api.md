@@ -109,7 +109,10 @@ restore route.
 
 `Song.performerIds` is an array of user IDs. The server accepts only `marie`,
 `seongwook`, and `yeowool`, deduplicates them, and writes them to
-`performerIdsJson` in the `Songs` sheet.
+`performer_ids_json` in SQLite. `Song.recommendedKey` is either null or one
+`{ baseMode, offset }` value. Original-work context is plain memo text prefixed
+with `원작:`; aliases, romanization, YouTube metadata, and song status are not
+part of the live song contract.
 
 POST bodies are JSON sent as `text/plain;charset=utf-8` on the legacy Apps
 Script transport. Better Auth browser gateway bodies use JSON and

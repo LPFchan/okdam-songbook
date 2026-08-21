@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { openDatabase } from "@songbook/server-core";
 import { AdminAuthorizationError, createSongbookAdmin } from "../src/index.js";
 
-const song = { id: "song-1", tjNumber: "12345", title: "Title", artist: "Artist", titleAliases: [], artistAliases: [], keyCandidates: [], performerIds: [], status: "active", createdAt: "2026-08-13T00:00:00.000Z", updatedAt: "2026-08-13T00:00:00.000Z" };
+const song = { id: "song-1", tjNumber: "12345", title: "Title", artist: "Artist", recommendedKey: null, performerIds: [], createdAt: "2026-08-13T00:00:00.000Z", updatedAt: "2026-08-13T00:00:00.000Z" };
 
 describe("allowlisted data tools", () => {
   it("denies unknown roles and supports dry-run, apply, reconcile, and rollback export", () => {

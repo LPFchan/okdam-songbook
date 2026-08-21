@@ -20,7 +20,7 @@ const allowedPeer = { email: "peer@example.com", displayName: "Peer" };
 
 function songInput(overrides: Partial<Omit<Song, "id" | "createdAt" | "updatedAt" | "deletedAt" | "version" | "lastPerformedAt" | "lastPerformedByName" | "performanceCount"> & { clientRequestId: string }> = {}) {
   return {
-    tjNumber: "12345", title: "Title", titleReadingKo: "", titleRomanized: "", titleAliases: [], artist: "Artist", artistReadingKo: "", artistAliases: [], country: "", originalWork: "", keyCandidates: [], performerIds: [], memo: "", status: "active" as const, youtubeUrl: "", youtubeVideoId: "", isOfficialTjVideo: null, sourceType: "test", sourceReference: "", createdByName: "", updatedByName: "", clientRequestId: crypto.randomUUID(), ...overrides
+    tjNumber: "12345", title: "Title", titleReadingKo: "", artist: "Artist", artistReadingKo: "", country: "", recommendedKey: null, performerIds: [], memo: "", sourceType: "test", sourceReference: "", createdByName: "", updatedByName: "", clientRequestId: crypto.randomUUID(), ...overrides
   };
 }
 
@@ -57,11 +57,9 @@ describe("songbook domain services", () => {
 
   it("creates, searches, and returns anonymous public catalog rows", () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
-    const created = service.createSong(allowedPeer, songInput({ title: "フォニイ", artist: "ツミキ", tjNumber: "52537", titleRomanized: "phony" }));
+    const created = service.createSong(allowedPeer, songInput({ title: "フォニイ", titleReadingKo: "포니", artist: "ツミキ", tjNumber: "52537" }));
     expect(service.catalog().map((song) => song.id)).toEqual([created.id]);
-    expect(service.search("phony")[0]?.id).toBe(created.id);
-    service.createSong(allowed, songInput({ title: "Hidden", artist: "Artist 2", tjNumber: "99999", status: "deleted", clientRequestId: crypto.randomUUID() }));
-    expect(service.catalog()).toHaveLength(1);
+    expect(service.search("포니")[0]?.id).toBe(created.id);
   });
 
   it("keeps favorites private to each signed-in account", () => {
@@ -99,7 +97,8 @@ describe("songbook domain services", () => {
     const tj = service.createTjSong(allowed, { tjNumber: "88888", title: "TJ source", artist: "TJ artist", lyricist: "", composer: "", sourceUrl: "https://tj.example/song" }, crypto.randomUUID());
     expect(tj).toMatchObject({ outcome: "created", song: { country: "미국", sourceType: "tjmedia", sourceReference: "https://tj.example/song" } });
 
-    const deleted = service.createSong(allowed, songInput({ title: "Deleted", artist: "Artist", tjNumber: "99999", status: "deleted" }));
+    const deleted = service.createSong(allowed, songInput({ title: "Deleted", artist: "Artist", tjNumber: "99999" }));
+    database.sqlite.prepare("UPDATE songs SET deleted_at=? WHERE id=?").run("2026-08-13T00:00:00.000Z", deleted.id);
     expect(service.getSong(deleted.id)).toBeNull();
     const deletedOutcome = service.createSongOutcome(allowed, songInput({ title: "Deleted", artist: "Artist", tjNumber: "99999", clientRequestId: crypto.randomUUID() }));
     expect(deletedOutcome).toMatchObject({ outcome: "deleted", existing: { id: deleted.id }, song: null, canOpen: false });

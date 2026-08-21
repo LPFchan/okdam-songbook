@@ -15,11 +15,11 @@ describe("importSongsFromCsv", () => {
     expect(report.inserted).toBe(5);
     expect(report.skipped).toBe(0);
     const eve = report.songs.find((song) => song.artist === "Eve");
-    expect(eve?.keyCandidates[0]).toMatchObject({ baseMode: "original", offset: 0, isPrimary: true });
+    expect(eve?.recommendedKey).toEqual({ baseMode: "original", offset: 0 });
     const backNumber = report.songs.find((song) => song.artist === "back number");
-    expect(backNumber?.keyCandidates[0]).toMatchObject({ baseMode: "female", offset: 2, isPrimary: true });
+    expect(backNumber?.recommendedKey).toEqual({ baseMode: "female", offset: 2 });
     const spring = report.songs.find((song) => song.artist === "米津玄師");
-    expect(spring?.keyCandidates[0]).toMatchObject({ baseMode: "original", offset: -2, isPrimary: true });
+    expect(spring?.recommendedKey).toEqual({ baseMode: "original", offset: -2 });
     const tikTakTok = report.songs.find((song) => song.title === "Tik Tak Tok");
     expect(tikTakTok?.performerIds).toEqual(["marie", "yeowool"]);
     expect(tikTakTok?.memo).not.toContain("추천인");
@@ -55,9 +55,9 @@ describe("importSongsFromCsv", () => {
     ];
     const report = importSongsFromCsv(rows, { csvFileName: "test.csv" });
     expect(report.warnings).toBe(2);
-    expect(report.songs.find((s) => s.title === "A")?.keyCandidates).toHaveLength(0);
+    expect(report.songs.find((s) => s.title === "A")?.recommendedKey).toBeNull();
     const b = report.songs.find((s) => s.title === "B");
-    expect(b?.keyCandidates[0]).toMatchObject({ baseMode: "male", offset: 0 });
+    expect(b?.recommendedKey).toEqual({ baseMode: "male", offset: 0 });
     expect(b?._warnings.length).toBeGreaterThan(0);
   });
 

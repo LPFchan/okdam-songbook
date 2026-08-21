@@ -15,16 +15,8 @@ describe("song country detection", () => {
   it("reuses the country of an existing artist before falling back to script", () => {
     expect(detectSongCountry("Dreaming", "FreeTEMPO", [{
       artist: "FreeTEMPO",
-      artistAliases: [],
       country: "일본"
     }])).toBe("일본");
   });
 
-  it("matches an existing artist alias", () => {
-    expect(detectSongCountry("New Song", "The Weeknd", [{
-      artist: "위켄드",
-      artistAliases: ["The Weeknd"],
-      country: "미국"
-    }])).toBe("미국");
-  });
 });

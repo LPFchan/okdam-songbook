@@ -88,11 +88,9 @@ function normalizeMutationResult<T>(operation: string, value: T): T {
 
 function songFromCreate(input: SongMutation, id: string, timestamp: string): Song {
   return {
-    id, tjNumber: input.tjNumber, title: input.title, titleReadingKo: input.titleReadingKo, titleRomanized: input.titleRomanized,
-    titleAliases: input.titleAliases, artist: input.artist, artistReadingKo: input.artistReadingKo, artistAliases: input.artistAliases,
-    country: input.country, originalWork: input.originalWork, keyCandidates: input.keyCandidates,
-    performerIds: input.performerIds, memo: input.memo, status: input.status, youtubeUrl: input.youtubeUrl,
-    youtubeVideoId: input.youtubeVideoId, isOfficialTjVideo: input.isOfficialTjVideo, sourceType: input.sourceType,
+    id, tjNumber: input.tjNumber, title: input.title, titleReadingKo: input.titleReadingKo,
+    artist: input.artist, artistReadingKo: input.artistReadingKo, country: input.country,
+    recommendedKey: input.recommendedKey, performerIds: input.performerIds, memo: input.memo, sourceType: input.sourceType,
     sourceReference: input.sourceReference, createdByName: input.createdByName, createdAt: timestamp,
     updatedByName: input.updatedByName, updatedAt: timestamp, deletedAt: "", version: 1, lastPerformedAt: "", lastPerformedByName: "", performanceCount: 0
   };
@@ -101,13 +99,10 @@ function songFromCreate(input: SongMutation, id: string, timestamp: string): Son
 function songFromUpdate(before: Song, input: SongUpdate, timestamp: string): Song {
   return {
     ...before, tjNumber: input.tjNumber ?? before.tjNumber, title: input.title ?? before.title,
-    titleReadingKo: input.titleReadingKo ?? before.titleReadingKo, titleRomanized: input.titleRomanized ?? before.titleRomanized,
-    titleAliases: input.titleAliases ?? before.titleAliases, artist: input.artist ?? before.artist,
-    artistReadingKo: input.artistReadingKo ?? before.artistReadingKo, artistAliases: input.artistAliases ?? before.artistAliases,
-    country: input.country ?? before.country, originalWork: input.originalWork ?? before.originalWork,
-    keyCandidates: input.keyCandidates ?? before.keyCandidates, performerIds: input.performerIds ?? before.performerIds,
-    memo: input.memo ?? before.memo, status: input.status ?? before.status, youtubeUrl: input.youtubeUrl ?? before.youtubeUrl,
-    youtubeVideoId: input.youtubeVideoId ?? before.youtubeVideoId, isOfficialTjVideo: input.isOfficialTjVideo ?? before.isOfficialTjVideo,
+    titleReadingKo: input.titleReadingKo ?? before.titleReadingKo, artist: input.artist ?? before.artist,
+    artistReadingKo: input.artistReadingKo ?? before.artistReadingKo, country: input.country ?? before.country,
+    recommendedKey: input.recommendedKey === undefined ? before.recommendedKey : input.recommendedKey,
+    performerIds: input.performerIds ?? before.performerIds, memo: input.memo ?? before.memo,
     sourceType: input.sourceType ?? before.sourceType, sourceReference: input.sourceReference ?? before.sourceReference,
     createdByName: input.createdByName ?? before.createdByName, updatedByName: input.updatedByName ?? before.updatedByName,
     updatedAt: timestamp, version: before.version
@@ -119,7 +114,7 @@ function duplicateKind(input: { tjNumber?: string | null }, duplicate: Song): "t
 }
 
 function isDeletedSong(song: Song): boolean {
-  return Boolean(song.deletedAt) || song.status === "deleted";
+  return Boolean(song.deletedAt);
 }
 
 function isUniqueConstraint(error: unknown): boolean {
@@ -211,12 +206,12 @@ export function createSongbookService(database: SongbookDatabase, options: Servi
   });
 
   return {
-    catalog: () => filterSongs(songs.list(), {}, false),
+    catalog: () => filterSongs(songs.list(), {}),
     getSong: (id) => {
       const song = songs.get(id);
-      return song && !isDeletedSong(song) && song.status !== "deletion_candidate" ? song : null;
+      return song && !isDeletedSong(song) ? song : null;
     },
-    search: (query, filters = {}, sortKey = "title") => sortSongs(filterSongs(searchSongs(songs.list(), query), filters, false), sortKey),
+    search: (query, filters = {}, sortKey = "title") => sortSongs(filterSongs(searchSongs(songs.list(), query), filters), sortKey),
     checkDuplicate: (input, excludeId) => songs.findDuplicate(input, excludeId),
     createSong: (actor, input) => withMutation(actor, "song:create", "song.create", input.clientRequestId, input, (resolved) => {
       ensureDuplicateFree(input);
@@ -234,20 +229,12 @@ export function createSongbookService(database: SongbookDatabase, options: Servi
         tjNumber: candidate.tjNumber,
         title: candidate.title,
         titleReadingKo: "",
-        titleRomanized: "",
-        titleAliases: [],
         artist: candidate.artist,
         artistReadingKo: "",
-        artistAliases: [],
         country: detectSongCountry(candidate.title, candidate.artist, songs.list()),
-        originalWork: "",
-        keyCandidates: [],
+        recommendedKey: null,
         performerIds: normalizePerformerIds([resolved.displayName]).ids,
         memo: "",
-        status: "active",
-        youtubeUrl: "",
-        youtubeVideoId: "",
-        isOfficialTjVideo: null,
         sourceType: "tjmedia",
         sourceReference: candidate.sourceUrl,
         createdByName: resolved.displayName,
@@ -300,7 +287,7 @@ export function createSongbookService(database: SongbookDatabase, options: Servi
     favoriteSongIds: (actor) => favorites.listSongIds(actorFor(actor).email),
     setFavorite: (actor, input) => withMutation(actor, "favorite:update", "favorite.set", input.clientRequestId, input, (resolved) => {
       const song = songs.get(input.songId);
-      if (!song || isDeletedSong(song) || song.status === "deletion_candidate") throw new DomainError("NOT_FOUND", "곡을 찾을 수 없어.");
+      if (!song || isDeletedSong(song)) throw new DomainError("NOT_FOUND", "곡을 찾을 수 없어.");
       const before = favorites.has(resolved.email, input.songId);
       favorites.set(resolved.email, input.songId, input.favorite, now());
       appendAudit(resolved, "favorite", input.songId, input.favorite ? "add" : "remove", { favorite: before }, { favorite: input.favorite }, input.clientRequestId, null, null);

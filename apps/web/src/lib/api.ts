@@ -243,7 +243,6 @@ export async function addTjSong(candidate: TjSongCandidate, clientRequestId: str
       tjNumber: candidate.tjNumber,
       title: candidate.title,
       artist: candidate.artist,
-      status: "active",
       country: "",
       performerIds: [],
       sourceType: "tjmedia",
@@ -270,12 +269,6 @@ export async function deleteSong(song: Pick<Song, "id" | "version">, clientReque
     method: "DELETE",
     body: JSON.stringify({ songId: song.id, expectedVersion: song.version, clientRequestId })
   }, (data) => songSchema.parse(data));
-}
-
-/** This older helper has no route in the shared single-origin contract yet. */
-export async function analyzeYouTube(url: string): Promise<Partial<Song>> {
-  if (mockMode()) return { youtubeUrl: url, sourceType: "youtube", sourceReference: url };
-  throw new Error("YouTube 분석은 아직 서버에서 제공되지 않아요.");
 }
 
 export async function generateReading(input: { title: string; artist: string }): Promise<{ titleReadingKo: string; artistReadingKo: string }> {

@@ -9,31 +9,13 @@ export const sampleSongs: Song[] = [
     "tjNumber": "28805",
     "title": "レーゾンデートル",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "Eve",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0001",
-        "baseMode": "original",
-        "offset": 0,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -43,38 +25,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "original",
+      "offset": 0
+    }
   },
   {
     "id": "csv-2026-07-01-0002",
     "tjNumber": "28795",
     "title": "春雷",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "米津玄師",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0002",
-        "baseMode": "original",
-        "offset": -2,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -84,38 +52,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "original",
+      "offset": -2
+    }
   },
   {
     "id": "csv-2026-07-01-0003",
     "tjNumber": "28816",
     "title": "瞬き",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "back number",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0003",
-        "baseMode": "female",
-        "offset": 2,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -125,38 +79,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "female",
+      "offset": 2
+    }
   },
   {
     "id": "csv-2026-07-01-0004",
     "tjNumber": "27822",
     "title": "Rain",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "秦基博",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "언어의 정원",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0004",
-        "baseMode": "original",
-        "offset": -1,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 언어의 정원",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -166,38 +106,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "original",
+      "offset": -1
+    }
   },
   {
     "id": "csv-2026-07-01-0005",
     "tjNumber": "68407",
     "title": "Cry Baby",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "Official髭男dism",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0005",
-        "baseMode": "original",
-        "offset": -4,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -207,29 +133,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "original",
+      "offset": -4
+    }
   },
   {
     "id": "csv-2026-07-01-0006",
     "tjNumber": "38433",
     "title": "나 Focus",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "이소라",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -239,38 +160,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0007",
     "tjNumber": "68200",
     "title": "I LOVE...",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "Official髭男dism",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0006",
-        "baseMode": "female",
-        "offset": 2,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -280,38 +184,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "female",
+      "offset": 2
+    }
   },
   {
     "id": "csv-2026-07-01-0008",
     "tjNumber": "28187",
     "title": "オレンジ",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "とらドラ!",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "토라도라",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0007",
-        "baseMode": "male",
-        "offset": 0,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
-    "memo": "키 모드 단독 표기는 원본(남)을 보존하고 변환했어",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 토라도라\n키 모드 단독 표기는 원본(남)을 보존하고 변환했어",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -321,38 +211,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "male",
+      "offset": 0
+    }
   },
   {
     "id": "csv-2026-07-01-0009",
     "tjNumber": "28750",
     "title": "打上花火",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "DAOKO×米津玄師",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "쏘아올린 불꽃",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0008",
-        "baseMode": "original",
-        "offset": 1,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 쏘아올린 불꽃",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -362,38 +238,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "original",
+      "offset": 1
+    }
   },
   {
     "id": "csv-2026-07-01-0010",
     "tjNumber": "28720",
     "title": "ピースサイン",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "米津玄師",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "나의 히어로 아카데미아",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0009",
-        "baseMode": "original",
-        "offset": -1,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 나의 히어로 아카데미아",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -403,29 +265,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "original",
+      "offset": -1
+    }
   },
   {
     "id": "csv-2026-07-01-0011",
     "tjNumber": "28686",
     "title": "LOSER",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "米津玄師",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "yeowool"
     ],
     "memo": "키 모호(-1?-2?) - 원본 확인 필요 | 키 값을 자동 변환하지 못했어: -1?-2?",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -435,38 +292,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0012",
     "tjNumber": "68366",
     "title": "Universe",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "Official髭男dism",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0010",
-        "baseMode": "female",
-        "offset": 3,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -476,38 +316,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "female",
+      "offset": 3
+    }
   },
   {
     "id": "csv-2026-07-01-0013",
     "tjNumber": "27763",
     "title": "六等星の夜",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "Aimer",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "No.6",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0011",
-        "baseMode": "male",
-        "offset": -1,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: No.6",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -517,38 +343,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "male",
+      "offset": -1
+    }
   },
   {
     "id": "csv-2026-07-01-0014",
     "tjNumber": "28931",
     "title": "君のせい",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "the peggies",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "청춘돼지",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0012",
-        "baseMode": "original",
-        "offset": 0,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 청춘돼지",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -558,38 +370,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "original",
+      "offset": 0
+    }
   },
   {
     "id": "csv-2026-07-01-0015",
     "tjNumber": "68078",
     "title": "https://reaorange.postype.com/post/2151317",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "ヨルシカ",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0013",
-        "baseMode": "original",
-        "offset": -1,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -599,38 +397,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "original",
+      "offset": -1
+    }
   },
   {
     "id": "csv-2026-07-01-0016",
     "tjNumber": "28860",
     "title": "らしさ",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "SUPER BEAVER",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "바라카몬",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0014",
-        "baseMode": "original",
-        "offset": 0,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 바라카몬",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -640,38 +424,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "original",
+      "offset": 0
+    }
   },
   {
     "id": "csv-2026-07-01-0017",
     "tjNumber": "28989",
     "title": "火炎",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "女王蜂",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "도로로",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0015",
-        "baseMode": "original",
-        "offset": 0,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 도로로",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -681,29 +451,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "original",
+      "offset": 0
+    }
   },
   {
     "id": "csv-2026-07-01-0018",
     "tjNumber": "97950",
     "title": "숙녀",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "유빈",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -713,29 +478,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0019",
     "tjNumber": "2699",
     "title": "이브의 경고",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "박미경",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -745,29 +502,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0020",
     "tjNumber": "53680",
     "title": "야간비행",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "백예린",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -777,29 +526,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0021",
     "tjNumber": "75487",
     "title": "Cool한 42",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "박문치",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -809,29 +550,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0022",
     "tjNumber": "53703",
     "title": "내가날모르는것처럼",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "백예린(Feat.카더가든)",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -841,29 +574,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0023",
     "tjNumber": "96935",
     "title": "깡",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "비",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -873,29 +598,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0024",
     "tjNumber": "91802",
     "title": "가라사대",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "비와이",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -905,29 +622,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0025",
     "tjNumber": "76115",
     "title": "I am not your ocean anymore",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "백예린",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -937,29 +646,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0026",
     "tjNumber": "89474",
     "title": "샴푸의요정",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "투모로우바이투게더",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -969,29 +670,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0027",
     "tjNumber": "46528",
     "title": "배불러",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "이진아",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1001,29 +694,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0028",
     "tjNumber": "12986",
     "title": "친구여 (feat. 인순이)",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "조PD",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1033,29 +718,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0029",
     "tjNumber": "8188",
     "title": "영원한 사랑",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "핑클",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1065,38 +742,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0030",
     "tjNumber": "96203",
     "title": "Random",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "이진아",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0016",
-        "baseMode": "male",
-        "offset": -1,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1106,29 +766,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "male",
+      "offset": -1
+    }
   },
   {
     "id": "csv-2026-07-01-0031",
     "tjNumber": "36092",
     "title": "노래는 불빛처럼 달린다",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "페퍼톤스",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1138,29 +793,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0032",
     "tjNumber": "36445",
     "title": "공원여행",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "페퍼톤스",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1170,29 +817,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0033",
     "tjNumber": "20067",
     "title": "Emerald Swords",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "Rhapsody",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1202,29 +841,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0034",
     "tjNumber": "30355",
     "title": "My Style",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "브라운아이드걸스",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1234,29 +865,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0035",
     "tjNumber": "62426",
     "title": "낭만고양이",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "체리필터",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1266,29 +889,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0036",
     "tjNumber": "36609",
     "title": "Thank You",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "페퍼톤스",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1298,29 +913,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0037",
     "tjNumber": "97904",
     "title": "긴 여행의 끝",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "페퍼톤스",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1330,29 +937,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0038",
     "tjNumber": "53670",
     "title": "그건 아마 우리의 잘못은 아닐거야",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "백예린",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "키 값을 자동 변환하지 못했어: +3<",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1362,29 +961,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0039",
     "tjNumber": "8354",
     "title": "호기심",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "한스밴드",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1394,29 +985,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0040",
     "tjNumber": "16928",
     "title": "기억해요",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "양방언",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1426,29 +1009,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0041",
     "tjNumber": "9698",
     "title": "내입술...따뜻한커피처럼",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "Sharp",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1458,29 +1033,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0042",
     "tjNumber": "27666",
     "title": "シリウス",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "藍井エイル",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "킬라킬",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 킬라킬",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1490,29 +1057,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0043",
     "tjNumber": "27972",
     "title": "夢灯籠",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "RADWIMPS",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "너의 이름은",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 너의 이름은",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1522,29 +1081,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0044",
     "tjNumber": "28677",
     "title": "ようこそジャパリパークへ",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "どうぶつビスケッツ×PPP",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "케모노 프렌즈",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 케모노 프렌즈",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1554,30 +1105,22 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0045",
     "tjNumber": "27790",
     "title": "ヒャダインのカカカタ☆カタオモイ-C",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "ヒャダイン",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "일상",
-    "keyCandidates": [],
     "performerIds": [
       "marie",
       "yeowool"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 일상",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1587,29 +1130,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0046",
     "tjNumber": "68057",
     "title": "愛にできることはまだあるかい",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "RADWIMPS",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "날씨의 아이",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 날씨의 아이",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1619,29 +1154,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0047",
     "tjNumber": "68114",
     "title": "大丈夫",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "RADWIMPS",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "날씨의 아이",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 날씨의 아이",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1651,29 +1178,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0048",
     "tjNumber": "27027",
     "title": "恋愛サーキュレーション",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "花澤香菜",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "모노가타리",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 모노가타리",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1683,39 +1202,22 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0049",
     "tjNumber": "46804",
     "title": "밤과 별의 노래",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "온유,이진아",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0017",
-        "baseMode": "original",
-        "offset": -2,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "marie",
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1725,30 +1227,25 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "original",
+      "offset": -2
+    }
   },
   {
     "id": "csv-2026-07-01-0050",
     "tjNumber": "25256",
     "title": "プラチナ",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "坂本真綾",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "카드캡터 사쿠라",
-    "keyCandidates": [],
     "performerIds": [
       "marie",
       "yeowool"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 카드캡터 사쿠라",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1758,29 +1255,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0051",
     "tjNumber": "27589",
     "title": "白金ディスコ",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "井口裕香",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "모노가타리",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 모노가타리",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1790,30 +1279,22 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0052",
     "tjNumber": "68067",
     "title": "グランドエスケープ",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "RADWIMPS",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "날씨의 아이",
-    "keyCandidates": [],
     "performerIds": [
       "marie",
       "yeowool"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 날씨의 아이",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1823,29 +1304,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0053",
     "tjNumber": "27051",
     "title": "Listen!!",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "放課後ティータイム",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "케이온",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 케이온",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1855,29 +1328,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0054",
     "tjNumber": "27848",
     "title": "Daydream café",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "Petit Rabbit's",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "주문토끼",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 주문토끼",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1887,29 +1352,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0055",
     "tjNumber": "28658",
     "title": "青空のラプソディ",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "fhána",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "https://namu.wiki/w/%EC%BD%94%EB%B0%94%EC%95%BC%EC%8B%9C%EB%84%A4%20%EB%A9%94%EC%9D%B4%EB%93%9C%EB%9E%98%EA%B3%A4",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: https://namu.wiki/w/%EC%BD%94%EB%B0%94%EC%95%BC%EC%8B%9C%EB%84%A4%20%EB%A9%94%EC%9D%B4%EB%93%9C%EB%9E%98%EA%B3%A4",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1919,39 +1376,22 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0056",
     "tjNumber": "68281",
     "title": "Celebration",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "RADWIMPS",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "날씨의 아이",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0018",
-        "baseMode": "male",
-        "offset": -1,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "marie",
       "yeowool"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 날씨의 아이",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1961,30 +1401,25 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "male",
+      "offset": -1
+    }
   },
   {
     "id": "csv-2026-07-01-0057",
     "tjNumber": "28252",
     "title": "ヒャダインのじょーじょーゆーじょー",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "ヒャダイン",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "일상",
-    "keyCandidates": [],
     "performerIds": [
       "marie",
       "yeowool"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 일상",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -1994,30 +1429,22 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0058",
     "tjNumber": "28818",
     "title": "CLEAR",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "坂本真綾",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "카드캡터 사쿠라",
-    "keyCandidates": [],
     "performerIds": [
       "marie",
       "yeowool"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 카드캡터 사쿠라",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2027,29 +1454,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0059",
     "tjNumber": "98575",
     "title": "Wow Thing",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "슬기(레드벨벳),신비(여자친구),청하,소연",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2059,38 +1478,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0060",
     "tjNumber": "99848",
     "title": "긴 꿈 (Long Dream)",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "새소년",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0019",
-        "baseMode": "original",
-        "offset": -2,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2100,29 +1502,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "original",
+      "offset": -2
+    }
   },
   {
     "id": "csv-2026-07-01-0061",
     "tjNumber": "",
     "title": "I Want U",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "샤이니",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2132,38 +1529,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0062",
     "tjNumber": "76782",
     "title": "불어온다",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "하이라이트",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0020",
-        "baseMode": "original",
-        "offset": -1,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2173,29 +1553,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "original",
+      "offset": -1
+    }
   },
   {
     "id": "csv-2026-07-01-0063",
     "tjNumber": "23552",
     "title": "Rain On Me",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "Lady Gaga, Ariana Grande",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "미국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2205,29 +1580,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0064",
     "tjNumber": "76073",
     "title": "Panorama",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "IZ*ONE",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2237,39 +1604,22 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0065",
     "tjNumber": "53504",
     "title": "POP/STARS",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "K/DA",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0021",
-        "baseMode": "male",
-        "offset": 0,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "marie",
       "yeowool"
     ],
     "memo": "키 모드 단독 표기는 원본(남)을 보존하고 변환했어",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2279,38 +1629,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "male",
+      "offset": 0
+    }
   },
   {
     "id": "csv-2026-07-01-0066",
     "tjNumber": "62490",
     "title": "썸탈거야",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "볼빨간사춘기",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0022",
-        "baseMode": "male",
-        "offset": 0,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
     "memo": "키 모드 단독 표기는 원본(남)을 보존하고 변환했어",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2320,29 +1656,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "male",
+      "offset": 0
+    }
   },
   {
     "id": "csv-2026-07-01-0067",
     "tjNumber": "35516",
     "title": "그댈 마주하는건 힘들어(그마힘)",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "버스커버스커",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2352,29 +1683,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0068",
     "tjNumber": "37460",
     "title": "사랑은 타이밍",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "버스커버스커",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2384,38 +1707,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0069",
     "tjNumber": "62433",
     "title": "밤편지",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "IU",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0023",
-        "baseMode": "male",
-        "offset": -1,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2425,29 +1731,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "male",
+      "offset": -1
+    }
   },
   {
     "id": "csv-2026-07-01-0070",
     "tjNumber": "15134",
     "title": "활주(나루토여는노래)",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "민경훈",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2457,29 +1758,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0071",
     "tjNumber": "34600",
     "title": "막걸리나",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "버스커버스커",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2489,38 +1782,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0072",
     "tjNumber": "35209",
     "title": "골목길 어귀에서",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "버스커버스커",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0024",
-        "baseMode": "original",
-        "offset": -1,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2530,29 +1806,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "original",
+      "offset": -1
+    }
   },
   {
     "id": "csv-2026-07-01-0073",
     "tjNumber": "89194",
     "title": "소격동",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "서태지",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2562,30 +1833,22 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0074",
     "tjNumber": "89193",
     "title": "Bermuda (Triangle)",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "서태지",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie",
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2595,29 +1858,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0075",
     "tjNumber": "97878",
     "title": "데리러 가",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "샤이니",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2627,29 +1882,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0076",
     "tjNumber": "62801",
     "title": "LALALILALA",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "에이프릴",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2659,29 +1906,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0077",
     "tjNumber": "23294",
     "title": "1999",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "Charli XCX, Troye Sivan",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "미국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2691,30 +1930,22 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0078",
     "tjNumber": "89186",
     "title": "Christmalo.win",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "서태지",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie",
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2724,38 +1955,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0079",
     "tjNumber": "23449",
     "title": "Don't Start Now",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "Dua Lipa",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "미국",
-    "originalWork": "",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0025",
-        "baseMode": "original",
-        "offset": -1,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2765,38 +1979,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "original",
+      "offset": -1
+    }
   },
   {
     "id": "csv-2026-07-01-0080",
     "tjNumber": "62461",
     "title": "비도 오고 그래서",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "헤이즈",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0026",
-        "baseMode": "original",
-        "offset": -3,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2806,30 +2006,25 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "original",
+      "offset": -3
+    }
   },
   {
     "id": "csv-2026-07-01-0081",
     "tjNumber": "48846",
     "title": "TT (TAK REMIX)",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "TWICE",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie",
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2839,29 +2034,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0082",
     "tjNumber": "98864",
     "title": "앞으로 잘 부탁해 (We Together)",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "프로듀스48",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2871,29 +2058,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0083",
     "tjNumber": "75866",
     "title": "+HWA+",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "CL",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2903,38 +2082,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0084",
     "tjNumber": "76676",
     "title": "water color",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "휘인",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0027",
-        "baseMode": "male",
-        "offset": -1,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2944,38 +2106,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "male",
+      "offset": -1
+    }
   },
   {
     "id": "csv-2026-07-01-0085",
     "tjNumber": "23513",
     "title": "Juice",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "Lizzo",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "미국",
-    "originalWork": "",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0028",
-        "baseMode": "male",
-        "offset": 0,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "yeowool"
     ],
     "memo": "키 모드 단독 표기는 원본(남)을 보존하고 변환했어",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -2985,29 +2133,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "male",
+      "offset": 0
+    }
   },
   {
     "id": "csv-2026-07-01-0086",
     "tjNumber": "35223",
     "title": "첫사랑",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "버스커버스커",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3017,29 +2160,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0087",
     "tjNumber": "62298",
     "title": "너랑 나",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "IU",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3049,29 +2184,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0088",
     "tjNumber": "89172",
     "title": "Moai",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "서태지",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3081,29 +2208,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0089",
     "tjNumber": "76088",
     "title": "Sequence",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "IZ*ONE",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3113,29 +2232,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0090",
     "tjNumber": "80831",
     "title": "눈이 오잖아",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "이무진(Feat.헤이즈)",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3145,39 +2256,22 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0091",
     "tjNumber": "96818",
     "title": "종소리",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "러블리즈",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0029",
-        "baseMode": "original",
-        "offset": 4,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "marie",
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3187,29 +2281,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "original",
+      "offset": 4
+    }
   },
   {
     "id": "csv-2026-07-01-0092",
     "tjNumber": "18470",
     "title": "다시만난세계",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "소녀시대",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3219,30 +2308,22 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0093",
     "tjNumber": "91451",
     "title": "Superhuman",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "NCT 127",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie",
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3252,39 +2333,22 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0095",
     "tjNumber": "75452",
     "title": "Flowering",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "달의하루",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [
-      {
-        "id": "key-2026-07-01-0030",
-        "baseMode": "male",
-        "offset": -2,
-        "label": "추천",
-        "memo": "",
-        "isPrimary": true
-      }
-    ],
     "performerIds": [
       "marie",
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3294,29 +2358,24 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": {
+      "baseMode": "male",
+      "offset": -2
+    }
   },
   {
     "id": "csv-2026-07-01-0096",
     "tjNumber": "76669",
     "title": "Atlantis",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "샤이니",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3326,30 +2385,22 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0097",
     "tjNumber": "81448",
     "title": "Glitch",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "권은비",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie",
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3359,29 +2410,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0099",
     "tjNumber": "98128",
     "title": "Run",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "이진아 (with 그레이)",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3391,29 +2434,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0100",
     "tjNumber": "39755",
     "title": "냠냠냠",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "이진아",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3423,29 +2458,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0101",
     "tjNumber": "9763",
     "title": "내 생에 봄날은...",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "CAN",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3455,30 +2482,22 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0102",
     "tjNumber": "84434",
     "title": "Tik Tak Tok",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "실리카겔",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie",
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3488,30 +2507,22 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0103",
     "tjNumber": "82200",
     "title": "NO PAIN",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "실리카겔",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie",
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3521,29 +2532,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0104",
     "tjNumber": "698249",
     "title": "プリン賛歌 ～20th a la mode edition",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "https://www.joysound.com/web/search/artist/249268",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3553,30 +2556,22 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0105",
     "tjNumber": "68583",
     "title": "More One Night",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "チト(CV:水瀬いのり)&ユーリ(CV:久保 ユリカ)",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "소녀종말여행",
-    "keyCandidates": [],
     "performerIds": [
       "marie",
       "yeowool"
     ],
-    "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
+    "memo": "원작: 소녀종말여행",
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3586,29 +2581,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0106",
     "tjNumber": "28269",
     "title": "マトリョシカ",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "https://namu.wiki/w/%EC%9A%94%EB%84%A4%EC%A6%88%20%EC%BC%84%EC%8B%9C",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3618,29 +2605,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0107",
     "tjNumber": "86604",
     "title": "라이더스",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "페퍼톤스",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3650,30 +2629,22 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0108",
     "tjNumber": "79132",
     "title": "EVERYTHING GOES ON",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "PORTER ROBINSON",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "미국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie",
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3683,30 +2654,22 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0109",
     "tjNumber": "22508",
     "title": "Clarity",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "Zedd",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "미국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie",
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3716,30 +2679,22 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0110",
     "tjNumber": "86355",
     "title": "Armadillo",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "Balming Tiger",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie",
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3749,29 +2704,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0111",
     "tjNumber": "85723",
     "title": "네손을잡고싶어",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "박문치(Feat.강원우 Of 일로와이로)",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3781,29 +2728,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0112",
     "tjNumber": "85625",
     "title": "널좋아하고있어",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "박문치(With.기린,Dala,준구)",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3813,29 +2752,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0113",
     "tjNumber": "84530",
     "title": "SUMMER LOVE…",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "치스비치(치즈,스텔라장,러비,박문치)",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3845,30 +2776,22 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0114",
     "tjNumber": "84857",
     "title": "Realize",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "실리카 겔",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie",
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3878,30 +2801,22 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0115",
     "tjNumber": "86999",
     "title": "Kyo181",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "실리카 겔",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "한국",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie",
       "yeowool"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3911,29 +2826,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0118",
     "tjNumber": "27034",
     "title": "Sky high",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "FreeTEMPO",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3943,29 +2850,21 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   },
   {
     "id": "csv-2026-07-01-0119",
     "tjNumber": "27360",
     "title": "Dreaming",
     "titleReadingKo": "",
-    "titleRomanized": "",
-    "titleAliases": [],
     "artist": "FreeTEMPO",
     "artistReadingKo": "",
-    "artistAliases": [],
     "country": "일본",
-    "originalWork": "",
-    "keyCandidates": [],
     "performerIds": [
       "marie"
     ],
     "memo": "",
-    "status": "active",
-    "youtubeUrl": "",
-    "youtubeVideoId": "",
-    "isOfficialTjVideo": null,
     "sourceType": "csv",
     "sourceReference": "OK DAM!! 3 56a5080d79c147c1915776897acaee2f_all.csv",
     "createdByName": "",
@@ -3975,6 +2874,7 @@ export const sampleSongs: Song[] = [
     "deletedAt": "",
     "version": 1,
     "lastPerformedAt": "",
-    "performanceCount": 0
+    "performanceCount": 0,
+    "recommendedKey": null
   }
 ];

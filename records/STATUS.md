@@ -5,9 +5,9 @@ Recorded by agent: codex-orchestrator
 
 ## Snapshot
 
-- Last updated: 2026-08-22 (country-only classification is live, `아니메` is
-  normalized into `일본`, and public song statuses are `active` and `hold`;
-  favorites are private to each signed-in account).
+- Last updated: 2026-08-22 (the song schema is collapsed to fields used by the
+  live product; original-work values moved into memo, recommended keys use one
+  compact value, and favorites remain private to each signed-in account).
 - Overall posture: `live in production on OCI single-server`.
 - Production baseline: current `main` with single-role authorization and an
   exact email-to-public-name allowlist, running as `songbook:local` (ARM64) on

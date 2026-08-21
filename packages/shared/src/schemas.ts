@@ -1,23 +1,12 @@
 import { z } from "zod";
 import { performerOrder } from "./performers.js";
 
-export const songStatusSchema = z.enum([
-  "active",
-  "hold",
-  "deletion_candidate",
-  "deleted"
-]);
-
 export const userRoleSchema = z.literal("allowed");
 export const performerIdSchema = z.enum(performerOrder);
 
-export const keyCandidateSchema = z.object({
-  id: z.string().min(1),
-  baseMode: z.enum(["original", "male", "female", "custom"]),
-  offset: z.number().int().min(-12).max(12),
-  label: z.string().trim().max(40).default(""),
-  memo: z.string().trim().max(500).default(""),
-  isPrimary: z.boolean().default(false)
+export const recommendedKeySchema = z.object({
+  baseMode: z.enum(["original", "male", "female"]),
+  offset: z.number().int().min(-12).max(12)
 });
 
 export const songSchema = z.object({
@@ -25,20 +14,12 @@ export const songSchema = z.object({
   tjNumber: z.string().trim().regex(/^\d*$/).optional().default(""),
   title: z.string().trim().min(1).max(300),
   titleReadingKo: z.string().trim().max(300).optional().default(""),
-  titleRomanized: z.string().trim().max(300).optional().default(""),
-  titleAliases: z.array(z.string().trim().max(160)).default([]),
   artist: z.string().trim().min(1).max(300),
   artistReadingKo: z.string().trim().max(300).optional().default(""),
-  artistAliases: z.array(z.string().trim().max(160)).default([]),
   country: z.string().trim().max(80).optional().default(""),
-  originalWork: z.string().trim().max(200).optional().default(""),
-  keyCandidates: z.array(keyCandidateSchema).default([]),
+  recommendedKey: recommendedKeySchema.nullable().default(null),
   performerIds: z.array(performerIdSchema).default([]).transform((ids) => Array.from(new Set(ids))),
-  memo: z.string().trim().max(2000).optional().default(""),
-  status: songStatusSchema.default("active"),
-  youtubeUrl: z.string().trim().url().or(z.literal("")).optional().default(""),
-  youtubeVideoId: z.string().trim().max(40).optional().default(""),
-  isOfficialTjVideo: z.boolean().nullable().default(null),
+  memo: z.string().trim().max(4000).optional().default(""),
   sourceType: z.string().trim().max(80).optional().default(""),
   sourceReference: z.string().trim().max(300).optional().default(""),
   createdByName: z.string().trim().max(80).optional().default(""),
@@ -50,22 +31,13 @@ export const songSchema = z.object({
   lastPerformedAt: z.string().trim().optional().default(""),
   lastPerformedByName: z.string().trim().max(80).optional(),
   performanceCount: z.number().int().nonnegative().default(0)
-}).superRefine((song, ctx) => {
-  const primaryCount = song.keyCandidates.filter((key) => key.isPrimary).length;
-  if (primaryCount > 1) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "primary key candidate must be unique",
-      path: ["keyCandidates"]
-    });
-  }
 });
 
 export const performanceSchema = z.object({
   id: z.string().min(1),
   songId: z.string().min(1),
   performedAt: z.string().min(1),
-  keySelection: keyCandidateSchema.partial().nullable().default(null),
+  keySelection: recommendedKeySchema.nullable().default(null),
   memo: z.string().trim().max(1000).optional().default(""),
   createdByName: z.string().trim().max(80).optional().default(""),
   createdAt: z.string().trim().optional().default(""),
@@ -131,9 +103,8 @@ export const apiResponseSchema = z.object({
   serverTime: z.string().min(1)
 });
 
-export type SongStatus = z.infer<typeof songStatusSchema>;
 export type UserRole = z.infer<typeof userRoleSchema>;
-export type KeyCandidate = z.infer<typeof keyCandidateSchema>;
+export type RecommendedKey = z.infer<typeof recommendedKeySchema>;
 export type Song = z.infer<typeof songSchema>;
 export type Performance = z.infer<typeof performanceSchema>;
 export type CurrentUser = z.infer<typeof currentUserSchema>;

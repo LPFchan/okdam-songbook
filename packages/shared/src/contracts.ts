@@ -156,7 +156,7 @@ export const performanceCancelRequestSchema = z.object({
   expectedVersion: z.number().int().nonnegative().optional()
 });
 
-export const songCreateRequestSchema = songSchema.innerType().omit({
+export const songCreateRequestSchema = songSchema.omit({
   id: true,
   createdAt: true,
   updatedAt: true,

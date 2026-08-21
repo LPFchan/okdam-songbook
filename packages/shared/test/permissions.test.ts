@@ -4,7 +4,6 @@ import { can, type PermissionAction } from "../src/permissions.js";
 const actions: PermissionAction[] = [
   "song:create",
   "song:update",
-  "song:markDeletionCandidate",
   "song:delete",
   "performance:create",
   "performance:cancel",

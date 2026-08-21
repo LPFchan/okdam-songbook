@@ -63,10 +63,6 @@
     <span class="detail-label">아티스트 독음</span>
     <span>{song.artistReadingKo || "미입력"}</span>
   </div>
-  <div>
-    <span class="detail-label">원작</span>
-    <span>{song.originalWork || "미입력"}</span>
-  </div>
   <div class="detail-wide">
     <span class="detail-label">메모</span>
     <p>{song.memo || "메모 없음"}</p>

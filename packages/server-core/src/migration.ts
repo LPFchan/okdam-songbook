@@ -2,9 +2,8 @@ import { createHash } from "node:crypto";
 import {
   importSongsFromCsv,
   songSchema,
-  songStatusSchema,
   type CsvRowInput,
-  type KeyCandidate,
+  type RecommendedKey,
   type Performance,
   type Song,
 } from "@songbook/shared";
@@ -103,7 +102,7 @@ export interface ReconciliationItem {
 export type SheetName = "Songs" | "Performances" | "ChangeLog";
 
 export const sheetHeaders: Record<SheetName, readonly string[]> = {
-  Songs: ["id", "tjNumber", "title", "titleReadingKo", "titleRomanized", "titleAliasesJson", "artist", "artistReadingKo", "artistAliasesJson", "country", "originalWork", "keyCandidatesJson", "performerIdsJson", "memo", "status", "youtubeUrl", "youtubeVideoId", "isOfficialTjVideo", "sourceType", "sourceReference", "createdByEmail", "createdByName", "createdAt", "updatedByEmail", "updatedByName", "updatedAt", "deletedAt", "deletedByEmail", "version"],
+  Songs: ["id", "tjNumber", "title", "titleReadingKo", "artist", "artistReadingKo", "country", "recommendedKeyJson", "performerIdsJson", "memo", "sourceType", "sourceReference", "createdByEmail", "createdByName", "createdAt", "updatedByEmail", "updatedByName", "updatedAt", "deletedAt", "deletedByEmail", "version"],
   Performances: ["id", "songId", "performedAt", "keySelectionJson", "memo", "createdByEmail", "createdByName", "createdAt", "cancelledAt", "cancelledByEmail", "clientRequestId", "version"],
   ChangeLog: ["id", "entityType", "entityId", "action", "beforeJson", "afterJson", "actorEmail", "actorName", "actorRole", "createdAt", "clientRequestId", "entityVersionBefore", "entityVersionAfter"]
 };
@@ -185,38 +184,42 @@ function field(raw: Record<string, unknown>, camel: string, sheet: string): unkn
   return raw[camel] ?? raw[sheet] ?? raw[camel.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)];
 }
 
-function importedSongStatus(value: unknown): string {
-  const status = stringValue(value, "active");
-  return status === "favorite" || status === "practicing" ? "active" : status;
+function legacyRecommendedKey(raw: Record<string, unknown>): RecommendedKey | null {
+  const current = jsonValue(field(raw, "recommendedKey", "recommendedKeyJson"), null, "recommendedKeyJson") as RecommendedKey | null;
+  if (current) return current;
+  const candidates = jsonValue(field(raw, "keyCandidates", "keyCandidatesJson"), [], "keyCandidatesJson") as Array<Partial<RecommendedKey>>;
+  const candidate = candidates[0];
+  if (!candidate) return null;
+  return {
+    baseMode: candidate.baseMode === "female" || candidate.baseMode === "male" ? candidate.baseMode : "original",
+    offset: Number(candidate.offset ?? 0)
+  };
 }
 
 function normalizeSong(raw: Record<string, unknown>, index: number, generatedAt: string): ImportedSong {
+  const originalWork = stringValue(field(raw, "originalWork", "originalWork"));
+  const existingMemo = stringValue(field(raw, "memo", "memo"));
+  const memo = originalWork ? `원작: ${originalWork}${existingMemo ? `\n${existingMemo}` : ""}` : existingMemo;
+  const legacyStatus = stringValue(field(raw, "status", "status"));
+  const importedDeletedAt = stringValue(field(raw, "deletedAt", "deletedAt"));
   const songInput = {
     id: stringValue(field(raw, "id", "id"), canonicalId("import-song", { index, title: field(raw, "title", "title"), artist: field(raw, "artist", "artist"), tjNumber: field(raw, "tjNumber", "tjNumber") })),
     tjNumber: stringValue(field(raw, "tjNumber", "tjNumber")),
     title: stringValue(field(raw, "title", "title")),
     titleReadingKo: stringValue(field(raw, "titleReadingKo", "titleReadingKo")),
-    titleRomanized: stringValue(field(raw, "titleRomanized", "titleRomanized")),
-    titleAliases: jsonValue(field(raw, "titleAliases", "titleAliasesJson"), [], "titleAliasesJson"),
     artist: stringValue(field(raw, "artist", "artist")),
     artistReadingKo: stringValue(field(raw, "artistReadingKo", "artistReadingKo")),
-    artistAliases: jsonValue(field(raw, "artistAliases", "artistAliasesJson"), [], "artistAliasesJson"),
     country: stringValue(field(raw, "country", "country")),
-    originalWork: stringValue(field(raw, "originalWork", "originalWork")),
-    keyCandidates: jsonValue(field(raw, "keyCandidates", "keyCandidatesJson"), [], "keyCandidatesJson"),
+    recommendedKey: legacyRecommendedKey(raw),
     performerIds: jsonValue(field(raw, "performerIds", "performerIdsJson"), [], "performerIdsJson"),
-    memo: stringValue(field(raw, "memo", "memo")),
-    status: importedSongStatus(field(raw, "status", "status")),
-    youtubeUrl: stringValue(field(raw, "youtubeUrl", "youtubeUrl")),
-    youtubeVideoId: stringValue(field(raw, "youtubeVideoId", "youtubeVideoId")),
-    isOfficialTjVideo: field(raw, "isOfficialTjVideo", "isOfficialTjVideo") === "" || field(raw, "isOfficialTjVideo", "isOfficialTjVideo") === undefined ? null : field(raw, "isOfficialTjVideo", "isOfficialTjVideo"),
+    memo,
     sourceType: stringValue(field(raw, "sourceType", "sourceType")),
     sourceReference: stringValue(field(raw, "sourceReference", "sourceReference")),
     createdByName: stringValue(field(raw, "createdByName", "createdByName")),
     createdAt: stringValue(field(raw, "createdAt", "createdAt"), generatedAt),
     updatedByName: stringValue(field(raw, "updatedByName", "updatedByName")),
     updatedAt: stringValue(field(raw, "updatedAt", "updatedAt"), generatedAt),
-    deletedAt: stringValue(field(raw, "deletedAt", "deletedAt")),
+    deletedAt: importedDeletedAt || (legacyStatus === "deleted" ? generatedAt : ""),
     version: Number(field(raw, "version", "version") ?? 1),
     lastPerformedAt: "",
     performanceCount: 0
@@ -224,9 +227,7 @@ function normalizeSong(raw: Record<string, unknown>, index: number, generatedAt:
   const parsed = songSchema.safeParse(songInput);
   if (!parsed.success) throw new ImportValidationError(`Invalid song row ${index + 1}.`, parsed.error.flatten());
   const value = parsed.data;
-  if (!songStatusSchema.safeParse(value.status).success) throw new ImportValidationError(`Invalid song status on row ${index + 1}.`);
-  const boolValue = songInput.isOfficialTjVideo === null ? null : typeof songInput.isOfficialTjVideo === "boolean" ? songInput.isOfficialTjVideo : /^(true|1|yes)$/i.test(String(songInput.isOfficialTjVideo));
-  return { ...value, isOfficialTjVideo: boolValue, createdByEmail: stringValue(field(raw, "createdByEmail", "createdByEmail")), updatedByEmail: stringValue(field(raw, "updatedByEmail", "updatedByEmail")), deletedByEmail: stringValue(field(raw, "deletedByEmail", "deletedByEmail")) };
+  return { ...value, createdByEmail: stringValue(field(raw, "createdByEmail", "createdByEmail")), updatedByEmail: stringValue(field(raw, "updatedByEmail", "updatedByEmail")), deletedByEmail: stringValue(field(raw, "deletedByEmail", "deletedByEmail")) };
 }
 
 function normalizePerformance(raw: Record<string, unknown>, index: number, generatedAt: string): ImportedPerformance {
@@ -237,7 +238,7 @@ function normalizePerformance(raw: Record<string, unknown>, index: number, gener
   if (!songId || !performedAt) throw new ImportValidationError(`Invalid performance row ${index + 1}.`);
   return {
     id: id || canonicalId("import-performance", { songId, performedAt, clientRequestId }), songId, performedAt,
-    keySelection: jsonValue(field(raw, "keySelection", "keySelectionJson"), null, "keySelectionJson") as KeyCandidate | null,
+    keySelection: jsonValue(field(raw, "keySelection", "keySelectionJson"), null, "keySelectionJson") as RecommendedKey | null,
     memo: stringValue(field(raw, "memo", "memo")), createdByName: stringValue(field(raw, "createdByName", "createdByName")), createdAt: stringValue(field(raw, "createdAt", "createdAt"), generatedAt), cancelledAt: stringValue(field(raw, "cancelledAt", "cancelledAt")), clientRequestId, version: Math.max(1, Number(field(raw, "version", "version") ?? 1)), createdByEmail: stringValue(field(raw, "createdByEmail", "createdByEmail")), cancelledByEmail: stringValue(field(raw, "cancelledByEmail", "cancelledByEmail"))
   };
 }
@@ -309,7 +310,7 @@ function destinationSnapshot(database: SongbookDatabase): ImportSnapshot {
   const rows = database.sqlite.prepare("SELECT * FROM songs ORDER BY id").all() as Record<string, unknown>[];
   const songs = rows.map((row) => ({ ...songFromRow(row), createdByEmail: stringValue(row.created_by_email), updatedByEmail: stringValue(row.updated_by_email), deletedByEmail: stringValue(row.deleted_by_email) }));
   const performanceRows = database.sqlite.prepare("SELECT * FROM performances ORDER BY id").all() as Record<string, unknown>[];
-  const performances = performanceRows.map((row) => ({ id: stringValue(row.id), songId: stringValue(row.song_id), performedAt: stringValue(row.performed_at), keySelection: jsonValue(row.key_selection_json, null, "key_selection_json") as KeyCandidate | null, memo: stringValue(row.memo), createdByEmail: stringValue(row.created_by_email), createdByName: stringValue(row.created_by_name), createdAt: stringValue(row.created_at), cancelledAt: stringValue(row.cancelled_at), cancelledByEmail: stringValue(row.cancelled_by_email), clientRequestId: stringValue(row.client_request_id), version: Number(row.version) }));
+  const performances = performanceRows.map((row) => ({ id: stringValue(row.id), songId: stringValue(row.song_id), performedAt: stringValue(row.performed_at), keySelection: jsonValue(row.key_selection_json, null, "key_selection_json") as RecommendedKey | null, memo: stringValue(row.memo), createdByEmail: stringValue(row.created_by_email), createdByName: stringValue(row.created_by_name), createdAt: stringValue(row.created_at), cancelledAt: stringValue(row.cancelled_at), cancelledByEmail: stringValue(row.cancelled_by_email), clientRequestId: stringValue(row.client_request_id), version: Number(row.version) }));
   const auditRows = database.sqlite.prepare("SELECT * FROM audit_events ORDER BY id").all() as Record<string, unknown>[];
   const changeLog = auditRows.map((row) => ({ id: stringValue(row.id), entityType: stringValue(row.entity_type), entityId: stringValue(row.entity_id), action: stringValue(row.action), beforeJson: row.before_json === null ? null : stringValue(row.before_json), afterJson: row.after_json === null ? null : stringValue(row.after_json), actorEmail: stringValue(row.actor_email), actorName: stringValue(row.actor_name), actorRole: row.actor_role === null ? null : stringValue(row.actor_role), createdAt: stringValue(row.created_at), clientRequestId: row.client_request_id === null ? null : stringValue(row.client_request_id), entityVersionBefore: row.entity_version_before === null ? null : Number(row.entity_version_before), entityVersionAfter: row.entity_version_after === null ? null : Number(row.entity_version_after) }));
   return { songs, performances, changeLog };
@@ -402,9 +403,9 @@ export function prepareImport(database: SongbookDatabase, source: ImportSource, 
 }
 
 function upsertSnapshot(database: SongbookDatabase, snapshot: ImportSnapshot): void {
-  const songSql = `INSERT INTO songs (id,tj_number,title,title_reading_ko,title_romanized,title_aliases_json,artist,artist_reading_ko,artist_aliases_json,country,original_work,key_candidates_json,performer_ids_json,memo,status,youtube_url,youtube_video_id,is_official_tj_video,source_type,source_reference,created_by_email,created_by_name,created_at,updated_by_email,updated_by_name,updated_at,deleted_at,deleted_by_email,version) VALUES (${Array.from({ length: 29 }, () => "?").join(",")}) ON CONFLICT(id) DO UPDATE SET tj_number=excluded.tj_number,title=excluded.title,title_reading_ko=excluded.title_reading_ko,title_romanized=excluded.title_romanized,title_aliases_json=excluded.title_aliases_json,artist=excluded.artist,artist_reading_ko=excluded.artist_reading_ko,artist_aliases_json=excluded.artist_aliases_json,country=excluded.country,original_work=excluded.original_work,key_candidates_json=excluded.key_candidates_json,performer_ids_json=excluded.performer_ids_json,memo=excluded.memo,status=excluded.status,youtube_url=excluded.youtube_url,youtube_video_id=excluded.youtube_video_id,is_official_tj_video=excluded.is_official_tj_video,source_type=excluded.source_type,source_reference=excluded.source_reference,created_by_email=excluded.created_by_email,created_by_name=excluded.created_by_name,created_at=excluded.created_at,updated_by_email=excluded.updated_by_email,updated_by_name=excluded.updated_by_name,updated_at=excluded.updated_at,deleted_at=excluded.deleted_at,deleted_by_email=excluded.deleted_by_email,version=excluded.version`;
+  const songSql = `INSERT INTO songs (id,tj_number,title,title_reading_ko,artist,artist_reading_ko,country,recommended_key_json,performer_ids_json,memo,source_type,source_reference,created_by_email,created_by_name,created_at,updated_by_email,updated_by_name,updated_at,deleted_at,deleted_by_email,version) VALUES (${Array.from({ length: 21 }, () => "?").join(",")}) ON CONFLICT(id) DO UPDATE SET tj_number=excluded.tj_number,title=excluded.title,title_reading_ko=excluded.title_reading_ko,artist=excluded.artist,artist_reading_ko=excluded.artist_reading_ko,country=excluded.country,recommended_key_json=excluded.recommended_key_json,performer_ids_json=excluded.performer_ids_json,memo=excluded.memo,source_type=excluded.source_type,source_reference=excluded.source_reference,created_by_email=excluded.created_by_email,created_by_name=excluded.created_by_name,created_at=excluded.created_at,updated_by_email=excluded.updated_by_email,updated_by_name=excluded.updated_by_name,updated_at=excluded.updated_at,deleted_at=excluded.deleted_at,deleted_by_email=excluded.deleted_by_email,version=excluded.version`;
   const insertSong = database.sqlite.prepare(songSql);
-  for (const song of snapshot.songs) insertSong.run(song.id, song.tjNumber || null, song.title, song.titleReadingKo, song.titleRomanized, stableJson(song.titleAliases), song.artist, song.artistReadingKo, stableJson(song.artistAliases), song.country, song.originalWork, stableJson(song.keyCandidates), stableJson(song.performerIds), song.memo, song.status, song.youtubeUrl, song.youtubeVideoId, song.isOfficialTjVideo, song.sourceType, song.sourceReference, song.createdByEmail, song.createdByName, song.createdAt, song.updatedByEmail, song.updatedByName, song.updatedAt, song.deletedAt || null, song.deletedByEmail || null, Math.max(1, song.version));
+  for (const song of snapshot.songs) insertSong.run(song.id, song.tjNumber || null, song.title, song.titleReadingKo, song.artist, song.artistReadingKo, song.country, song.recommendedKey ? stableJson(song.recommendedKey) : null, stableJson(song.performerIds), song.memo, song.sourceType, song.sourceReference, song.createdByEmail, song.createdByName, song.createdAt, song.updatedByEmail, song.updatedByName, song.updatedAt, song.deletedAt || null, song.deletedByEmail || null, Math.max(1, song.version));
   const insertPerformance = database.sqlite.prepare("INSERT INTO performances (id,song_id,performed_at,key_selection_json,memo,created_by_email,created_by_name,created_at,cancelled_at,cancelled_by_email,client_request_id,version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET song_id=excluded.song_id,performed_at=excluded.performed_at,key_selection_json=excluded.key_selection_json,memo=excluded.memo,created_by_email=excluded.created_by_email,created_by_name=excluded.created_by_name,created_at=excluded.created_at,cancelled_at=excluded.cancelled_at,cancelled_by_email=excluded.cancelled_by_email,client_request_id=excluded.client_request_id,version=excluded.version");
   for (const performance of snapshot.performances) insertPerformance.run(performance.id, performance.songId, performance.performedAt, performance.keySelection === null ? null : stableJson(performance.keySelection), performance.memo, performance.createdByEmail, performance.createdByName, performance.createdAt, performance.cancelledAt || null, performance.cancelledByEmail || null, performance.clientRequestId, Math.max(1, performance.version));
   const insertAudit = database.sqlite.prepare("INSERT INTO audit_events (id,entity_type,entity_id,action,before_json,after_json,actor_email,actor_name,actor_role,created_at,client_request_id,entity_version_before,entity_version_after) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET entity_type=excluded.entity_type,entity_id=excluded.entity_id,action=excluded.action,before_json=excluded.before_json,after_json=excluded.after_json,actor_email=excluded.actor_email,actor_name=excluded.actor_name,actor_role=excluded.actor_role,created_at=excluded.created_at,client_request_id=excluded.client_request_id,entity_version_before=excluded.entity_version_before,entity_version_after=excluded.entity_version_after");
@@ -451,7 +452,7 @@ function csvCell(value: unknown): string {
 
 export function exportSheetCsv(database: SongbookDatabase, name: SheetName): string {
   const snapshot = destinationSnapshot(database);
-  const rows: unknown[][] = name === "Songs" ? snapshot.songs.map((song) => [song.id, song.tjNumber, song.title, song.titleReadingKo, song.titleRomanized, stableJson(song.titleAliases), song.artist, song.artistReadingKo, stableJson(song.artistAliases), song.country, song.originalWork, stableJson(song.keyCandidates), stableJson(song.performerIds), song.memo, song.status, song.youtubeUrl, song.youtubeVideoId, song.isOfficialTjVideo, song.sourceType, song.sourceReference, song.createdByEmail, song.createdByName, song.createdAt, song.updatedByEmail, song.updatedByName, song.updatedAt, song.deletedAt, song.deletedByEmail, song.version]) : name === "Performances" ? snapshot.performances.map((performance) => [performance.id, performance.songId, performance.performedAt, performance.keySelection === null ? "" : stableJson(performance.keySelection), performance.memo, performance.createdByEmail, performance.createdByName, performance.createdAt, performance.cancelledAt, performance.cancelledByEmail, performance.clientRequestId, performance.version]) : snapshot.changeLog.map((event) => [event.id, event.entityType, event.entityId, event.action, event.beforeJson, event.afterJson, event.actorEmail, event.actorName, event.actorRole, event.createdAt, event.clientRequestId, event.entityVersionBefore, event.entityVersionAfter]);
+  const rows: unknown[][] = name === "Songs" ? snapshot.songs.map((song) => [song.id, song.tjNumber, song.title, song.titleReadingKo, song.artist, song.artistReadingKo, song.country, song.recommendedKey === null ? "" : stableJson(song.recommendedKey), stableJson(song.performerIds), song.memo, song.sourceType, song.sourceReference, song.createdByEmail, song.createdByName, song.createdAt, song.updatedByEmail, song.updatedByName, song.updatedAt, song.deletedAt, song.deletedByEmail, song.version]) : name === "Performances" ? snapshot.performances.map((performance) => [performance.id, performance.songId, performance.performedAt, performance.keySelection === null ? "" : stableJson(performance.keySelection), performance.memo, performance.createdByEmail, performance.createdByName, performance.createdAt, performance.cancelledAt, performance.cancelledByEmail, performance.clientRequestId, performance.version]) : snapshot.changeLog.map((event) => [event.id, event.entityType, event.entityId, event.action, event.beforeJson, event.afterJson, event.actorEmail, event.actorName, event.actorRole, event.createdAt, event.clientRequestId, event.entityVersionBefore, event.entityVersionAfter]);
   return [sheetHeaders[name].map(csvCell).join(","), ...rows.map((row) => row.map(csvCell).join(","))].join("\n") + "\n";
 }
 

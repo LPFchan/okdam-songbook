@@ -30,9 +30,9 @@ afterEach(() => {
 
 function song(overrides: Partial<Song> = {}): Song {
   return {
-    id: "song-1", tjNumber: "12345", title: "Title", titleReadingKo: "", titleRomanized: "", titleAliases: [],
-    artist: "Artist", artistReadingKo: "", artistAliases: [], country: "", originalWork: "", keyCandidates: [],
-    performerIds: [], memo: "", status: "active", youtubeUrl: "", youtubeVideoId: "", isOfficialTjVideo: null,
+    id: "song-1", tjNumber: "12345", title: "Title", titleReadingKo: "",
+    artist: "Artist", artistReadingKo: "", country: "", recommendedKey: null,
+    performerIds: [], memo: "",
     sourceType: "test", sourceReference: "", createdByName: "Tester", createdAt: "2026-08-13T00:00:00.000Z",
     updatedByName: "Tester", updatedAt: "2026-08-13T00:00:00.000Z", deletedAt: "", version: 1, lastPerformedAt: "", performanceCount: 0,
     ...overrides
@@ -46,7 +46,7 @@ describe("SQLite storage foundation", () => {
 
   it("runs numbered migrations once and records them", () => {
     expect(runMigrations(database.sqlite)).toEqual([]);
-    expect(database.sqlite.prepare("SELECT id FROM schema_migrations").all()).toEqual(expect.arrayContaining([{ id: "0001_core" }, { id: "0100_mcp_token_resources" }, { id: "0101_tj_mirror" }, { id: "0102_drop_song_genres" }, { id: "0103_drop_practicing_status" }, { id: "0104_personal_favorites" }]));
+    expect(database.sqlite.prepare("SELECT id FROM schema_migrations").all()).toEqual(expect.arrayContaining([{ id: "0001_core" }, { id: "0100_mcp_token_resources" }, { id: "0101_tj_mirror" }, { id: "0102_drop_song_genres" }, { id: "0103_drop_practicing_status" }, { id: "0104_personal_favorites" }, { id: "0105_collapse_song_schema" }]));
     const songColumns = database.sqlite.prepare("PRAGMA table_info('songs')").all() as Array<{ name: string }>;
     expect(songColumns.map((column) => column.name)).not.toContain("genres_json");
   });
@@ -57,20 +57,18 @@ describe("SQLite storage foundation", () => {
       legacy.exec(migrations[0].sql);
       legacy.exec("CREATE TABLE schema_migrations (id TEXT PRIMARY KEY NOT NULL, applied_at TEXT NOT NULL)");
       legacy.prepare("INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?)").run("0001_core", "2026-08-13T00:00:00.000Z");
-      legacy.prepare("INSERT INTO songs (id, title, artist, country, genres_json, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run("legacy-song", "Title", "Artist", "일본", '["J-POP"]', "practicing", "2026-08-13T00:00:00.000Z", "2026-08-13T00:00:00.000Z");
+      legacy.prepare("INSERT INTO songs (id, title, artist, country, genres_json, original_work, key_candidates_json, memo, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("legacy-song", "Title", "Artist", "일본", '["J-POP"]', "애니메이션", '[{"id":"key-1","baseMode":"female","offset":2,"label":"추천","memo":"","isPrimary":true}]', "후렴 주의", "practicing", "2026-08-13T00:00:00.000Z", "2026-08-13T00:00:00.000Z");
       legacy.prepare("INSERT INTO songs (id, title, artist, country, genres_json, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run("legacy-favorite", "Favorite", "Artist", "한국", '[]', "favorite", "2026-08-13T00:00:00.000Z", "2026-08-13T00:00:00.000Z");
       legacy.prepare("INSERT INTO performances (id, song_id, performed_at, created_at, client_request_id) VALUES (?, ?, ?, ?, ?)").run("performance-1", "legacy-song", "2026-08-13T00:00:00.000Z", "2026-08-13T00:00:00.000Z", "request-1");
       legacy.pragma("foreign_keys = ON");
 
-      expect(runMigrations(legacy)).toEqual(expect.arrayContaining(["0102_drop_song_genres", "0103_drop_practicing_status", "0104_personal_favorites"]));
-      expect(legacy.prepare("SELECT id, status FROM songs ORDER BY id").all()).toEqual([{ id: "legacy-favorite", status: "active" }, { id: "legacy-song", status: "active" }]);
+      expect(runMigrations(legacy)).toEqual(expect.arrayContaining(["0102_drop_song_genres", "0103_drop_practicing_status", "0104_personal_favorites", "0105_collapse_song_schema"]));
+      expect(legacy.prepare("SELECT memo, recommended_key_json FROM songs WHERE id=?").get("legacy-song")).toEqual({ memo: "원작: 애니메이션\n후렴 주의", recommended_key_json: '{"baseMode":"female","offset":2}' });
       expect(legacy.prepare("SELECT song_id FROM performances").get()).toEqual({ song_id: "legacy-song" });
       expect(legacy.pragma("foreign_keys", { simple: true })).toBe(1);
       expect(legacy.pragma("foreign_key_check")).toEqual([]);
       const columns = legacy.prepare("PRAGMA table_info('songs')").all() as Array<{ name: string }>;
-      expect(columns.map((column) => column.name)).not.toContain("genres_json");
-      expect(() => legacy.prepare("INSERT INTO songs (id, title, artist, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)").run("invalid", "Title", "Artist", "practicing", "2026-08-13T00:00:00.000Z", "2026-08-13T00:00:00.000Z")).toThrow();
-      expect(() => legacy.prepare("INSERT INTO songs (id, title, artist, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)").run("invalid-favorite", "Title", "Artist", "favorite", "2026-08-13T00:00:00.000Z", "2026-08-13T00:00:00.000Z")).toThrow();
+      expect(columns.map((column) => column.name)).not.toEqual(expect.arrayContaining(["genres_json", "original_work", "key_candidates_json", "status", "title_romanized", "title_aliases_json", "artist_aliases_json", "youtube_url", "youtube_video_id", "is_official_tj_video"]));
     } finally {
       legacy.close();
     }
@@ -90,7 +88,6 @@ describe("SQLite storage foundation", () => {
   it("creates the expected query indexes", () => {
     const names = (database.sqlite.prepare("SELECT name FROM sqlite_master WHERE type='index'").all() as Array<{ name: string }>).map((row) => row.name);
     expect(names).toEqual(expect.arrayContaining([
-      "songs_status_idx",
       "songs_updated_at_idx",
       "song_favorites_song_idx",
       "performances_song_cancelled_idx",

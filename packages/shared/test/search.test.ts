@@ -30,7 +30,7 @@ describe("search", () => {
     expect(eve[0]?.artist).toBe("Eve");
   });
 
-  it("finds by original Japanese and romanized text", () => {
+  it("finds original Japanese and Latin-script text", () => {
     const phonetic = searchSongs(sampleSongs, "瞬き");
     expect(phonetic.length).toBeGreaterThan(0);
     expect(phonetic[0]?.title).toBe("瞬き");
@@ -86,7 +86,7 @@ describe("search", () => {
 
 describe("csv key parsing", () => {
   it("parses simple offsets", () => {
-    expect(parseCsvKey("-2", () => "id").candidates[0]).toMatchObject({ baseMode: "original", offset: -2 });
+    expect(parseCsvKey("-2").recommendedKey).toEqual({ baseMode: "original", offset: -2 });
   });
 
   it("warns on ambiguous offsets", () => {

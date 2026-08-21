@@ -1,8 +1,7 @@
 import type { Song } from "./schemas.js";
-import { formatKeyCandidate } from "./key.js";
+import { formatRecommendedKey } from "./key.js";
 import { getHangulChoseong, includesAllTokens, normalizeNumber, normalizeText } from "./normalize.js";
 import { performerSearchText, type PerformerId } from "./performers.js";
-import { isPublicSongStatus } from "./permissions.js";
 
 export function normalizedSearchQuery(query: string): string {
   return query.trim();
@@ -21,7 +20,6 @@ export type SortKey = "title" | "tjNumber" | "recentAdded" | "recentUpdated" | "
 
 export interface SongFilters {
   country?: string;
-  status?: string;
   hasKey?: boolean;
   recentOnly?: boolean;
   createdByName?: string;
@@ -30,7 +28,7 @@ export interface SongFilters {
 }
 
 export function primaryKey(song: Song): string {
-  return formatKeyCandidate(song.keyCandidates.find((key) => key.isPrimary) ?? song.keyCandidates[0]);
+  return formatRecommendedKey(song.recommendedKey);
 }
 
 export function buildSearchDocument(song: Song): string {
@@ -38,13 +36,9 @@ export function buildSearchDocument(song: Song): string {
     song.tjNumber,
     song.title,
     song.titleReadingKo,
-    song.titleRomanized,
-    song.titleAliases.join(" "),
     song.artist,
     song.artistReadingKo,
-    song.artistAliases.join(" "),
     song.country,
-    song.originalWork,
     song.memo,
     performerSearchText(song.performerIds),
     primaryKey(song)
@@ -67,12 +61,10 @@ export function searchSongs(songs: Song[], query: string): Song[] {
   });
 }
 
-export function filterSongs(songs: Song[], filters: SongFilters, includeHidden = false): Song[] {
+export function filterSongs(songs: Song[], filters: SongFilters): Song[] {
   return songs.filter((song) => {
-    if (!includeHidden && !isPublicSongStatus(song.status)) return false;
     if (filters.country && song.country !== filters.country) return false;
-    if (filters.status && song.status !== filters.status) return false;
-    if (filters.hasKey && song.keyCandidates.length === 0) return false;
+    if (filters.hasKey && !song.recommendedKey) return false;
     if (filters.recentOnly && !song.lastPerformedAt) return false;
     if (filters.createdByName && song.createdByName !== filters.createdByName) return false;
     if (filters.performerIds?.length && !filters.performerIds.some((id) => song.performerIds.includes(id))) return false;

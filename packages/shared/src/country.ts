@@ -3,7 +3,7 @@ import { normalizeText } from "./normalize.js";
 
 export type SongCountry = "일본" | "미국" | "한국" | "그 외";
 
-type KnownSongCountry = Pick<Song, "artist" | "artistAliases" | "country">;
+type KnownSongCountry = Pick<Song, "artist" | "country">;
 
 function scriptCount(value: string, script: "Hiragana" | "Katakana" | "Han" | "Hangul"): number {
   return Array.from(value.matchAll(new RegExp(`\\p{Script=${script}}`, "gu"))).length;
@@ -13,7 +13,7 @@ function scriptCount(value: string, script: "Hiragana" | "Katakana" | "Han" | "H
 export function detectSongCountry(title: string, artist: string, knownSongs: readonly KnownSongCountry[] = []): string {
   const normalizedArtist = normalizeText(artist);
   const knownArtist = knownSongs.find((song) =>
-    song.country && [song.artist, ...song.artistAliases].some((name) => normalizeText(name) === normalizedArtist)
+    song.country && normalizeText(song.artist) === normalizedArtist
   );
   if (knownArtist) return knownArtist.country;
 

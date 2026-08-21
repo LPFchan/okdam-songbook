@@ -1,6 +1,6 @@
 import { parseCsvKey } from "./key.js";
 import { mergePerformerIds, migratePerformerMemo, normalizePerformerIds } from "./performers.js";
-import type { KeyCandidate, Song } from "./schemas.js";
+import type { RecommendedKey, Song } from "./schemas.js";
 
 const NORMALIZED_COUNTRY: Record<string, string> = {
   "아니메": "일본"
@@ -48,7 +48,6 @@ export interface CsvImportOptions {
   csvFileName: string;
   generatedAt?: string;
   idFactory?: () => string;
-  keyIdFactory?: () => string;
 }
 
 const KOREAN_DATE_RE = /(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일(?:\s*오전|오후)?\s*(\d{1,2}):(\d{2})/;
@@ -69,14 +68,16 @@ function toIsoFromKoreanDate(value: string | undefined, generatedAt: string): st
   return `${year}-${pad(Number(month))}-${pad(Number(day))}T${pad(h)}:${pad(Number(minute))}:00+09:00`;
 }
 
-function normalizeKeyCandidates(raw: string, keyIdFactory: () => string): { candidates: KeyCandidate[]; warnings: string[] } {
-  if (!raw) return { candidates: [], warnings: [] };
-  const parsed = parseCsvKey(raw, keyIdFactory);
-  return { candidates: parsed.candidates, warnings: parsed.warnings };
+function normalizeRecommendedKey(raw: string): { recommendedKey: RecommendedKey | null; warnings: string[] } {
+  if (!raw) return { recommendedKey: null, warnings: [] };
+  const parsed = parseCsvKey(raw);
+  return { recommendedKey: parsed.recommendedKey, warnings: parsed.warnings };
 }
 
 function buildMemo(row: CsvRowInput, keyWarnings: string[], unknownPerformerNames: string[]): string {
   const parts: string[] = [];
+  const originalWork = String(row.originalWork || "").trim();
+  if (originalWork) parts.push(`원작: ${originalWork}`);
   const migratedMemo = migratePerformerMemo(row.memo || "").memo;
   if (migratedMemo) parts.push(migratedMemo);
   unknownPerformerNames.forEach((name) => parts.push(`외부 부를 사람 원문 ${name}`));
@@ -94,17 +95,15 @@ function buildSourceReference(csvFileName: string): string {
 export function csvRowToSong(row: CsvRowInput, rowIndex: number, options: CsvImportOptions): ImportedSong {
   const generatedAt = options.generatedAt ?? new Date().toISOString();
   const idFactory = options.idFactory ?? (() => crypto.randomUUID());
-  const keyIdFactory = options.keyIdFactory ?? idFactory;
 
   const title = String(row.title || "").trim();
   const artist = String(row.artist || "").trim();
   const recommender = String(row.recommender || "").trim();
   const importedCountry = String(row.country || "").trim();
   const country = NORMALIZED_COUNTRY[importedCountry] ?? importedCountry;
-  const originalWork = String(row.originalWork || "").trim();
   const tjNumber = String(row.tjNumber || "").trim();
 
-  const { candidates: keyCandidates, warnings: keyWarnings } = normalizeKeyCandidates(row.key || "", keyIdFactory);
+  const { recommendedKey, warnings: keyWarnings } = normalizeRecommendedKey(row.key || "");
   const warnings = [...keyWarnings];
   const recommenderPerformers = normalizePerformerIds(recommender);
   const memoPerformers = migratePerformerMemo(row.memo || "");
@@ -122,20 +121,12 @@ export function csvRowToSong(row: CsvRowInput, rowIndex: number, options: CsvImp
     tjNumber,
     title,
     titleReadingKo: "",
-    titleRomanized: "",
-    titleAliases: [],
     artist,
     artistReadingKo: "",
-    artistAliases: [],
     country,
-    originalWork,
-    keyCandidates,
+    recommendedKey,
     performerIds,
     memo: buildMemo(row, keyWarnings, unknownPerformerNames),
-    status: "active",
-    youtubeUrl: "",
-    youtubeVideoId: "",
-    isOfficialTjVideo: null,
     sourceType: "csv",
     sourceReference: buildSourceReference(options.csvFileName),
     createdByName: "",

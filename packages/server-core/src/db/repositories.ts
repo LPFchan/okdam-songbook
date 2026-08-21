@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import type { Song, Performance, KeyCandidate, SongStatus } from "@songbook/shared";
+import type { Song, Performance, RecommendedKey } from "@songbook/shared";
 import type { AuditEventRow, IdempotencyKeyRow } from "./schema.js";
 
 type RawSong = Record<string, unknown>;
@@ -19,13 +19,10 @@ export function songFromRow(row: RawSong, displayNameForEmail: (email: string) =
   const lastPerformedByEmail = String(row.last_performed_by_email ?? "");
   return {
     id: String(row.id), tjNumber: nullableString(row.tj_number) ?? "", title: String(row.title),
-    titleReadingKo: String(row.title_reading_ko ?? ""), titleRomanized: String(row.title_romanized ?? ""),
-    titleAliases: parseJson<string[]>(row.title_aliases_json, []), artist: String(row.artist),
-    artistReadingKo: String(row.artist_reading_ko ?? ""), artistAliases: parseJson<string[]>(row.artist_aliases_json, []),
-    country: String(row.country ?? ""), originalWork: String(row.original_work ?? ""),
-    keyCandidates: parseJson<KeyCandidate[]>(row.key_candidates_json, []), performerIds: parseJson<Song["performerIds"]>(row.performer_ids_json, []),
-    memo: String(row.memo ?? ""), status: String(row.status) as SongStatus, youtubeUrl: String(row.youtube_url ?? ""),
-    youtubeVideoId: String(row.youtube_video_id ?? ""), isOfficialTjVideo: row.is_official_tj_video === null ? null : Boolean(row.is_official_tj_video),
+    titleReadingKo: String(row.title_reading_ko ?? ""), artist: String(row.artist),
+    artistReadingKo: String(row.artist_reading_ko ?? ""), country: String(row.country ?? ""),
+    recommendedKey: parseJson<RecommendedKey | null>(row.recommended_key_json, null), performerIds: parseJson<Song["performerIds"]>(row.performer_ids_json, []),
+    memo: String(row.memo ?? ""),
     sourceType: String(row.source_type ?? ""), sourceReference: String(row.source_reference ?? ""),
     createdByName: String(row.created_by_name ?? ""), createdAt: String(row.created_at), updatedByName: String(row.updated_by_name ?? ""),
     updatedAt: String(row.updated_at), deletedAt: String(row.deleted_at ?? ""), version: Number(row.version),
@@ -38,7 +35,7 @@ export function songFromRow(row: RawSong, displayNameForEmail: (email: string) =
 export function performanceFromRow(row: RawPerformance): Performance {
   return {
     id: String(row.id), songId: String(row.song_id), performedAt: String(row.performed_at),
-    keySelection: parseJson<KeyCandidate | null>(row.key_selection_json, null), memo: String(row.memo ?? ""),
+    keySelection: parseJson<RecommendedKey | null>(row.key_selection_json, null), memo: String(row.memo ?? ""),
     createdByName: String(row.created_by_name ?? ""), createdAt: String(row.created_at), cancelledAt: String(row.cancelled_at ?? ""),
     clientRequestId: String(row.client_request_id), version: Number(row.version)
   };
@@ -68,19 +65,19 @@ export function createSongRepository(sqlite: Database.Database, displayNameForEm
       clauses.push("(lower(s.title)=lower(?) AND lower(s.artist)=lower(?))"); values.push(input.title, input.artist);
       const exclusion = excludeId ? " AND s.id<>?" : "";
       if (excludeId) values.push(excludeId);
-      const deleted = options.includeDeleted ? "" : " AND s.deleted_at IS NULL AND s.status <> 'deleted'";
+      const deleted = options.includeDeleted ? "" : " AND s.deleted_at IS NULL";
       const row = sqlite.prepare(`${select} WHERE (${clauses.join(" OR ")})${exclusion}${deleted} LIMIT 1`).get(...values) as RawSong | undefined;
       return row ? map(row) : null;
     },
-    insert: (song) => { sqlite.prepare(`INSERT INTO songs (id,tj_number,title,title_reading_ko,title_romanized,title_aliases_json,artist,artist_reading_ko,artist_aliases_json,country,original_work,key_candidates_json,performer_ids_json,memo,status,youtube_url,youtube_video_id,is_official_tj_video,source_type,source_reference,created_by_email,created_by_name,created_at,updated_by_email,updated_by_name,updated_at,deleted_at,deleted_by_email,version) VALUES (${Array.from({ length: 29 }, () => "?").join(",")})`).run(...songValues(song)); },
+    insert: (song) => { sqlite.prepare(`INSERT INTO songs (id,tj_number,title,title_reading_ko,artist,artist_reading_ko,country,recommended_key_json,performer_ids_json,memo,source_type,source_reference,created_by_email,created_by_name,created_at,updated_by_email,updated_by_name,updated_at,deleted_at,deleted_by_email,version) VALUES (${Array.from({ length: 21 }, () => "?").join(",")})`).run(...songValues(song)); },
     update: (song, expectedVersion) => {
-      const result = sqlite.prepare(`UPDATE songs SET tj_number=?,title=?,title_reading_ko=?,title_romanized=?,title_aliases_json=?,artist=?,artist_reading_ko=?,artist_aliases_json=?,country=?,original_work=?,key_candidates_json=?,performer_ids_json=?,memo=?,status=?,youtube_url=?,youtube_video_id=?,is_official_tj_video=?,source_type=?,source_reference=?,updated_by_email=?,updated_by_name=?,updated_at=?,deleted_at=?,deleted_by_email=?,version=version+1 WHERE id=? AND version=?`).run(song.tjNumber || null,song.title,song.titleReadingKo,song.titleRomanized,JSON.stringify(song.titleAliases),song.artist,song.artistReadingKo,JSON.stringify(song.artistAliases),song.country,song.originalWork,JSON.stringify(song.keyCandidates),JSON.stringify(song.performerIds),song.memo,song.status,song.youtubeUrl,song.youtubeVideoId,song.isOfficialTjVideo,song.sourceType,song.sourceReference,song.updatedByEmail || "",song.updatedByName,song.updatedAt,song.deletedAt || null,song.deletedByEmail || null,song.id,expectedVersion); return result.changes === 1; },
+      const result = sqlite.prepare(`UPDATE songs SET tj_number=?,title=?,title_reading_ko=?,artist=?,artist_reading_ko=?,country=?,recommended_key_json=?,performer_ids_json=?,memo=?,source_type=?,source_reference=?,updated_by_email=?,updated_by_name=?,updated_at=?,deleted_at=?,deleted_by_email=?,version=version+1 WHERE id=? AND version=?`).run(song.tjNumber || null,song.title,song.titleReadingKo,song.artist,song.artistReadingKo,song.country,song.recommendedKey ? JSON.stringify(song.recommendedKey) : null,JSON.stringify(song.performerIds),song.memo,song.sourceType,song.sourceReference,song.updatedByEmail || "",song.updatedByName,song.updatedAt,song.deletedAt || null,song.deletedByEmail || null,song.id,expectedVersion); return result.changes === 1; },
     remove: (id, expectedVersion) => sqlite.prepare("DELETE FROM songs WHERE id=? AND version=? AND deleted_at IS NULL").run(id, expectedVersion).changes === 1
   };
 }
 
 function songValues(song: Song & { createdByEmail?: string; updatedByEmail?: string; deletedByEmail?: string | null }): unknown[] {
-  return [song.id,song.tjNumber || null,song.title,song.titleReadingKo,song.titleRomanized,JSON.stringify(song.titleAliases),song.artist,song.artistReadingKo,JSON.stringify(song.artistAliases),song.country,song.originalWork,JSON.stringify(song.keyCandidates),JSON.stringify(song.performerIds),song.memo,song.status,song.youtubeUrl,song.youtubeVideoId,song.isOfficialTjVideo,song.sourceType,song.sourceReference,song.createdByEmail || "",song.createdByName,song.createdAt,song.updatedByEmail || "",song.updatedByName,song.updatedAt,song.deletedAt || null,song.deletedByEmail || null,song.version];
+  return [song.id,song.tjNumber || null,song.title,song.titleReadingKo,song.artist,song.artistReadingKo,song.country,song.recommendedKey ? JSON.stringify(song.recommendedKey) : null,JSON.stringify(song.performerIds),song.memo,song.sourceType,song.sourceReference,song.createdByEmail || "",song.createdByName,song.createdAt,song.updatedByEmail || "",song.updatedByName,song.updatedAt,song.deletedAt || null,song.deletedByEmail || null,song.version];
 }
 
 export interface PerformanceRepository {
@@ -110,7 +107,7 @@ export interface FavoriteRepository {
 
 export function createFavoriteRepository(sqlite: Database.Database): FavoriteRepository {
   return {
-    listSongIds: (userEmail) => (sqlite.prepare("SELECT f.song_id FROM song_favorites f JOIN songs s ON s.id=f.song_id WHERE f.user_email=? AND s.deleted_at IS NULL AND s.status NOT IN ('deletion_candidate','deleted') ORDER BY f.created_at DESC, f.song_id ASC").all(userEmail) as Array<{ song_id: string }>).map((row) => row.song_id),
+    listSongIds: (userEmail) => (sqlite.prepare("SELECT f.song_id FROM song_favorites f JOIN songs s ON s.id=f.song_id WHERE f.user_email=? AND s.deleted_at IS NULL ORDER BY f.created_at DESC, f.song_id ASC").all(userEmail) as Array<{ song_id: string }>).map((row) => row.song_id),
     has: (userEmail, songId) => Boolean(sqlite.prepare("SELECT 1 FROM song_favorites WHERE user_email=? AND song_id=?").get(userEmail, songId)),
     set: (userEmail, songId, favorite, createdAt) => {
       if (favorite) {

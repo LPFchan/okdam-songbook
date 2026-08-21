@@ -30,7 +30,7 @@
 
   function emptyDraft(): Partial<Song> {
     const performerIds = auth.user ? normalizePerformerIds([auth.user.displayName]).ids : [];
-    return { title: "", artist: "", tjNumber: "", status: "active", country: "일본", performerIds };
+    return { title: "", artist: "", tjNumber: "", country: "일본", performerIds };
   }
 
   const countryOptions = ["일본", "미국", "한국", "그 외"] as const;
@@ -47,7 +47,7 @@
   let keyOffset = $state(0);
 
   function loadKeyFromSong(song: Song | null) {
-    const candidate = song?.keyCandidates.find((key) => key.isPrimary) ?? song?.keyCandidates[0];
+    const candidate = song?.recommendedKey;
     if (candidate) {
       keyMode = candidate.baseMode === "female" || candidate.baseMode === "male" ? candidate.baseMode : "none";
       keyOffset = candidate.offset;
@@ -61,31 +61,26 @@
     return Math.min(12, Math.max(-12, Math.trunc(value)));
   }
 
-  function syncKeyCandidate(mode: KeyMode) {
-    const current = (draft.keyCandidates ?? []).filter((_, index) => index > 0);
+  function syncRecommendedKey(mode: KeyMode) {
     if (mode === "none" && keyOffset === 0) {
-      draft = { ...draft, keyCandidates: [] };
+      draft = { ...draft, recommendedKey: null };
       return;
     }
-    const primary = {
-      id: draft.keyCandidates?.[0]?.id ?? crypto.randomUUID(),
+    const recommendedKey = {
       baseMode: (mode === "none" ? "original" : mode) as "original" | "male" | "female",
-      offset: keyOffset,
-      label: "추천",
-      memo: "",
-      isPrimary: true
+      offset: keyOffset
     };
-    draft = { ...draft, keyCandidates: [primary, ...current] };
+    draft = { ...draft, recommendedKey };
   }
 
   function setKeyMode(mode: KeyMode) {
     keyMode = mode;
-    syncKeyCandidate(mode);
+    syncRecommendedKey(mode);
   }
 
   function adjustOffset(delta: number) {
     keyOffset = clampOffset(keyOffset + delta);
-    syncKeyCandidate(keyMode);
+    syncRecommendedKey(keyMode);
   }
 
   // Load an externally requested song into the form (detail-sheet edit, list edit).

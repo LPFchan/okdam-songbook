@@ -273,6 +273,80 @@ export const migrations = [
       );
       CREATE INDEX song_favorites_song_idx ON song_favorites(song_id);
     `
+  },
+  {
+    id: "0105_collapse_song_schema",
+    disableForeignKeys: true,
+    sql: `
+      CREATE TABLE songs_next (
+        id TEXT PRIMARY KEY NOT NULL,
+        tj_number TEXT UNIQUE,
+        title TEXT NOT NULL,
+        title_reading_ko TEXT NOT NULL DEFAULT '',
+        artist TEXT NOT NULL,
+        artist_reading_ko TEXT NOT NULL DEFAULT '',
+        country TEXT NOT NULL DEFAULT '',
+        recommended_key_json TEXT,
+        performer_ids_json TEXT NOT NULL DEFAULT '[]',
+        memo TEXT NOT NULL DEFAULT '',
+        source_type TEXT NOT NULL DEFAULT '',
+        source_reference TEXT NOT NULL DEFAULT '',
+        created_by_email TEXT NOT NULL DEFAULT '',
+        created_by_name TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        updated_by_email TEXT NOT NULL DEFAULT '',
+        updated_by_name TEXT NOT NULL DEFAULT '',
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        deleted_by_email TEXT,
+        version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+        CHECK (tj_number IS NULL OR (length(tj_number) > 0 AND tj_number NOT GLOB '*[^0-9]*'))
+      );
+
+      INSERT INTO songs_next (
+        id,tj_number,title,title_reading_ko,artist,artist_reading_ko,country,
+        recommended_key_json,performer_ids_json,memo,source_type,
+        source_reference,created_by_email,created_by_name,created_at,
+        updated_by_email,updated_by_name,updated_at,deleted_at,deleted_by_email,
+        version
+      )
+      SELECT
+        id,tj_number,title,title_reading_ko,artist,artist_reading_ko,country,
+        CASE WHEN json_array_length(key_candidates_json) > 0 THEN
+          json_object(
+            'baseMode', CASE json_extract(key_candidates_json, '$[0].baseMode')
+              WHEN 'female' THEN 'female'
+              WHEN 'male' THEN 'male'
+              ELSE 'original'
+            END,
+            'offset', COALESCE(json_extract(key_candidates_json, '$[0].offset'), 0)
+          )
+        ELSE NULL END,
+        performer_ids_json,
+        CASE WHEN length(trim(original_work)) > 0 THEN
+          '원작: ' || trim(original_work) ||
+          CASE WHEN length(trim(memo)) > 0 THEN char(10) || memo ELSE '' END
+        ELSE memo END,
+        source_type,source_reference,created_by_email,created_by_name,created_at,
+        updated_by_email,updated_by_name,updated_at,deleted_at,deleted_by_email,
+        version
+      FROM songs;
+
+      DROP TABLE songs;
+      ALTER TABLE songs_next RENAME TO songs;
+      CREATE INDEX songs_updated_at_idx ON songs(updated_at);
+
+      UPDATE performances
+      SET key_selection_json = json_object(
+        'baseMode', CASE json_extract(key_selection_json, '$.baseMode')
+          WHEN 'female' THEN 'female'
+          WHEN 'male' THEN 'male'
+          ELSE 'original'
+        END,
+        'offset', COALESCE(json_extract(key_selection_json, '$.offset'), 0)
+      )
+      WHERE key_selection_json IS NOT NULL;
+    `
   }
 ] as const;
 

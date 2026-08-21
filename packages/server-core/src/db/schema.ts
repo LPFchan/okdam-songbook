@@ -7,20 +7,12 @@ export const songs = sqliteTable("songs", {
   tjNumber: text("tj_number").unique(),
   title: text("title").notNull(),
   titleReadingKo: text("title_reading_ko").notNull().default(""),
-  titleRomanized: text("title_romanized").notNull().default(""),
-  titleAliasesJson: jsonText("title_aliases_json").notNull().default("[]"),
   artist: text("artist").notNull(),
   artistReadingKo: text("artist_reading_ko").notNull().default(""),
-  artistAliasesJson: jsonText("artist_aliases_json").notNull().default("[]"),
   country: text("country").notNull().default(""),
-  originalWork: text("original_work").notNull().default(""),
-  keyCandidatesJson: jsonText("key_candidates_json").notNull().default("[]"),
+  recommendedKeyJson: jsonText("recommended_key_json"),
   performerIdsJson: jsonText("performer_ids_json").notNull().default("[]"),
   memo: text("memo").notNull().default(""),
-  status: text("status").notNull().default("active"),
-  youtubeUrl: text("youtube_url").notNull().default(""),
-  youtubeVideoId: text("youtube_video_id").notNull().default(""),
-  isOfficialTjVideo: integer("is_official_tj_video", { mode: "boolean" }),
   sourceType: text("source_type").notNull().default(""),
   sourceReference: text("source_reference").notNull().default(""),
   createdByEmail: text("created_by_email").notNull().default(""),
@@ -32,10 +24,7 @@ export const songs = sqliteTable("songs", {
   deletedAt: text("deleted_at"),
   deletedByEmail: text("deleted_by_email"),
   version: integer("version").notNull().default(1)
-}, (table) => ({
-  status: index("songs_status_idx").on(table.status),
-  updatedAt: index("songs_updated_at_idx").on(table.updatedAt)
-}));
+}, (table) => ({ updatedAt: index("songs_updated_at_idx").on(table.updatedAt) }));
 
 export const performances = sqliteTable("performances", {
   id: text("id").primaryKey(),

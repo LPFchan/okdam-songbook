@@ -1,16 +1,8 @@
-import type { KeyCandidate } from "./schemas.js";
+import type { RecommendedKey } from "./schemas.js";
 
 export const KEY_TEXT_PATTERN = /^([여남])(?:자?키)?\s*([+-]?\d{1,2})?$/;
 
-/**
- * Read key notation written in free text ("여+1", "남 -2", "여키", "-3").
- * Returns null when the text is not recognisable as a key notation, so the
- * caller can leave the memo untouched instead of guessing.
- */
-export function parseKeyText(
-  raw: string,
-  idFactory: () => string = () => crypto.randomUUID()
-): { candidate: KeyCandidate; matchedText: string } | null {
+export function parseKeyText(raw: string): { recommendedKey: RecommendedKey; matchedText: string } | null {
   const text = raw.trim();
   const match = text.match(KEY_TEXT_PATTERN);
   const offsetOnly = text.match(/^([+-]\d{1,2})$/);
@@ -18,116 +10,73 @@ export function parseKeyText(
   const baseMode = match ? (match[1] === "여" ? "female" : "male") : "original";
   const offset = match ? Number(match[2] ?? 0) : Number(offsetOnly?.[1] ?? 0);
   if (!Number.isInteger(offset) || offset < -12 || offset > 12) return null;
-  return {
-    candidate: {
-      id: idFactory(),
-      baseMode,
-      offset,
-      label: "추천",
-      memo: "",
-      isPrimary: true
-    },
-    matchedText: text
-  };
+  return { recommendedKey: { baseMode, offset }, matchedText: text };
 }
 
 export interface MemoKeyMigration {
-  candidates: KeyCandidate[];
+  recommendedKey: RecommendedKey | null;
   memo: string;
   matched: string[];
 }
 
-/**
- * Extract key notations from a memo. Only whole segments (split on newlines,
- * commas, slashes) that are entirely key notation are moved; anything else
- * stays in the memo verbatim.
- */
-export function migrateMemoKey(
-  memo: string,
-  idFactory: () => string = () => crypto.randomUUID()
-): MemoKeyMigration {
-  if (!memo.trim()) return { candidates: [], memo, matched: [] };
+export function migrateMemoKey(memo: string): MemoKeyMigration {
+  if (!memo.trim()) return { recommendedKey: null, memo, matched: [] };
   const segments = memo.split(/[\n,/]/);
-  const matched: string[] = [];
-  const candidates: KeyCandidate[] = [];
   const kept: string[] = [];
+  let recommendedKey: RecommendedKey | null = null;
+  let matchedText = "";
   for (const segment of segments) {
-    const parsed = parseKeyText(segment, idFactory);
+    const parsed: ReturnType<typeof parseKeyText> = recommendedKey ? null : parseKeyText(segment);
     if (parsed) {
-      matched.push(parsed.matchedText);
-      candidates.push(parsed.candidate);
+      recommendedKey = parsed.recommendedKey;
+      matchedText = parsed.matchedText;
     } else {
       kept.push(segment);
     }
   }
-  candidates.forEach((candidate, index) => {
-    candidate.isPrimary = index === 0;
-  });
-  return { candidates, memo: kept.join("\n").trim(), matched };
+  return { recommendedKey, memo: kept.join("\n").trim(), matched: matchedText ? [matchedText] : [] };
 }
 
-export function formatKeyCandidate(candidate?: KeyCandidate | null): string {
-  if (!candidate) return "";
-  const prefix =
-    candidate.baseMode === "female"
-      ? "여성키"
-      : candidate.baseMode === "male"
-        ? "남성키"
-        : candidate.baseMode === "custom"
-          ? candidate.label || "커스텀"
-          : "원키";
-  if (candidate.offset === 0) return prefix;
-  return `${prefix} ${candidate.offset > 0 ? "+" : ""}${candidate.offset}`;
+export function formatRecommendedKey(key?: RecommendedKey | null): string {
+  if (!key) return "";
+  const prefix = key.baseMode === "female" ? "여성키" : key.baseMode === "male" ? "남성키" : "원키";
+  if (key.offset === 0) return prefix;
+  return `${prefix} ${key.offset > 0 ? "+" : ""}${key.offset}`;
 }
 
-export interface ParsedKeyCandidate {
-  candidates: KeyCandidate[];
+export interface ParsedRecommendedKey {
+  recommendedKey: RecommendedKey | null;
   warnings: string[];
   original: string;
 }
 
-export function parseCsvKey(raw: string, idFactory: () => string = () => crypto.randomUUID()): ParsedKeyCandidate {
+export function parseCsvKey(raw: string): ParsedRecommendedKey {
   const original = raw.trim();
-  if (!original) return { candidates: [], warnings: [], original };
+  if (!original) return { recommendedKey: null, warnings: [], original };
 
   const uncertain = /[?？~～]|\/|,/.test(original);
   const baseOnlyMatch = original.match(/^(여|남)$/);
   if (baseOnlyMatch) {
     return {
-      candidates: [
-        {
-          id: idFactory(),
-          baseMode: baseOnlyMatch[1] === "여" ? "female" : "male",
-          offset: 0,
-          label: "추천",
-          memo: "",
-          isPrimary: true
-        }
-      ],
+      recommendedKey: { baseMode: baseOnlyMatch[1] === "여" ? "female" : "male", offset: 0 },
       warnings: [`키 모드 단독 표기는 원본(${original})을 보존하고 변환했어`],
       original
     };
   }
   const warnings: string[] = uncertain ? [`키 값이 애매해서 원본을 확인해야 해: ${original}`] : [];
   const match = original.match(/^(여|남)?\s*([+-]?\d+)$/);
-  if (!match) {
-    return { candidates: [], warnings: [`키 값을 자동 변환하지 못했어: ${original}`], original };
-  }
+  if (!match) return { recommendedKey: null, warnings: [`키 값을 자동 변환하지 못했어: ${original}`], original };
 
   const modeMark = match[1];
   const offset = Number(match[2]);
-  const baseMode = modeMark === "여" ? "female" : modeMark === "남" ? "male" : "original";
+  if (!Number.isInteger(offset) || offset < -12 || offset > 12) {
+    return { recommendedKey: null, warnings: [`키 범위를 벗어났어: ${original}`], original };
+  }
   return {
-    candidates: [
-      {
-        id: idFactory(),
-        baseMode,
-        offset,
-        label: "추천",
-        memo: "",
-        isPrimary: true
-      }
-    ],
+    recommendedKey: {
+      baseMode: modeMark === "여" ? "female" : modeMark === "남" ? "male" : "original",
+      offset
+    },
     warnings,
     original
   };

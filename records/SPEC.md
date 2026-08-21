@@ -42,8 +42,8 @@ history.
 ## Core Capabilities
 
 - Dense mobile song list with TJ number priority and no album art.
-- Search by TJ number, title, artist, aliases, Korean reading, romanization,
-  country, original work, memo, and assigned performer.
+- Search by TJ number, title, artist, Korean reading, country, memo, and
+  assigned performer.
 - Authenticated users may generate editable Korean-reading candidates for a
   song title and artist; generated values are never saved automatically.
 - Quick filter chips plus a complete responsive filter surface; sort remains
@@ -52,6 +52,9 @@ history.
   that private relationship directly, and the favorite-only filter requires a
   valid session. Favorite state is never included in the anonymous catalog.
 - Song add/edit uses one country chip: `일본`, `미국`, `한국`, or `그 외`.
+- Songs keep one optional recommended key (`original`, `male`, or `female`
+  plus a semitone offset). Free-form context such as an original work belongs
+  in the memo instead of separate metadata fields.
 - Bottom-sheet song details with performance history and `오늘 불렀습니다!`.
   Each tap records the signed-in account as the singer. The latest record shows
   that account's configured public name when it is known, while joint singing

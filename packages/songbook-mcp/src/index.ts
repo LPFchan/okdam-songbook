@@ -91,13 +91,9 @@ const searchInput = z.object({
 const getSongInput = z.object({ id: z.string().min(1).max(200) });
 
 const keySelectionInput = z.object({
-  id: z.string().min(1),
-  baseMode: z.enum(["original", "male", "female", "custom"]),
-  offset: z.number().int().min(-12).max(12),
-  label: z.string().trim().max(40).default(""),
-  memo: z.string().trim().max(500).default(""),
-  isPrimary: z.boolean().default(false)
-}).partial().nullable().default(null);
+  baseMode: z.enum(["original", "male", "female"]),
+  offset: z.number().int().min(-12).max(12)
+}).nullable().default(null);
 
 const performanceInput = z.object({
   songId: z.string().min(1).max(200),
@@ -122,33 +118,21 @@ const tjCandidateInput = z.object({
   sourceUrl: z.string().url()
 });
 
-const keyCandidateInput = z.object({
-  id: z.string().min(1),
-  baseMode: z.enum(["original", "male", "female", "custom"]),
-  offset: z.number().int().min(-12).max(12),
-  label: z.string().trim().max(40).default(""),
-  memo: z.string().trim().max(500).default(""),
-  isPrimary: z.boolean().default(false)
+const recommendedKeyInput = z.object({
+  baseMode: z.enum(["original", "male", "female"]),
+  offset: z.number().int().min(-12).max(12)
 });
 
 const songFields = {
   tjNumber: z.string().trim().regex(/^\d*$/u).default(""),
   title: z.string().trim().min(1).max(300).optional(),
   titleReadingKo: z.string().trim().max(300).default(""),
-  titleRomanized: z.string().trim().max(300).default(""),
-  titleAliases: z.array(z.string().trim().max(160)).default([]),
   artist: z.string().trim().min(1).max(300).optional(),
   artistReadingKo: z.string().trim().max(300).default(""),
-  artistAliases: z.array(z.string().trim().max(160)).default([]),
   country: z.string().trim().max(80).default(""),
-  originalWork: z.string().trim().max(200).default(""),
-  keyCandidates: z.array(keyCandidateInput).default([]),
+  recommendedKey: recommendedKeyInput.nullable().default(null),
   performerIds: z.array(z.enum(["marie", "seongwook", "yeowool"])).default([]),
-  memo: z.string().trim().max(2000).default(""),
-  status: z.enum(["active", "hold", "deletion_candidate", "deleted"]).default("active"),
-  youtubeUrl: z.string().trim().url().or(z.literal("")).default(""),
-  youtubeVideoId: z.string().trim().max(40).default(""),
-  isOfficialTjVideo: z.boolean().nullable().default(null),
+  memo: z.string().trim().max(4000).default(""),
   sourceType: z.string().trim().max(80).default(""),
   sourceReference: z.string().trim().max(300).default("")
 };
@@ -165,20 +149,12 @@ const updateSongInput = z.object({
   tjNumber: songFields.tjNumber.optional(),
   title: songFields.title,
   titleReadingKo: songFields.titleReadingKo.optional(),
-  titleRomanized: songFields.titleRomanized.optional(),
-  titleAliases: songFields.titleAliases.optional(),
   artist: songFields.artist,
   artistReadingKo: songFields.artistReadingKo.optional(),
-  artistAliases: songFields.artistAliases.optional(),
   country: songFields.country.optional(),
-  originalWork: songFields.originalWork.optional(),
-  keyCandidates: songFields.keyCandidates.optional(),
+  recommendedKey: songFields.recommendedKey.optional(),
   performerIds: songFields.performerIds.optional(),
   memo: songFields.memo.optional(),
-  status: songFields.status.optional(),
-  youtubeUrl: songFields.youtubeUrl.optional(),
-  youtubeVideoId: songFields.youtubeVideoId.optional(),
-  isOfficialTjVideo: songFields.isOfficialTjVideo.optional(),
   sourceType: songFields.sourceType.optional(),
   sourceReference: songFields.sourceReference.optional(),
   id: z.string().min(1).max(200).optional(),
