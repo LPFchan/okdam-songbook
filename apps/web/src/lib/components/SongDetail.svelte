@@ -20,6 +20,12 @@
   const canEdit = $derived(can(user?.role, "song:update"));
   const canPerform = $derived(can(user?.role, "performance:create"));
 
+  function subjectParticle(name: string): string {
+    const last = name.codePointAt(name.length - 1);
+    if (last === undefined || last < 0xac00 || last > 0xd7a3) return "가";
+    return (last - 0xac00) % 28 === 0 ? "가" : "이가";
+  }
+
   // Hoist the action row into the sheet's fixed footer. Runs from an effect
   // because calling it from a template expression mutates the sheet's state
   // during template evaluation, which Svelte forbids (state_unsafe_mutation).
@@ -71,7 +77,13 @@
   </div>
   <div class="detail-wide">
     <span class="detail-label">최근 기록</span>
-    <p>마지막 {song.lastPerformedAt ? new Date(song.lastPerformedAt).toLocaleString() : "없음"} · 총 {song.performanceCount}회</p>
+    <p>
+      {#if song.lastPerformedAt}
+        {#if song.lastPerformedByName}{song.lastPerformedByName}{subjectParticle(song.lastPerformedByName)} 최근 부름 · {:else}마지막 {/if}{new Date(song.lastPerformedAt).toLocaleString()} · 총 {song.performanceCount}회
+      {:else}
+        마지막 없음 · 총 {song.performanceCount}회
+      {/if}
+    </p>
   </div>
 </div>
 

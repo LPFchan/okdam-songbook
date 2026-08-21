@@ -19,17 +19,20 @@ function port(): number {
   return value;
 }
 
-const allowedUsersSchema = z.array(z.string().trim().email()).min(1);
+const allowedUsersSchema = z.record(z.string(), z.string().trim().min(1).max(80));
 
-export function parseAllowedUsers(raw: string | undefined): string[] {
+export function parseAllowedUsers(raw: string | undefined): Record<string, string> {
   if (!raw?.trim()) throw new Error("ALLOWED_USERS_JSON is required");
   let parsed: unknown;
   try { parsed = JSON.parse(raw); } catch { throw new Error("ALLOWED_USERS_JSON must be valid JSON"); }
   const result = allowedUsersSchema.safeParse(parsed);
-  if (!result.success) throw new Error("ALLOWED_USERS_JSON must be a non-empty JSON array of email strings");
-  const normalized = result.data.map(normalizeEmail);
-  if (new Set(normalized).size !== normalized.length) throw new Error("ALLOWED_USERS_JSON must not contain duplicate email addresses");
-  return normalized;
+  const entries = result.success ? Object.entries(result.data) : [];
+  if (!result.success || entries.length === 0 || entries.some(([email]) => !z.string().trim().email().safeParse(email).success)) {
+    throw new Error("ALLOWED_USERS_JSON must be a non-empty JSON object mapping valid email addresses to display names");
+  }
+  const normalized = entries.map(([email, displayName]) => [normalizeEmail(email), displayName] as const);
+  if (new Set(normalized.map(([email]) => email)).size !== normalized.length) throw new Error("ALLOWED_USERS_JSON must not contain duplicate email addresses");
+  return Object.fromEntries(normalized);
 }
 
 export function readingGeneratorFromEnvironment(environment: NodeJS.ProcessEnv): ReadingGenerator | undefined {

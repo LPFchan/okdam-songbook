@@ -16,7 +16,7 @@ export interface ServiceOptions {
   idempotencyRepository?: IdempotencyRepository;
 }
 
-export interface SongMutation extends Omit<Song, "id" | "createdAt" | "updatedAt" | "deletedAt" | "version" | "lastPerformedAt" | "performanceCount"> {
+export interface SongMutation extends Omit<Song, "id" | "createdAt" | "updatedAt" | "deletedAt" | "version" | "lastPerformedAt" | "lastPerformedByName" | "performanceCount"> {
   clientRequestId: string;
 }
 
@@ -91,7 +91,7 @@ function songFromCreate(input: SongMutation, id: string, timestamp: string): Son
     performerIds: input.performerIds, memo: input.memo, status: input.status, youtubeUrl: input.youtubeUrl,
     youtubeVideoId: input.youtubeVideoId, isOfficialTjVideo: input.isOfficialTjVideo, sourceType: input.sourceType,
     sourceReference: input.sourceReference, createdByName: input.createdByName, createdAt: timestamp,
-    updatedByName: input.updatedByName, updatedAt: timestamp, deletedAt: "", version: 1, lastPerformedAt: "", performanceCount: 0
+    updatedByName: input.updatedByName, updatedAt: timestamp, deletedAt: "", version: 1, lastPerformedAt: "", lastPerformedByName: "", performanceCount: 0
   };
 }
 
@@ -124,11 +124,11 @@ function isUniqueConstraint(error: unknown): boolean {
 }
 
 export function createSongbookService(database: SongbookDatabase, options: ServiceOptions = {}): SongbookService {
-  const songs = options.songRepository ?? createSongRepository(database.sqlite);
+  const roleResolver = options.roleResolver ?? denyAllRoleResolver;
+  const songs = options.songRepository ?? createSongRepository(database.sqlite, (email) => roleResolver.resolve({ email })?.displayName ?? "");
   const performances = options.performanceRepository ?? createPerformanceRepository(database.sqlite);
   const audit = options.auditRepository ?? createAuditRepository(database.sqlite);
   const idempotency = options.idempotencyRepository ?? createIdempotencyRepository(database.sqlite);
-  const roleResolver = options.roleResolver ?? denyAllRoleResolver;
   const now = options.now ?? (() => new Date().toISOString());
   const idFactory = options.idFactory ?? (() => crypto.randomUUID());
 

@@ -14,8 +14,9 @@ function nullableString(value: unknown): string | undefined {
   return value === null || value === undefined ? undefined : String(value);
 }
 
-export function songFromRow(row: RawSong): Song {
+export function songFromRow(row: RawSong, displayNameForEmail: (email: string) => string = () => ""): Song {
   const performances = Number(row.performance_count ?? 0);
+  const lastPerformedByEmail = String(row.last_performed_by_email ?? "");
   return {
     id: String(row.id), tjNumber: nullableString(row.tj_number) ?? "", title: String(row.title),
     titleReadingKo: String(row.title_reading_ko ?? ""), titleRomanized: String(row.title_romanized ?? ""),
@@ -28,7 +29,9 @@ export function songFromRow(row: RawSong): Song {
     sourceType: String(row.source_type ?? ""), sourceReference: String(row.source_reference ?? ""),
     createdByName: String(row.created_by_name ?? ""), createdAt: String(row.created_at), updatedByName: String(row.updated_by_name ?? ""),
     updatedAt: String(row.updated_at), deletedAt: String(row.deleted_at ?? ""), version: Number(row.version),
-    lastPerformedAt: String(row.last_performed_at ?? ""), performanceCount: performances
+    lastPerformedAt: String(row.last_performed_at ?? ""),
+    lastPerformedByName: lastPerformedByEmail ? displayNameForEmail(lastPerformedByEmail) : "",
+    performanceCount: performances
   };
 }
 
@@ -51,12 +54,13 @@ export interface SongRepository {
   remove(id: string, expectedVersion: number): boolean;
 }
 
-export function createSongRepository(sqlite: Database.Database): SongRepository {
-  const select = `SELECT s.*, (SELECT COUNT(*) FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL) AS performance_count, (SELECT MAX(p.performed_at) FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL) AS last_performed_at FROM songs s`;
+export function createSongRepository(sqlite: Database.Database, displayNameForEmail: (email: string) => string = () => ""): SongRepository {
+  const select = `SELECT s.*, (SELECT COUNT(*) FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL) AS performance_count, (SELECT MAX(p.performed_at) FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL) AS last_performed_at, (SELECT p.created_by_email FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL ORDER BY p.performed_at DESC, p.created_at DESC, p.id DESC LIMIT 1) AS last_performed_by_email FROM songs s`;
+  const map = (row: RawSong) => songFromRow(row, displayNameForEmail);
   return {
-    list: (options = {}) => (sqlite.prepare(`${select} ${options.includeDeleted ? "" : "WHERE s.deleted_at IS NULL"} ORDER BY s.updated_at DESC`).all() as RawSong[]).map(songFromRow),
-    get: (id) => { const row = sqlite.prepare(`${select} WHERE s.id=?`).get(id) as RawSong | undefined; return row ? songFromRow(row) : null; },
-    getByTjNumber: (tjNumber) => { const row = sqlite.prepare(`${select} WHERE s.tj_number=?`).get(tjNumber) as RawSong | undefined; return row ? songFromRow(row) : null; },
+    list: (options = {}) => (sqlite.prepare(`${select} ${options.includeDeleted ? "" : "WHERE s.deleted_at IS NULL"} ORDER BY s.updated_at DESC`).all() as RawSong[]).map(map),
+    get: (id) => { const row = sqlite.prepare(`${select} WHERE s.id=?`).get(id) as RawSong | undefined; return row ? map(row) : null; },
+    getByTjNumber: (tjNumber) => { const row = sqlite.prepare(`${select} WHERE s.tj_number=?`).get(tjNumber) as RawSong | undefined; return row ? map(row) : null; },
     findDuplicate: (input, excludeId, options = {}) => {
       const values: unknown[] = [];
       const clauses: string[] = [];
@@ -66,7 +70,7 @@ export function createSongRepository(sqlite: Database.Database): SongRepository 
       if (excludeId) values.push(excludeId);
       const deleted = options.includeDeleted ? "" : " AND s.deleted_at IS NULL AND s.status <> 'deleted'";
       const row = sqlite.prepare(`${select} WHERE (${clauses.join(" OR ")})${exclusion}${deleted} LIMIT 1`).get(...values) as RawSong | undefined;
-      return row ? songFromRow(row) : null;
+      return row ? map(row) : null;
     },
     insert: (song) => { sqlite.prepare(`INSERT INTO songs (id,tj_number,title,title_reading_ko,title_romanized,title_aliases_json,artist,artist_reading_ko,artist_aliases_json,country,genres_json,original_work,key_candidates_json,performer_ids_json,memo,status,youtube_url,youtube_video_id,is_official_tj_video,source_type,source_reference,created_by_email,created_by_name,created_at,updated_by_email,updated_by_name,updated_at,deleted_at,deleted_by_email,version) VALUES (${Array.from({ length: 30 }, () => "?").join(",")})`).run(...songValues(song)); },
     update: (song, expectedVersion) => {

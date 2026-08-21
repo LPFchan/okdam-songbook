@@ -7,8 +7,10 @@ Recorded by agent: codex-orchestrator
 - Project id: `songbook`
 - Canonical repo: https://github.com/devuterian/okdam-songbook
 - Operator: Marie
-- Last updated: 2026-08-20
-- Related decisions: DEC-20260701-001 through DEC-20260701-008, DEC-20260813-001 through DEC-20260813-005, DEC-20260820-001
+- Last updated: 2026-08-21
+- Related decisions: DEC-20260701-001 through DEC-20260701-008,
+  DEC-20260813-001 through DEC-20260813-005, DEC-20260820-001 through
+  DEC-20260820-003, DEC-20260821-001
 
 ## Project Thesis
 
@@ -45,8 +47,10 @@ history.
   song title and artist; generated values are never saved automatically.
 - Quick filter chips plus a complete responsive filter surface; sort remains
   separate.
-- Bottom-sheet song details with performance history and
-  `오늘 불렀습니다!`.
+- Bottom-sheet song details with performance history and `오늘 불렀습니다!`.
+  Each tap records the signed-in account as the singer. The latest record shows
+  that account's configured public name when it is known, while joint singing
+  is represented by one record from each person's account.
 - Offline-first public read cache and queued performance writes.
 - Local-first omnibar search, bounded debounced TJ accompaniment search, and
   authenticated one-action candidate add with manual fallback.
@@ -54,9 +58,10 @@ history.
   hard deletion by allowed users.
 - Better Auth Google OAuth and renewable HTTP-only browser sessions use the
   same SQLite database as the songbook domain.
-- The server resolves the current email allowlist on every protected request.
-  Every listed account has the same `allowed` role and permissions, including
-  song deletion. Missing admission configuration fails closed.
+- The server resolves the current email-to-public-name allowlist on every
+  protected request. Every listed account has the same `allowed` role and
+  permissions, including song deletion. Missing admission configuration fails
+  closed.
 - Stateless MCP Streamable HTTP is an optional-OAuth mount at `/mcp`, with
   modern and legacy stateless compatibility, Better Auth OAuth resource
   binding, body-derived anonymous routing, per-tool scopes, and no long-lived
@@ -77,7 +82,11 @@ history.
 - Secrets, allowed emails, OAuth credentials, database files, and backup
   archives are never bundled in the frontend or committed to the repository.
 - Browser- or MCP-supplied identity values are never authority. The server
-  derives identity from Better Auth and rechecks the current allowlist.
+  derives the email from Better Auth, rechecks the current allowlist, and uses
+  the public name configured for that exact email.
+- Public catalog rows may expose the configured public name of the account that
+  created the latest active performance. They never expose its email address;
+  an unmapped historical email falls back to timestamp-only display.
 - Better Auth sessions use HTTP-only cookies. MCP treats requests without an
   Authorization header as anonymous, never grants MCP identity from cookies,
   and rejects mixed cookie/bearer requests or any malformed, expired,

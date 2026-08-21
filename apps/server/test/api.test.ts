@@ -25,9 +25,9 @@ function request(path: string, init: globalThis.RequestInit = {}) {
 
 describe("same-origin server surface", () => {
   it("resolves normalized allowlisted users and fails closed", async () => {
-    const resolver = createAllowlistRoleResolver(["allowed@example.com", "peer@example.com"]);
+    const resolver = createAllowlistRoleResolver({ "allowed@example.com": "마리", "peer@example.com": "여울" });
     expect(resolver.resolve({ email: "ALLOWED@example.com" })?.role).toBe("allowed");
-    expect(resolver.resolve({ email: "PEER@example.com" })?.role).toBe("allowed");
+    expect(resolver.resolve({ email: "PEER@example.com", displayName: "Untrusted Google Name" })?.displayName).toBe("여울");
     expect(resolver.resolve({ email: "revoked@example.com" })).toBeNull();
     const noResolverServer = app({ sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }) });
     const response = await noResolverServer.request(request("/api/me"));
@@ -40,10 +40,10 @@ describe("same-origin server surface", () => {
 
   it("rejects malformed programmatic allowlists instead of admitting a valid subset", () => {
     expect(allowedUserMap(undefined)).toEqual(new Map());
-    expect(() => allowedUserMap([])).toThrow("non-empty array");
-    expect(() => allowedUserMap(["allowed@example.com", "not-an-email"])).toThrow("valid email strings");
-    expect(() => allowedUserMap(["allowed@example.com", "ALLOWED@example.com"])).toThrow("duplicate");
-    expect(() => createAllowlistRoleResolver(["allowed@example.com", "not-an-email"])).toThrow("valid email strings");
+    expect(() => allowedUserMap({})).toThrow("non-empty email-to-name object");
+    expect(() => allowedUserMap({ "allowed@example.com": "마리", "not-an-email": "여울" })).toThrow("valid email strings");
+    expect(() => allowedUserMap({ "allowed@example.com": "마리", "ALLOWED@example.com": "여울" })).toThrow("duplicate");
+    expect(() => createAllowlistRoleResolver({ "allowed@example.com": "마리", "not-an-email": "여울" })).toThrow("valid email strings");
   });
 
   it("serves anonymous catalog with an ETag and supports conditional reads", async () => {
@@ -54,6 +54,30 @@ describe("same-origin server surface", () => {
     expect((await first.json()).ok).toBe(true);
     const second = await server.request(request("/api/catalog", { headers: { "If-None-Match": first.headers.get("etag")! } }));
     expect(second.status).toBe(304);
+  });
+
+  it("publishes the mapped latest singer name without publishing an email", async () => {
+    const server = app({
+      sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Untrusted Google Name" }),
+      roleResolver: createAllowlistRoleResolver({ "allowed@example.com": "마리" })
+    });
+    const headers = { Origin: origin, "Content-Type": "application/json" };
+    const created = await server.request(request("/api/songs", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ title: "노래", artist: "가수", clientRequestId: crypto.randomUUID() })
+    }));
+    const song = (await created.json()).data;
+    await server.request(request("/api/performances", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ songId: song.id, performedAt: "2026-08-21T10:00:00.000Z", clientRequestId: crypto.randomUUID() })
+    }));
+
+    const response = await server.request(request("/api/catalog"));
+    const body = await response.json();
+    expect(body.data.songs[0]).toMatchObject({ lastPerformedByName: "마리", performanceCount: 1 });
+    expect(JSON.stringify(body.data.songs)).not.toContain("allowed@example.com");
   });
 
   it("performs a DB read and scratch write/rollback in healthz", async () => {
@@ -88,7 +112,7 @@ describe("same-origin server surface", () => {
   it("maps malformed and schema-invalid JSON bodies to validation errors", async () => {
     const server = app({
       sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }),
-      roleResolver: createAllowlistRoleResolver(["allowed@example.com"])
+      roleResolver: createAllowlistRoleResolver({ "allowed@example.com": "Allowed" })
     });
     const headers = { Origin: origin, "Content-Type": "application/json" };
     const malformed = await server.request(request("/api/songs", { method: "POST", headers, body: "{" }));
@@ -103,7 +127,7 @@ describe("same-origin server surface", () => {
     let received: unknown;
     const server = app({
       sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }),
-      roleResolver: createAllowlistRoleResolver(["allowed@example.com"]),
+      roleResolver: createAllowlistRoleResolver({ "allowed@example.com": "Allowed" }),
       readingGenerator: {
         generate: async (input) => {
           received = input;
@@ -124,7 +148,7 @@ describe("same-origin server surface", () => {
   it("fails safely when reading generation is unconfigured or input is empty", async () => {
     const server = app({
       sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }),
-      roleResolver: createAllowlistRoleResolver(["allowed@example.com"])
+      roleResolver: createAllowlistRoleResolver({ "allowed@example.com": "Allowed" })
     });
     const headers = { Origin: origin, "Content-Type": "application/json" };
     const unconfigured = await server.request(request("/api/readings/generate", {
@@ -135,7 +159,7 @@ describe("same-origin server surface", () => {
 
     const configured = app({
       sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }),
-      roleResolver: createAllowlistRoleResolver(["allowed@example.com"]),
+      roleResolver: createAllowlistRoleResolver({ "allowed@example.com": "Allowed" }),
       readingGenerator: { generate: async () => ({ titleReadingKo: "", artistReadingKo: "" }) }
     });
     const empty = await configured.request(request("/api/readings/generate", {
@@ -149,7 +173,7 @@ describe("same-origin server surface", () => {
     const headers = { Origin: origin, "Content-Type": "application/json" };
     const allowedServer = app({
       sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }),
-      roleResolver: createAllowlistRoleResolver(["allowed@example.com"])
+      roleResolver: createAllowlistRoleResolver({ "allowed@example.com": "Allowed" })
     });
     const created = await allowedServer.request(
       request("/api/songs", {
@@ -186,7 +210,7 @@ describe("same-origin server surface", () => {
 
     const unknownServer = app({
       sessionResolver: async () => ({ email: "unknown@example.com", displayName: "Unknown" }),
-      roleResolver: createAllowlistRoleResolver(["allowed@example.com"])
+      roleResolver: createAllowlistRoleResolver({ "allowed@example.com": "Allowed" })
     });
     const madeByAllowed = await allowedServer.request(
       request("/api/songs", {
@@ -209,7 +233,7 @@ describe("same-origin server surface", () => {
   it("returns the browser session contract with name and expiry fields", async () => {
     const server = app({
       sessionResolver: async () => ({ id: "session-1", email: "allowed@example.com", displayName: "Allowed", expiresAt: "2026-08-14T00:00:00.000Z" }),
-      roleResolver: createAllowlistRoleResolver(["allowed@example.com"])
+      roleResolver: createAllowlistRoleResolver({ "allowed@example.com": "Allowed" })
     });
     const response = await server.request(request("/api/session"));
     expect(response.status).toBe(200);
@@ -254,7 +278,7 @@ describe("MCP OAuth resource-server gate", () => {
           };
         }
       },
-      roleResolver: createAllowlistRoleResolver(["allowed@example.com"])
+      roleResolver: createAllowlistRoleResolver({ "allowed@example.com": "Allowed" })
     }).app;
     const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: { _meta: { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } });
     const response = await server.request(request("/mcp", { method: "POST", headers: { Authorization: "Bearer accepted", "Content-Type": "application/json", Accept: "application/json, text/event-stream", "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/list" }, body }));

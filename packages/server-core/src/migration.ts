@@ -291,7 +291,7 @@ export function parseImportSource(source: ImportSource, options: ImportOptions =
 }
 
 function songCanonical(song: ImportedSong | Song): unknown {
-  const value = Object.fromEntries(Object.entries(song).filter(([key]) => key !== "lastPerformedAt" && key !== "performanceCount"));
+  const value = Object.fromEntries(Object.entries(song).filter(([key]) => key !== "lastPerformedAt" && key !== "lastPerformedByName" && key !== "performanceCount"));
   return { ...value, tjNumber: value.tjNumber || "", deletedAt: value.deletedAt || "", deletedByEmail: "deletedByEmail" in value ? value.deletedByEmail || "" : "", createdByEmail: "createdByEmail" in value ? value.createdByEmail || "" : "", updatedByEmail: "updatedByEmail" in value ? value.updatedByEmail || "" : "" };
 }
 

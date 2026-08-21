@@ -51,6 +51,7 @@ export const songSchema = z.object({
   deletedAt: z.string().trim().optional().default(""),
   version: z.number().int().nonnegative().default(1),
   lastPerformedAt: z.string().trim().optional().default(""),
+  lastPerformedByName: z.string().trim().max(80).optional(),
   performanceCount: z.number().int().nonnegative().default(0)
 }).superRefine((song, ctx) => {
   const primaryCount = song.keyCandidates.filter((key) => key.isPrimary).length;

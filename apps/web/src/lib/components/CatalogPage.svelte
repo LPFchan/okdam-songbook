@@ -310,7 +310,7 @@
     const performedAt = new Date().toISOString();
     songs = songs.map((item) =>
       item.id === song.id
-        ? { ...item, performanceCount: item.performanceCount + 1, lastPerformedAt: new Date().toISOString() }
+        ? { ...item, performanceCount: item.performanceCount + 1, lastPerformedAt: performedAt, lastPerformedByName: auth.user?.displayName ?? "" }
         : item
     );
 
@@ -350,7 +350,7 @@
     if (undoTimer !== undefined) clearTimeout(undoTimer);
     songs = songs.map((item) =>
       item.id === target.songId
-        ? { ...item, performanceCount: Math.max(0, (item.performanceCount ?? 0) - 1), lastPerformedAt: "" }
+        ? { ...item, performanceCount: Math.max(0, (item.performanceCount ?? 0) - 1), lastPerformedAt: "", lastPerformedByName: "" }
         : item
     );
     const cancellationRequestId = crypto.randomUUID();

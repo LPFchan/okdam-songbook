@@ -18,7 +18,7 @@ let database: ReturnType<typeof openDatabase>;
 const allowed = { email: "allowed@example.com", displayName: "Allowed" };
 const allowedPeer = { email: "peer@example.com", displayName: "Peer" };
 
-function songInput(overrides: Partial<Omit<Song, "id" | "createdAt" | "updatedAt" | "deletedAt" | "version" | "lastPerformedAt" | "performanceCount"> & { clientRequestId: string }> = {}) {
+function songInput(overrides: Partial<Omit<Song, "id" | "createdAt" | "updatedAt" | "deletedAt" | "version" | "lastPerformedAt" | "lastPerformedByName" | "performanceCount"> & { clientRequestId: string }> = {}) {
   return {
     tjNumber: "12345", title: "Title", titleReadingKo: "", titleRomanized: "", titleAliases: [], artist: "Artist", artistReadingKo: "", artistAliases: [], country: "", genres: [], originalWork: "", keyCandidates: [], performerIds: [], memo: "", status: "active" as const, youtubeUrl: "", youtubeVideoId: "", isOfficialTjVideo: null, sourceType: "test", sourceReference: "", createdByName: "", updatedByName: "", clientRequestId: crypto.randomUUID(), ...overrides
   };
@@ -26,7 +26,11 @@ function songInput(overrides: Partial<Omit<Song, "id" | "createdAt" | "updatedAt
 
 function roleResolver(): RoleResolver {
   return {
-    resolve: (actor) => actor.email === allowed.email || actor.email === allowedPeer.email ? { email: actor.email, displayName: actor.displayName ?? actor.email, role: "allowed" } : null
+    resolve: (actor) => actor.email === allowed.email
+      ? { email: actor.email, displayName: allowed.displayName, role: "allowed" }
+      : actor.email === allowedPeer.email
+        ? { email: actor.email, displayName: allowedPeer.displayName, role: "allowed" }
+        : null
   };
 }
 
@@ -144,6 +148,9 @@ describe("songbook domain services", () => {
     const created = service.createSong(allowedPeer, songInput());
     const performance = service.createPerformance(allowedPeer, { songId: created.id, keySelection: null, memo: "", performedAt: "2026-08-13T10:00:00.000Z", clientRequestId: crypto.randomUUID() });
     expect(service.performanceStats(created.id)).toEqual({ count: 1, lastPerformedAt: "2026-08-13T10:00:00.000Z" });
+    expect(service.getSong(created.id)?.lastPerformedByName).toBe("Peer");
+    database.sqlite.prepare("UPDATE performances SET created_by_email=? WHERE id=?").run("unknown@example.com", performance.id);
+    expect(service.getSong(created.id)?.lastPerformedByName).toBe("");
     expect(service.cancelPerformance(allowed, { performanceId: performance.id, expectedVersion: 1, clientRequestId: crypto.randomUUID() }).cancelledAt).toBeTruthy();
     expect(service.performanceStats(created.id)).toEqual({ count: 0, lastPerformedAt: "" });
   });

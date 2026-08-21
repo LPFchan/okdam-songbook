@@ -11,7 +11,7 @@ export interface BrowserAuthConfig {
   secret: string;
   googleClientId?: string;
   googleClientSecret?: string;
-  allowedUsers?: string[];
+  allowedUsers?: Record<string, string>;
   production?: boolean;
 }
 
@@ -19,18 +19,23 @@ export type BrowserAuth = Auth<BetterAuthOptions>;
 
 const allowedEmailSchema = z.string().trim().email();
 
-export function allowedUserMap(value: BrowserAuthConfig["allowedUsers"]): Map<string, "allowed"> {
+export interface AllowedUserIdentity {
+  displayName: string;
+  role: "allowed";
+}
+
+export function allowedUserMap(value: BrowserAuthConfig["allowedUsers"]): Map<string, AllowedUserIdentity> {
   if (value === undefined) return new Map();
-  if (!Array.isArray(value) || value.length === 0) throw new Error("allowedUsers must be a non-empty array of email strings");
-  const entries: Array<[string, "allowed"]> = [];
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length === 0) throw new Error("allowedUsers must be a non-empty email-to-name object");
+  const entries: Array<[string, AllowedUserIdentity]> = [];
   const seen = new Set<string>();
-  for (const email of value) {
+  for (const [email, displayName] of Object.entries(value)) {
     const parsed = allowedEmailSchema.safeParse(email);
-    if (!parsed.success) throw new Error("allowedUsers must contain only valid email strings");
+    if (!parsed.success || typeof displayName !== "string" || !displayName.trim() || displayName.trim().length > 80) throw new Error("allowedUsers must map valid email strings to non-empty display names");
     const normalized = normalizeEmail(parsed.data);
     if (!normalized || seen.has(normalized)) throw new Error("allowedUsers must not contain duplicate email addresses");
     seen.add(normalized);
-    entries.push([normalized, "allowed"]);
+    entries.push([normalized, { displayName: displayName.trim(), role: "allowed" }]);
   }
   return new Map(entries);
 }
@@ -40,8 +45,8 @@ export function createAllowlistRoleResolver(value: BrowserAuthConfig["allowedUse
   const allowed = allowedUserMap(value);
   return {
     resolve: (actor: RequestActor): ResolvedActor | null => {
-      const role = allowed.get(normalizeEmail(actor.email));
-      return role ? { email: normalizeEmail(actor.email), displayName: actor.displayName ?? actor.email, role } : null;
+      const identity = allowed.get(normalizeEmail(actor.email));
+      return identity ? { email: normalizeEmail(actor.email), displayName: identity.displayName, role: identity.role } : null;
     }
   };
 }

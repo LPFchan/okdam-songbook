@@ -163,6 +163,7 @@ export const songCreateRequestSchema = songSchema.innerType().omit({
   deletedAt: true,
   version: true,
   lastPerformedAt: true,
+  lastPerformedByName: true,
   performanceCount: true
 }).extend({
   clientRequestId: z.string().uuid()
