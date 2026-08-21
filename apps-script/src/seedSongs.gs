@@ -142,7 +142,7 @@ const SEED_SONGS = [
     "artist": "秦基博",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -309,7 +309,7 @@ const SEED_SONGS = [
     "artist": "とらドラ!",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -353,7 +353,7 @@ const SEED_SONGS = [
     "artist": "DAOKO×米津玄師",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -397,7 +397,7 @@ const SEED_SONGS = [
     "artist": "米津玄師",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -520,7 +520,7 @@ const SEED_SONGS = [
     "artist": "Aimer",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -564,7 +564,7 @@ const SEED_SONGS = [
     "artist": "the peggies",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -652,7 +652,7 @@ const SEED_SONGS = [
     "artist": "SUPER BEAVER",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -696,7 +696,7 @@ const SEED_SONGS = [
     "artist": "女王蜂",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -1589,7 +1589,7 @@ const SEED_SONGS = [
     "artist": "藍井エイル",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -1624,7 +1624,7 @@ const SEED_SONGS = [
     "artist": "RADWIMPS",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -1659,7 +1659,7 @@ const SEED_SONGS = [
     "artist": "どうぶつビスケッツ×PPP",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -1694,7 +1694,7 @@ const SEED_SONGS = [
     "artist": "ヒャダイン",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -1730,7 +1730,7 @@ const SEED_SONGS = [
     "artist": "RADWIMPS",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -1765,7 +1765,7 @@ const SEED_SONGS = [
     "artist": "RADWIMPS",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -1800,7 +1800,7 @@ const SEED_SONGS = [
     "artist": "花澤香菜",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -1880,7 +1880,7 @@ const SEED_SONGS = [
     "artist": "坂本真綾",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -1916,7 +1916,7 @@ const SEED_SONGS = [
     "artist": "井口裕香",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -1951,7 +1951,7 @@ const SEED_SONGS = [
     "artist": "RADWIMPS",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -1987,7 +1987,7 @@ const SEED_SONGS = [
     "artist": "放課後ティータイム",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -2022,7 +2022,7 @@ const SEED_SONGS = [
     "artist": "Petit Rabbit's",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -2057,7 +2057,7 @@ const SEED_SONGS = [
     "artist": "fhána",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -2092,7 +2092,7 @@ const SEED_SONGS = [
     "artist": "RADWIMPS",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -2137,7 +2137,7 @@ const SEED_SONGS = [
     "artist": "ヒャダイン",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -2173,7 +2173,7 @@ const SEED_SONGS = [
     "artist": "坂本真綾",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -3867,7 +3867,7 @@ const SEED_SONGS = [
     "artist": "チト(CV:水瀬いのり)&ユーリ(CV:久保 ユリカ)",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -3903,7 +3903,7 @@ const SEED_SONGS = [
     "artist": "https://namu.wiki/w/%EC%9A%94%EB%84%A4%EC%A6%88%20%EC%BC%84%EC%8B%9C",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],

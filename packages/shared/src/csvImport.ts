@@ -9,6 +9,10 @@ const GENRE_BY_COUNTRY: Record<string, string> = {
   "아니메": "애니메이션"
 };
 
+const NORMALIZED_COUNTRY: Record<string, string> = {
+  "아니메": "일본"
+};
+
 export interface CsvRowInput {
   title?: string;
   tjNumber?: string;
@@ -103,7 +107,8 @@ export function csvRowToSong(row: CsvRowInput, rowIndex: number, options: CsvImp
   const title = String(row.title || "").trim();
   const artist = String(row.artist || "").trim();
   const recommender = String(row.recommender || "").trim();
-  const country = String(row.country || "").trim();
+  const importedCountry = String(row.country || "").trim();
+  const country = NORMALIZED_COUNTRY[importedCountry] ?? importedCountry;
   const originalWork = String(row.originalWork || "").trim();
   const tjNumber = String(row.tjNumber || "").trim();
 
@@ -118,7 +123,7 @@ export function csvRowToSong(row: CsvRowInput, rowIndex: number, options: CsvImp
   if (!artist) warnings.push(`아티스트가 비어있어 (행 ${rowIndex + 1})`);
   unknownPerformerNames.forEach((name) => warnings.push(`알 수 없는 부를 사람 '${name}' (행 ${rowIndex + 1})`));
 
-  const countryGenre = country && GENRE_BY_COUNTRY[country] ? GENRE_BY_COUNTRY[country] : "";
+  const countryGenre = importedCountry && GENRE_BY_COUNTRY[importedCountry] ? GENRE_BY_COUNTRY[importedCountry] : "";
   const genres = Array.from(new Set([countryGenre, ...(row.genres ? [row.genres] : [])].filter(Boolean)));
 
   const createdAt = toIsoFromKoreanDate(row.createdAt, generatedAt);

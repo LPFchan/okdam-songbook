@@ -37,6 +37,17 @@ describe("importSongsFromCsv", () => {
     expect(report.skipped).toBe(2);
   });
 
+  it("stores anime imports as Japanese songs while preserving the animation genre", () => {
+    const report = importSongsFromCsv([{
+      title: "オレンジ",
+      tjNumber: "28187",
+      artist: "とらドラ!",
+      country: "아니메"
+    }], { csvFileName: "test.csv" });
+
+    expect(report.songs[0]).toMatchObject({ country: "일본", genres: ["애니메이션"] });
+  });
+
   it("preserves ambiguous key values as warnings", () => {
     const rows = [
       { title: "A", tjNumber: "1", artist: "X", key: "-1?-2?" },

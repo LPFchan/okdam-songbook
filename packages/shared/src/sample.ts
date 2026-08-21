@@ -146,7 +146,7 @@ export const sampleSongs: Song[] = [
     "artist": "秦基博",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -313,7 +313,7 @@ export const sampleSongs: Song[] = [
     "artist": "とらドラ!",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -357,7 +357,7 @@ export const sampleSongs: Song[] = [
     "artist": "DAOKO×米津玄師",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -401,7 +401,7 @@ export const sampleSongs: Song[] = [
     "artist": "米津玄師",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -524,7 +524,7 @@ export const sampleSongs: Song[] = [
     "artist": "Aimer",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -568,7 +568,7 @@ export const sampleSongs: Song[] = [
     "artist": "the peggies",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -656,7 +656,7 @@ export const sampleSongs: Song[] = [
     "artist": "SUPER BEAVER",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -700,7 +700,7 @@ export const sampleSongs: Song[] = [
     "artist": "女王蜂",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -1593,7 +1593,7 @@ export const sampleSongs: Song[] = [
     "artist": "藍井エイル",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -1628,7 +1628,7 @@ export const sampleSongs: Song[] = [
     "artist": "RADWIMPS",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -1663,7 +1663,7 @@ export const sampleSongs: Song[] = [
     "artist": "どうぶつビスケッツ×PPP",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -1698,7 +1698,7 @@ export const sampleSongs: Song[] = [
     "artist": "ヒャダイン",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -1734,7 +1734,7 @@ export const sampleSongs: Song[] = [
     "artist": "RADWIMPS",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -1769,7 +1769,7 @@ export const sampleSongs: Song[] = [
     "artist": "RADWIMPS",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -1804,7 +1804,7 @@ export const sampleSongs: Song[] = [
     "artist": "花澤香菜",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -1884,7 +1884,7 @@ export const sampleSongs: Song[] = [
     "artist": "坂本真綾",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -1920,7 +1920,7 @@ export const sampleSongs: Song[] = [
     "artist": "井口裕香",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -1955,7 +1955,7 @@ export const sampleSongs: Song[] = [
     "artist": "RADWIMPS",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -1991,7 +1991,7 @@ export const sampleSongs: Song[] = [
     "artist": "放課後ティータイム",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -2026,7 +2026,7 @@ export const sampleSongs: Song[] = [
     "artist": "Petit Rabbit's",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -2061,7 +2061,7 @@ export const sampleSongs: Song[] = [
     "artist": "fhána",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -2096,7 +2096,7 @@ export const sampleSongs: Song[] = [
     "artist": "RADWIMPS",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -2141,7 +2141,7 @@ export const sampleSongs: Song[] = [
     "artist": "ヒャダイン",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -2177,7 +2177,7 @@ export const sampleSongs: Song[] = [
     "artist": "坂本真綾",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -3871,7 +3871,7 @@ export const sampleSongs: Song[] = [
     "artist": "チト(CV:水瀬いのり)&ユーリ(CV:久保 ユリカ)",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],
@@ -3907,7 +3907,7 @@ export const sampleSongs: Song[] = [
     "artist": "https://namu.wiki/w/%EC%9A%94%EB%84%A4%EC%A6%88%20%EC%BC%84%EC%8B%9C",
     "artistReadingKo": "",
     "artistAliases": [],
-    "country": "아니메",
+    "country": "일본",
     "genres": [
       "애니메이션"
     ],

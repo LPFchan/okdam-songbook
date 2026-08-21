@@ -36,6 +36,7 @@
   import { chipsHeight } from "../chipsHeight";
 
   type QueueItem = Awaited<ReturnType<typeof queueItems>>[number];
+  const countryDerivedGenres = new Set(["J-POP", "POP", "K-POP", "애니메이션"]);
 
   let songs = $state<Song[]>([]);
   let catalogVersion = $state(0);
@@ -232,7 +233,7 @@
     return () => window.clearTimeout(settle);
   });
   const countries = $derived([...new Set(songs.map((song) => song.country).filter(Boolean))]);
-  const genres = $derived([...new Set(songs.flatMap((song) => song.genres))]);
+  const genres = $derived([...new Set(songs.flatMap((song) => song.genres))].filter((genre) => !countryDerivedGenres.has(genre)));
 
   interface ActiveFilter {
     key: keyof SongFilters | `performer:${PerformerId}`;
