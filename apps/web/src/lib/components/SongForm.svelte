@@ -32,6 +32,9 @@
     return { title: "", artist: "", tjNumber: "", status: "active", country: "일본", performerIds: [] };
   }
 
+  const countryOptions = ["일본", "미국", "한국", "그 외"] as const;
+  const primaryCountries: readonly string[] = countryOptions.slice(0, 3);
+
   type KeyMode = "none" | "female" | "male";
 
   let draft = $state<Partial<Song>>(emptyDraft());
@@ -171,6 +174,11 @@
     };
   }
 
+  function isDraftCountrySelected(country: (typeof countryOptions)[number]): boolean {
+    if (country === "그 외") return Boolean(draft.country && !primaryCountries.includes(draft.country));
+    return draft.country === country;
+  }
+
   function resetDraft() {
     draft = emptyDraft();
     editingId = null;
@@ -213,10 +221,22 @@
           TJ 번호
           <input bind:value={draft.tjNumber} inputmode="numeric" placeholder="없으면 비워둬도 돼요" />
         </label>
-        <label>
-          국가
-          <input bind:value={draft.country} />
-        </label>
+      </div>
+    </section>
+    <section class="form-section" aria-label="국가">
+      <h3 class="form-section-title">국가</h3>
+      <div class="chip-toggle-group">
+        {#each countryOptions as country (country)}
+          <button
+            type="button"
+            class="chip-toggle"
+            aria-pressed={isDraftCountrySelected(country)}
+            data-selected={isDraftCountrySelected(country) ? "true" : undefined}
+            onclick={() => (draft = { ...draft, country })}
+          >
+            {country}
+          </button>
+        {/each}
       </div>
     </section>
     <section class="form-section" aria-label="독음">

@@ -47,6 +47,7 @@ history.
   song title and artist; generated values are never saved automatically.
 - Quick filter chips plus a complete responsive filter surface; sort remains
   separate.
+- Song add/edit uses one country chip: `일본`, `미국`, `한국`, or `그 외`.
 - Bottom-sheet song details with performance history and `오늘 불렀습니다!`.
   Each tap records the signed-in account as the singer. The latest record shows
   that account's configured public name when it is known, while joint singing

@@ -33,6 +33,22 @@ describe("SongForm", () => {
     expect(screen.getByRole("button", { name: "마리" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "여울" })).toHaveAttribute("aria-pressed", "true");
   });
+
+  it("offers a single country choice as chips", async () => {
+    render(SongForm, {
+      props: { tab: "add", songs: [], onSongSaved: () => {}, onSongDeleted: () => {}, onRequestTab: () => {}, onClose: () => {} }
+    });
+
+    expect(screen.getByRole("button", { name: "일본" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "미국" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "한국" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "그 외" })).toHaveAttribute("aria-pressed", "false");
+
+    await screen.getByRole("button", { name: "한국" }).click();
+    expect(screen.getByRole("button", { name: "일본" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "한국" })).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("writes the primary key candidate from the key control", async () => {
     render(SongForm, {
       props: { tab: "add", songs: [], onSongSaved: () => {}, onSongDeleted: () => {}, onRequestTab: () => {}, onClose: () => {} }
