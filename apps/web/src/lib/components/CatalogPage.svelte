@@ -470,7 +470,15 @@
     style:transform={`translate(-50%, -${topbarShift}px)`}
   >
     <div class="topline">
-      <h1 class="brand-title">Songbook</h1>
+      <label class="search-box">
+        <Search size={18} />
+        <input bind:value={query} placeholder="곡명, 가수, TJ 번호 검색" />
+        {#if query}
+          <button type="button" class="search-clear" aria-label="검색어 지우기" onclick={() => (query = "")}>
+            <X size={16} />
+          </button>
+        {/if}
+      </label>
       <button
         type="button"
         class="account-button"
@@ -487,15 +495,6 @@
         {/if}
       </button>
     </div>
-    <label class="search-box">
-      <Search size={18} />
-      <input bind:value={query} placeholder="곡명, 가수, TJ 번호 검색" />
-      {#if query}
-        <button type="button" class="search-clear" aria-label="검색어 지우기" onclick={() => (query = "")}>
-          <X size={16} />
-        </button>
-      {/if}
-    </label>
     <div class="controls-bar">
       <label class="sort-select">
         <SlidersHorizontal size={15} />
