@@ -488,7 +488,7 @@
       >
         {#if auth.user}
           <LogOut size={16} />
-          {confirmSignOut ? "한 번 더 누르면 로그아웃" : auth.user.displayName}
+          {confirmSignOut ? "로그아웃" : auth.user.displayName}
         {:else}
           <LogIn size={16} />
           로그인
