@@ -5,7 +5,7 @@ Recorded by agent: codex-orchestrator
 
 ## Snapshot
 
-- Last updated: 2026-08-21 (Korean-reading generation deployed).
+- Last updated: 2026-08-21 (key stepper UI deployed; memo-stored keys migrated to `keyCandidates`).
 - Overall posture: `live in production on OCI single-server`.
 - Production baseline: current `main` with single-role allowlist authorization,
   running as `songbook:local` (ARM64) on oci-ubuntu.
