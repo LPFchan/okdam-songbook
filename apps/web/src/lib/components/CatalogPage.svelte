@@ -33,6 +33,7 @@
   import { snackbar } from "../snackbar.svelte";
   import { createSpring, GENTLE } from "../spring";
   import { chipStagger } from "../chipStagger";
+  import { chipsHeight } from "../chipsHeight";
 
   type QueueItem = Awaited<ReturnType<typeof queueItems>>[number];
 
@@ -513,6 +514,7 @@
         role="group"
         aria-label="필터"
         use:chipStagger={chipsExpanded}
+        use:chipsHeight={chipsExpanded}
       >
         {#each quickFilters as filter (filter.key)}
           {@const pressed =
