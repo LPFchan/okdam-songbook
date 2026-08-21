@@ -18,6 +18,7 @@
 
   const performerIds = $derived(sortPerformerIds(song.performerIds));
   const canEdit = $derived(can(user?.role, "song:update"));
+  const canPerform = $derived(can(user?.role, "performance:create"));
 
   // Hoist the action row into the sheet's fixed footer. Runs from an effect
   // because calling it from a template expression mutates the sheet's state
@@ -75,10 +76,12 @@
 </div>
 
 {#snippet detailActions()}
-  <button type="button" class="primary-button" onclick={() => onPerformed(song)}>
-    <CalendarCheck size={18} />
-    오늘 불렀어요!
-  </button>
+  {#if canPerform}
+    <button type="button" class="primary-button" onclick={() => onPerformed(song)}>
+      <CalendarCheck size={18} />
+      오늘 불렀어요!
+    </button>
+  {/if}
   {#if canEdit}
     <button type="button" class="secondary-button" onclick={() => onEdit(song)}>
       <Edit3 size={18} />
