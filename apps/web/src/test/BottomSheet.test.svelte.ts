@@ -35,6 +35,7 @@ beforeAll(() => {
 });
 
 const body = createRawSnippet(() => ({ render: () => "<p>body</p>" }));
+const formBody = createRawSnippet(() => ({ render: () => '<input aria-label="Field" />' }));
 
 describe("BottomSheet motion", () => {
   afterEach(() => cleanup());
@@ -122,6 +123,34 @@ describe("BottomSheet motion", () => {
     const afterTop = parseFloat((sheet.style.transform || "0").replace(/[^0-9.\-]/g, "")) || 0;
     expect(afterTop).toBeGreaterThan(0); // sheet now dragging down
     cleanup();
+  });
+
+  it("scrolls content when a vertical gesture starts on a text field", { timeout: 15000 }, async () => {
+    render(BottomSheet, {
+      props: { title: "Test", onClose: vi.fn(), children: formBody }
+    });
+    const sheet = document.querySelector(".bottom-sheet") as HTMLElement;
+    const scroller = document.querySelector(".sheet-scroll") as HTMLElement;
+    const input = document.querySelector("input") as HTMLElement;
+    await new Promise((r) => setTimeout(r, 1500));
+    Object.defineProperty(sheet, "offsetHeight", { value: 600, configurable: true });
+    Object.defineProperty(scroller, "scrollHeight", { value: 1200, configurable: true });
+    Object.defineProperty(scroller, "clientHeight", { value: 600, configurable: true });
+    let scrollTop = 0;
+    Object.defineProperty(scroller, "scrollTop", {
+      get: () => scrollTop,
+      set: (v) => { scrollTop = v; },
+      configurable: true
+    });
+
+    input.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 1, clientX: 200, clientY: 400, bubbles: true }));
+    for (let i = 1; i <= 4; i++) {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 200, clientY: 400 - i * 20, bubbles: true }));
+      await new Promise((r) => setTimeout(r, 30));
+    }
+    window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 1, clientX: 200, clientY: 320, bubbles: true }));
+
+    expect(scrollTop).toBeGreaterThan(0);
   });
 
   it("rubber-bands the sheet when pulling up past the bottom of the content", { timeout: 15000 }, async () => {

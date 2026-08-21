@@ -253,7 +253,7 @@
   function onDragStart(event: PointerEvent) {
     if (closing || dragging) return;
     if (event.pointerType === "mouse" && event.button !== 0) return;
-    if ((event.target as HTMLElement).closest("button, a, input, select, textarea")) return;
+    if ((event.target as HTMLElement).closest("button, a, select")) return;
     pointerId = event.pointerId;
     startY = event.clientY;
     startX = event.clientX;
