@@ -105,7 +105,10 @@ Recorded by agent: codex-orchestrator
 - MCP/OAuth commit `3e8d623` is live. Production smoke verified protected
   resource and authorization-server discovery, anonymous tool listing and
   combined search, read/write-only scope metadata, missing/invalid bearer
-  challenges, and local/public health.
+  challenges, and local/public health. OAuth authorization, browser callback,
+  registration, and token outcomes emit structured diagnostics containing
+  status, redirect shape, scope shape, and short one-way fingerprints; raw
+  credentials, authorization codes, callback state, and tokens are excluded.
 - The Docker image runs non-root with a read-only root filesystem, persistent
   SQLite bind mount, localhost-only published port, bounded logs/resources,
   and an application-owned `/healthz` check.

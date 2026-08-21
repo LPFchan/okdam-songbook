@@ -63,7 +63,18 @@ export interface ServerAppOptions {
   tj?: TjAdapter;
   readingGenerator?: ReadingGenerator;
   mcpAuth?: McpAuthAdapter;
+  oauthDiagnosticLogger?: (record: McpOAuthDiagnosticRecord) => void;
   now?: () => string;
+}
+
+export interface McpOAuthDiagnosticRecord {
+  event: "mcp_oauth";
+  at: string;
+  endpoint: "authorize" | "token" | "register" | "browser_callback";
+  status: number;
+  durationMs: number;
+  request: Record<string, unknown>;
+  response: Record<string, unknown>;
 }
 
 export interface ServerApp {
@@ -195,6 +206,118 @@ function protectedResourceMetadata(origin: string): Record<string, unknown> {
   };
 }
 
+function oauthFingerprint(value: string | null | undefined): string | null {
+  return value ? createHash("sha256").update(value).digest("hex").slice(0, 12) : null;
+}
+
+function oauthValue(value: unknown): string | null {
+  return typeof value === "string" && value.length <= 200 ? value : null;
+}
+
+function oauthLabel(value: unknown): string | null {
+  const parsed = oauthValue(value);
+  return parsed && /^[a-z][a-z0-9_:-]{0,63}$/u.test(parsed) ? parsed : null;
+}
+
+function oauthScopeFacts(value: unknown): Record<string, unknown> {
+  const allowed = new Set(["openid", "profile", "email", "offline_access", "songbook:read", "songbook:write"]);
+  const requested = String(value ?? "").split(/\s+/u).filter(Boolean);
+  return {
+    known: requested.filter((scope) => allowed.has(scope)).sort(),
+    unknownCount: requested.filter((scope) => !allowed.has(scope)).length
+  };
+}
+
+function oauthRedirectFacts(location: string | null, origin: string): Record<string, unknown> {
+  if (!location) return { kind: "none" };
+  try {
+    const url = new URL(location, origin);
+    const sameOrigin = url.origin === origin;
+    const kind = sameOrigin
+      ? url.pathname === "/" ? "login" : "same_origin"
+      : url.hostname === "chatgpt.com" || url.hostname === "chat.openai.com" ? "chatgpt_callback" : "external";
+    return {
+      kind,
+      hasCode: url.searchParams.has("code"),
+      code: oauthFingerprint(url.searchParams.get("code")),
+      hasState: url.searchParams.has("state"),
+      hasIssuer: url.searchParams.has("iss"),
+      error: oauthLabel(url.searchParams.get("error"))
+    };
+  } catch {
+    return { kind: "invalid" };
+  }
+}
+
+function oauthCookieNames(headers: Headers): string[] {
+  const values = typeof headers.getSetCookie === "function"
+    ? headers.getSetCookie()
+    : [headers.get("set-cookie")].filter((value): value is string => Boolean(value));
+  return values.map((value) => value.slice(0, value.indexOf("="))).filter(Boolean).sort();
+}
+
+async function oauthRequestFacts(request: Request, endpoint: McpOAuthDiagnosticRecord["endpoint"], origin: string): Promise<Record<string, unknown>> {
+  if (endpoint === "browser_callback") {
+    return { hasPendingMcpLogin: /(?:^|;\s*)oidc_login_prompt=/u.test(request.headers.get("Cookie") ?? "") };
+  }
+  if (endpoint === "authorize") {
+    const url = new URL(request.url);
+    return {
+      client: oauthFingerprint(url.searchParams.get("client_id")),
+      redirect: oauthRedirectFacts(url.searchParams.get("redirect_uri"), origin),
+      scopes: oauthScopeFacts(url.searchParams.get("scope")),
+      hasPkce: url.searchParams.get("code_challenge_method")?.toUpperCase() === "S256" && url.searchParams.has("code_challenge"),
+      resourceMatches: url.searchParams.get("resource") === `${origin}/mcp`,
+      prompt: oauthLabel(url.searchParams.get("prompt"))
+    };
+  }
+  let body: Record<string, unknown> = {};
+  try {
+    const contentType = request.headers.get("Content-Type") ?? "";
+    if (contentType.includes("application/json")) body = await request.clone().json() as Record<string, unknown>;
+    else body = Object.fromEntries(new URLSearchParams(await request.clone().text()));
+  } catch {
+    body = {};
+  }
+  if (endpoint === "register") {
+    const redirects = Array.isArray(body.redirect_uris) ? body.redirect_uris : [];
+    return {
+      redirectKinds: redirects.map((value) => oauthRedirectFacts(typeof value === "string" ? value : null, origin).kind),
+      tokenAuthMethod: oauthLabel(body.token_endpoint_auth_method)
+    };
+  }
+  return {
+    grantType: oauthLabel(body.grant_type),
+    client: oauthFingerprint(oauthValue(body.client_id)),
+    code: oauthFingerprint(oauthValue(body.code)),
+    hasCodeVerifier: Boolean(oauthValue(body.code_verifier)),
+    resourceMatches: oauthValue(body.resource) === `${origin}/mcp`
+  };
+}
+
+async function oauthResponseFacts(response: Response, endpoint: McpOAuthDiagnosticRecord["endpoint"], origin: string): Promise<Record<string, unknown>> {
+  if (endpoint === "authorize" || endpoint === "browser_callback") {
+    return {
+      redirect: oauthRedirectFacts(response.headers.get("Location"), origin),
+      setCookies: oauthCookieNames(response.headers)
+    };
+  }
+  let payload: Record<string, unknown> = {};
+  try { payload = await response.clone().json() as Record<string, unknown>; } catch { /* no JSON body */ }
+  if (endpoint === "register") {
+    return {
+      outcome: response.ok ? "registered" : "oauth_error",
+      client: response.ok ? oauthFingerprint(oauthValue(payload.client_id)) : null,
+      error: response.ok ? null : oauthLabel(payload.error)
+    };
+  }
+  return {
+    outcome: response.ok && typeof payload.access_token === "string" ? "issued" : response.ok ? "unexpected_success" : "oauth_error",
+    scopes: response.ok ? oauthScopeFacts(payload.scope) : oauthScopeFacts(""),
+    error: response.ok ? null : oauthLabel(payload.error)
+  };
+}
+
 function safeAssetPath(root: string, pathname: string): string | null {
   const relative = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
   const candidate = resolve(root, normalize(relative));
@@ -248,7 +371,24 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
   const sessionResolver = options.sessionResolver ?? (auth ? (request: Request) => authSession(auth, request) : async () => null);
   const mcpAuth = options.mcpAuth ?? (auth ? createMcpAuthAdapter({ auth, database: options.database, origin: options.origin }) : createMcpAuthAdapter({ database: options.database, origin: options.origin }));
   const mcpHandler = createSongbookMcpHandler({ service, tj: options.tj });
+  const oauthDiagnosticLogger = options.oauthDiagnosticLogger ?? ((record: McpOAuthDiagnosticRecord) => console.info(JSON.stringify(record)));
   const app = new Hono();
+
+  const logOAuthExchange = async (endpoint: McpOAuthDiagnosticRecord["endpoint"], request: Request, response: Response, startedAt: number) => {
+    try {
+      oauthDiagnosticLogger({
+        event: "mcp_oauth",
+        at: now(),
+        endpoint,
+        status: response.status,
+        durationMs: Date.now() - startedAt,
+        request: await oauthRequestFacts(request, endpoint, options.origin),
+        response: await oauthResponseFacts(response, endpoint, options.origin)
+      });
+    } catch {
+      // Diagnostics must never alter an OAuth response.
+    }
+  };
 
   const protectBrowser = async (c: Context): Promise<BrowserPrincipal | Response> => {
     if (hasAuthorizationHeader(c)) return failure(c, new DomainError("UNAUTHORIZED", "브라우저 세션이 필요해."), now);
@@ -384,11 +524,15 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
 
   const authAlias = async (c: Context, target: string): Promise<Response> => {
     if (!auth) return c.notFound();
+    const startedAt = Date.now();
     const url = new URL(c.req.url);
     url.pathname = `/api/auth${target}`;
     const request = new Request(url, c.req.raw);
+    const diagnosticRequest = request.clone();
     const response = await auth.handler(request);
     if (target === "/mcp/token" && response.ok) await mcpAuth.captureToken(response.clone(), c.req.raw);
+    const endpoint = target.slice(5) as "authorize" | "token" | "register";
+    await logOAuthExchange(endpoint, diagnosticRequest, response.clone(), startedAt);
     return response;
   };
   // Keep the provider's direct token and discovery paths behind the same
@@ -403,7 +547,13 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
   app.post("/mcp/register", (c) => authAlias(c, "/mcp/register"));
   const authHandler = async (c: Context): Promise<Response> => {
     if (!auth) return c.notFound();
-    return auth.handler(c.req.raw);
+    const request = c.req.raw;
+    const startedAt = Date.now();
+    const response = await auth.handler(request);
+    if (new URL(request.url).pathname.startsWith("/api/auth/callback/")) {
+      await logOAuthExchange("browser_callback", request.clone(), response.clone(), startedAt);
+    }
+    return response;
   };
   app.on(["GET", "POST", "OPTIONS"], "/api/auth/*", authHandler);
   app.all("/mcp", async (c) => {

@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { openDatabase, type SongbookDatabase } from "@songbook/server-core";
-import { createServerApp } from "../src/api.js";
+import { createServerApp, type McpOAuthDiagnosticRecord } from "../src/api.js";
 import { allowedUserMap, createAllowlistRoleResolver, createMcpAuthAdapter, mcpScopeFromString } from "../src/auth.js";
 
 const origin = "https://songbook.example";
@@ -445,6 +445,83 @@ describe("MCP OAuth resource-server gate", () => {
     expect(await (await server.request(request("/.well-known/oauth-authorization-server"))).json()).toEqual(metadata);
     expect(await (await server.request(request("/.well-known/oauth-protected-resource/mcp"))).json()).toEqual({ resource: `${origin}/mcp`, authorization_servers: [`${origin}/api/auth`], jwks_uri: `${origin}/api/auth/mcp/jwks`, scopes_supported: ["songbook:read", "songbook:write"], bearer_methods_supported: ["header"], resource_signing_alg_values_supported: ["RS256"] });
     expect(await (await server.request(request("/.well-known/oauth-protected-resource"))).json()).toEqual(await (await server.request(request("/api/auth/.well-known/oauth-protected-resource"))).json());
+  });
+
+  it("logs OAuth outcomes without logging credentials, codes, or callback state", async () => {
+    database = openDatabase();
+    const records: McpOAuthDiagnosticRecord[] = [];
+    const fakeAuth = {
+      handler: async (incoming: Request) => {
+        const pathname = new URL(incoming.url).pathname;
+        if (pathname.endsWith("/mcp/authorize")) {
+          return new Response(null, { status: 302, headers: { Location: "https://chatgpt.com/connector/oauth/callback-id?code=secret-code&state=secret-state" } });
+        }
+        if (pathname.endsWith("/mcp/token")) {
+          return new Response(JSON.stringify({ error: "invalid_grant", error_description: "secret-code was rejected" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" }
+          });
+        }
+        return new Response(null, {
+          status: 302,
+          headers: {
+            Location: `${origin}/?returned=1`,
+            "Set-Cookie": "better-auth.session_token=secret-session; Path=/; HttpOnly"
+          }
+        });
+      }
+    };
+    const server = createServerApp({
+      database,
+      origin,
+      auth: fakeAuth as never,
+      oauthDiagnosticLogger: (record) => records.push(record)
+    }).app;
+
+    const authorize = new URL(`${origin}/api/auth/mcp/authorize`);
+    authorize.searchParams.set("client_id", "secret-client");
+    authorize.searchParams.set("redirect_uri", "https://chatgpt.com/connector/oauth/callback-id");
+    authorize.searchParams.set("scope", "songbook:write songbook:read");
+    authorize.searchParams.set("code_challenge", "secret-challenge");
+    authorize.searchParams.set("code_challenge_method", "S256");
+    authorize.searchParams.set("resource", `${origin}/mcp`);
+    await server.request(new Request(authorize));
+    await server.request(request("/api/auth/mcp/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        client_id: "secret-client",
+        code: "secret-code",
+        code_verifier: "secret-verifier",
+        resource: `${origin}/mcp`
+      })
+    }));
+    await server.request(request("/api/auth/callback/google", { headers: { Cookie: "oidc_login_prompt=secret-prompt" } }));
+
+    expect(records).toHaveLength(3);
+    expect(records[0]).toMatchObject({
+      endpoint: "authorize",
+      status: 302,
+      request: { hasPkce: true, resourceMatches: true, scopes: { known: ["songbook:read", "songbook:write"], unknownCount: 0 } },
+      response: { redirect: { kind: "chatgpt_callback", hasCode: true, hasState: true } }
+    });
+    expect(records[1]).toMatchObject({
+      endpoint: "token",
+      status: 400,
+      request: { grantType: "authorization_code", hasCodeVerifier: true, resourceMatches: true },
+      response: { outcome: "oauth_error", error: "invalid_grant" }
+    });
+    expect(records[2]).toMatchObject({
+      endpoint: "browser_callback",
+      status: 302,
+      request: { hasPendingMcpLogin: true },
+      response: { redirect: { kind: "login" }, setCookies: ["better-auth.session_token"] }
+    });
+    const serialized = JSON.stringify(records);
+    for (const secret of ["secret-client", "secret-code", "secret-state", "secret-challenge", "secret-verifier", "secret-session", "secret-prompt"]) {
+      expect(serialized).not.toContain(secret);
+    }
   });
 
   it("rejects a valid opaque token when its authoritative user is not allowlisted", async () => {
