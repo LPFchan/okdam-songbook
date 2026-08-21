@@ -65,7 +65,7 @@ describe("TjOmnibar", () => {
     expect(screen.getByRole("button", { name: "바로 추가" })).toBeInTheDocument();
   });
 
-  it("prompts login when TJ search is disabled", async () => {
+  it("hides the TJ section when TJ search is disabled", async () => {
     render(TjOmnibar, {
       props: {
         query: "Pretender",
@@ -77,7 +77,8 @@ describe("TjOmnibar", () => {
         onSongSaved: vi.fn()
       }
     });
-    await screen.findByText(/TJ에서도 찾으려면 로그인해주세요/);
+    await act(() => new Promise((resolve) => setTimeout(resolve, 600)));
+    expect(screen.queryByText(/TJ/)).not.toBeInTheDocument();
     expect(searchTjSongs).not.toHaveBeenCalled();
   });
 

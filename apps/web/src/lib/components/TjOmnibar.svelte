@@ -119,21 +119,16 @@
 </script>
 
 {#if searchable}
-  {#if !enabled}
-    <section class="omnibar-tj" aria-label="TJ 검색">
-      <p class="omnibar-tj-status">TJ에서도 찾으려면 로그인해주세요.</p>
-    </section>
-  {:else}
+  {#if enabled}
     <section class="omnibar-tj" aria-label="TJ 검색 결과" aria-live="polite">
       <header class="omnibar-tj-heading">
         <div>
           <h2>TJ에서 더 찾기</h2>
-          <p>우리 목록 아래에 TJ 반주곡 결과를 이어서 보여줘.</p>
         </div>
         <button type="button" class="secondary-button" onclick={onManualAdd}>직접 입력</button>
       </header>
       {#if loading}<p class="omnibar-tj-status">TJ 검색 중…</p>{/if}
-      {#if error}<p class="omnibar-tj-status error">{error} 직접 입력은 계속 사용할 수 있어요.</p>{/if}
+      {#if error}<p class="omnibar-tj-status error">{error}</p>{/if}
       {#if !loading && !error && completedQuery === trimmedQuery && results.length === 0}
         <p class="omnibar-tj-status">TJ에도 검색 결과가 없어요.</p>
       {/if}

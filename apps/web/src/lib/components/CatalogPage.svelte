@@ -599,11 +599,11 @@
           {#if queueCountsState.failed + queueCountsState.deadLetter > 0}
             · 확인 필요 {queueCountsState.failed + queueCountsState.deadLetter}개
           {/if}
+          {#if queueCountsState.authPaused}
+            · 로그인 필요
+          {/if}
         </span>
       </div>
-      {#if queueCountsState.authPaused}
-        <p class="hint">로그인하면 대기 중인 기록을 다시 동기화할 수 있어.</p>
-      {/if}
       <ul class="offline-queue-list">
         {#each queueList as item (item.id)}
           <li>
@@ -686,12 +686,6 @@
             {/if}
             <SongForm tab={managementTab} {songs} editSong={editingSong} {onSongSaved} {onSongDeleted} onRequestTab={(tab) => openManagement(tab)} onClose={closeManagement} {registerActions} />
           </div>
-        {:else}
-          <p class="hint">곡 관리는 로그인한 편집자만 사용할 수 있어요.</p>
-          <button type="button" class="primary-button" onclick={() => void loginWithGoogle()}>
-            <LogIn size={17} />
-            Google로 로그인
-          </button>
         {/if}
       {/snippet}
     </BottomSheet>

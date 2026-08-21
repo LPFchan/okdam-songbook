@@ -220,7 +220,7 @@
         </label>
         <label>
           TJ 번호
-          <input bind:value={draft.tjNumber} inputmode="numeric" placeholder="없으면 비워둬도 돼요" />
+          <input bind:value={draft.tjNumber} inputmode="numeric" placeholder="TJ 번호" />
         </label>
       </div>
     </section>
@@ -311,7 +311,6 @@
 {:else if tab === "songs"}
   <section class="admin-panel">
     <h2>곡 관리</h2>
-    {#if !songs.length}<p class="hint">곡이 없어요.</p>{/if}
     <div class="admin-song-list">
       {#each songs as song (song.id)}
         <button type="button" class="admin-song-row" onclick={() => startEdit(song)}>
