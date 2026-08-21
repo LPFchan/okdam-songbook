@@ -54,6 +54,8 @@ The live Better Auth browser path is served by the OCI application:
   `DELETE /api/songs/:id/delete` — protected song mutations.
 - `POST /api/performances` and `DELETE /api/performances/:id` — protected
   performance mutations.
+- `POST /api/readings/generate` — protected Korean-reading candidate
+  generation for a bounded title/artist pair.
 
 Browser calls use `credentials: include`, exact same-origin mutation checks,
 and JSON request bodies. There is no browser-readable bearer token in this

@@ -5,6 +5,7 @@ import { createTjAdapter, createTjSearchMirror } from "@songbook/server-core";
 import { normalizeEmail } from "@songbook/shared";
 import { z } from "zod";
 import { createConfiguredServer } from "./api.js";
+import { createAiReadingGenerator, type ReadingGenerator } from "./reading.js";
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -31,6 +32,15 @@ export function parseAllowedUsers(raw: string | undefined): string[] {
   return normalized;
 }
 
+export function readingGeneratorFromEnvironment(environment: NodeJS.ProcessEnv): ReadingGenerator | undefined {
+  const endpoint = environment.AI_ENDPOINT?.trim();
+  const apiKey = environment.AI_API_KEY?.trim();
+  const model = environment.AI_MODEL?.trim();
+  if (!endpoint && !apiKey && !model) return undefined;
+  if (!endpoint || !apiKey || !model) throw new Error("AI_ENDPOINT, AI_API_KEY, and AI_MODEL must be set together");
+  return createAiReadingGenerator({ endpoint, apiKey, model });
+}
+
 export async function startFromEnvironment() {
   const origin = required("ORIGIN").replace(/\/$/, "");
   const secret = required("BETTER_AUTH_SECRET");
@@ -46,6 +56,7 @@ export async function startFromEnvironment() {
       mirror: createTjSearchMirror(database.sqlite),
       onWarn: (warning) => console.warn(JSON.stringify({ event: "tj_adapter_warning", ...warning }))
     }),
+    readingGenerator: readingGeneratorFromEnvironment(process.env),
     assetsRoot: process.env.ASSETS_ROOT?.trim() || resolve(process.cwd(), "apps/web/dist"),
     auth: {
       database,

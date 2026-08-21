@@ -123,6 +123,24 @@ export const songDeleteActionRouteSchema = z.object({
   authentication: protectedBrowserRoute
 });
 
+export const readingGenerateInputSchema = z.object({
+  title: z.string().trim().max(200).default(""),
+  artist: z.string().trim().max(200).default("")
+}).refine((input) => Boolean(input.title || input.artist), {
+  message: "곡명이나 아티스트 중 하나는 필요해."
+});
+
+export const readingGenerateResultSchema = z.object({
+  titleReadingKo: z.string().trim().max(200),
+  artistReadingKo: z.string().trim().max(200)
+}).strict();
+
+export const readingGenerateRouteSchema = z.object({
+  method: z.literal("POST"),
+  path: z.literal("/api/readings/generate"),
+  authentication: protectedBrowserRoute
+});
+
 export const performanceCreateRequestSchema = z.object({
   songId: z.string().min(1),
   performedAt: z.string().datetime({ offset: true }).optional(),
@@ -188,6 +206,7 @@ export const apiRouteContractSchema = z.discriminatedUnion("path", [
   songCreateRouteSchema,
   songUpdateRouteSchema,
   songDeleteActionRouteSchema,
+  readingGenerateRouteSchema,
   tjLookupRouteSchema,
   tjSearchRouteSchema,
   tjAddRouteSchema
@@ -199,6 +218,7 @@ export const apiActionContractSchema = z.object({
   songCreate: songCreateRequestSchema,
   songUpdate: songUpdateRequestSchema,
   songDelete: songDeleteRequestSchema,
+  readingGenerate: readingGenerateInputSchema,
   tjLookup: tjLookupRequestSchema,
   tjSearch: tjSearchRequestSchema,
   tjAdd: z.object({
@@ -212,6 +232,8 @@ export type PerformanceCancelRequest = z.infer<typeof performanceCancelRequestSc
 export type SongCreateRequest = z.infer<typeof songCreateRequestSchema>;
 export type SongUpdateRequest = z.infer<typeof songUpdateRequestSchema>;
 export type SongDeleteRequest = z.infer<typeof songDeleteRequestSchema>;
+export type ReadingGenerateInput = z.infer<typeof readingGenerateInputSchema>;
+export type ReadingGenerateResult = z.infer<typeof readingGenerateResultSchema>;
 
 export const idempotencyKeySchema = z.string().uuid();
 export const expectedVersionSchema = z.number().int().nonnegative();

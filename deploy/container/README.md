@@ -26,7 +26,10 @@ protect the file and use the operator's normal credential-management process.
 The server reads `DATABASE_PATH`, `ORIGIN`, `ALLOWED_USERS_JSON` (a non-empty
 JSON array of valid email strings),
 `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and
-`ASSETS_ROOT`; Compose fixes the two path values for the container. The
+`ASSETS_ROOT`; Compose fixes the two path values for the container. Korean
+reading generation optionally uses `AI_ENDPOINT`, `AI_MODEL`, and `AI_API_KEY`;
+set all three together or leave all three empty. `AI_ENDPOINT` is the full
+OpenAI-compatible chat-completions URL. The
 example uses a reserved invalid hostname and placeholder account, not live
 credentials.
 

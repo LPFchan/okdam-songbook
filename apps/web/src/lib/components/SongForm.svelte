@@ -32,6 +32,7 @@
   let editingId = $state<string | null>(null);
   let deleteConfirm = $state(false);
   let deletePending = $state(false);
+  let readingPending = $state(false);
 
   // Load an externally requested song into the form (detail-sheet edit, list edit).
   $effect(() => {
@@ -97,14 +98,17 @@
   }
 
   async function fillReading() {
-    if (!auth.user) return;
+    if (!auth.user || readingPending) return;
     if (!(await requireWriteCredential())) return;
+    readingPending = true;
     try {
       const reading = await generateReading({ title: draft.title ?? "", artist: draft.artist ?? "" });
       draft = { ...draft, ...reading };
       snackbar.show("독음 후보를 채웠어요. 저장 전에 수정할 수 있어요.");
     } catch (error) {
       snackbar.show(messageOrAuth(error, "독음 생성에 실패했어요."));
+    } finally {
+      readingPending = false;
     }
   }
 
@@ -157,9 +161,9 @@
     <section class="form-section" aria-label="독음">
       <div class="form-section-heading">
         <h3 class="form-section-title">독음</h3>
-        <button type="button" class="ghost-button" disabled={!auth.user} onclick={() => void fillReading()}>
+        <button type="button" class="ghost-button" disabled={!auth.user || readingPending || !(draft.title || draft.artist)} onclick={() => void fillReading()}>
           <Wand2 size={15} />
-          자동 생성
+          {readingPending ? "생성 중…" : "자동 생성"}
         </button>
       </div>
       <div class="form-grid">

@@ -8,6 +8,7 @@ import {
   mcpScopeSetSchema,
   optionalOAuthMcpMountOptionsSchema,
   performanceCreateRequestSchema,
+  readingGenerateInputSchema,
   songCreateRequestSchema,
   songUpdateRequestSchema
 } from "../src/contracts.js";
@@ -36,6 +37,13 @@ describe("single-server contracts", () => {
   it("keeps route authentication explicit", () => {
     expect(apiRouteContractSchema.parse({ method: "GET", path: "/api/catalog", authentication: "anonymous" }).authentication).toBe("anonymous");
     expect(apiRouteContractSchema.parse({ method: "DELETE", path: "/api/songs/:id/delete", authentication: "allowed-session" }).authentication).toBe("allowed-session");
+    expect(apiRouteContractSchema.parse({ method: "POST", path: "/api/readings/generate", authentication: "allowed-session" }).authentication).toBe("allowed-session");
+  });
+
+  it("requires at least one bounded reading source field", () => {
+    expect(readingGenerateInputSchema.parse({ title: "  アイドル  ", artist: "" })).toEqual({ title: "アイドル", artist: "" });
+    expect(readingGenerateInputSchema.safeParse({ title: " ", artist: "" }).success).toBe(false);
+    expect(readingGenerateInputSchema.safeParse({ title: "x".repeat(201), artist: "" }).success).toBe(false);
   });
 
   it("requires UUID request keys and expected versions for updates", () => {

@@ -2,6 +2,7 @@ import {
   apiFailureSchema,
   currentUserSchema,
   publicDataSchema,
+  readingGenerateResultSchema,
   sampleSongs,
   songSchema,
   tjAddResultSchema,
@@ -250,7 +251,7 @@ export async function deleteSong(song: Pick<Song, "id" | "version">, clientReque
   }, (data) => songSchema.parse(data));
 }
 
-/** These older helpers have no route in the shared single-origin contract yet. */
+/** This older helper has no route in the shared single-origin contract yet. */
 export async function analyzeYouTube(url: string): Promise<Partial<Song>> {
   if (mockMode()) return { youtubeUrl: url, sourceType: "youtube", sourceReference: url };
   throw new Error("YouTube 분석은 아직 서버에서 제공되지 않아요.");
@@ -258,5 +259,8 @@ export async function analyzeYouTube(url: string): Promise<Partial<Song>> {
 
 export async function generateReading(input: { title: string; artist: string }): Promise<{ titleReadingKo: string; artistReadingKo: string }> {
   if (mockMode()) return { titleReadingKo: input.title, artistReadingKo: input.artist };
-  throw new Error("독음 생성은 아직 서버에서 제공되지 않아요.");
+  return request("/api/readings/generate", {
+    method: "POST",
+    body: JSON.stringify(input)
+  }, (data) => readingGenerateResultSchema.parse(data));
 }

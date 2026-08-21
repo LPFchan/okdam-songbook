@@ -84,6 +84,9 @@ appropriate, and Apps Script Script Properties. Values must never be committed.
 
 ## AI and images
 
-AI providers are called only from Apps Script. AI output is an editable
-candidate and must pass schema validation before save. Images are not stored in
-GitHub or Sheets by default.
+The live OCI server calls the configured AI reading endpoint with a server-only
+bearer credential. The browser route requires an allowlisted same-origin
+session, input and output are bounded and schema-validated, and provider error
+bodies are not returned to the browser. AI output remains an editable candidate
+and is never saved automatically. The legacy Apps Script adapter keeps its key
+in Script Properties. Images are not stored in GitHub or Sheets by default.

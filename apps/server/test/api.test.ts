@@ -99,6 +99,52 @@ describe("same-origin server surface", () => {
     expect((await invalid.json()).error.code).toBe("VALIDATION_ERROR");
   });
 
+  it("generates editable Korean reading candidates for an allowlisted session", async () => {
+    let received: unknown;
+    const server = app({
+      sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }),
+      roleResolver: createAllowlistRoleResolver(["allowed@example.com"]),
+      readingGenerator: {
+        generate: async (input) => {
+          received = input;
+          return { titleReadingKo: "아이도루", artistReadingKo: "요아소비" };
+        }
+      }
+    });
+    const response = await server.request(request("/api/readings/generate", {
+      method: "POST",
+      headers: { Origin: origin, "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "  アイドル  ", artist: "YOASOBI" })
+    }));
+    expect(response.status).toBe(200);
+    expect(received).toEqual({ title: "アイドル", artist: "YOASOBI" });
+    expect((await response.json()).data).toEqual({ titleReadingKo: "아이도루", artistReadingKo: "요아소비" });
+  });
+
+  it("fails safely when reading generation is unconfigured or input is empty", async () => {
+    const server = app({
+      sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }),
+      roleResolver: createAllowlistRoleResolver(["allowed@example.com"])
+    });
+    const headers = { Origin: origin, "Content-Type": "application/json" };
+    const unconfigured = await server.request(request("/api/readings/generate", {
+      method: "POST", headers, body: JSON.stringify({ title: "曲", artist: "歌手" })
+    }));
+    expect(unconfigured.status).toBe(503);
+    expect((await unconfigured.json()).error.code).toBe("AI_NOT_CONFIGURED");
+
+    const configured = app({
+      sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }),
+      roleResolver: createAllowlistRoleResolver(["allowed@example.com"]),
+      readingGenerator: { generate: async () => ({ titleReadingKo: "", artistReadingKo: "" }) }
+    });
+    const empty = await configured.request(request("/api/readings/generate", {
+      method: "POST", headers, body: JSON.stringify({ title: "  ", artist: "" })
+    }));
+    expect(empty.status).toBe(400);
+    expect((await empty.json()).error.code).toBe("VALIDATION_ERROR");
+  });
+
   it("allows every allowlisted user to delete and rejects unknown users", async () => {
     const headers = { Origin: origin, "Content-Type": "application/json" };
     const allowedServer = app({

@@ -8,6 +8,7 @@ import {
   performanceCancelRequestSchema,
   performanceCreateRequestSchema,
   publicDataSchema,
+  readingGenerateInputSchema,
   songCreateRequestSchema,
   songDeleteRequestSchema,
   songUpdateRequestSchema,
@@ -39,6 +40,7 @@ import {
   mcpBearerChallenge
 } from "./auth.js";
 import { authInfoForPrincipal, createSongbookMcpHandler, mcpRequiredScopeForBody, mcpToolPolicyFor } from "@songbook/mcp";
+import type { ReadingGenerator } from "./reading.js";
 
 export interface BrowserPrincipal extends RequestActor {
   id?: string;
@@ -56,6 +58,7 @@ export interface ServerAppOptions {
   sessionResolver?: BrowserSessionResolver;
   auth?: BrowserAuth;
   tj?: TjAdapter;
+  readingGenerator?: ReadingGenerator;
   mcpAuth?: McpAuthAdapter;
   now?: () => string;
 }
@@ -107,7 +110,8 @@ function failure(c: Context, error: unknown, now: () => string, status?: number)
   const codeStatus: Record<string, number> = {
     BAD_REQUEST: 400, VALIDATION_ERROR: 400, UNAUTHORIZED: 401, FORBIDDEN: 403,
     NOT_FOUND: 404, CONFLICT: 409, DUPLICATE_TJ_NUMBER: 409,
-    TJ_RATE_LIMITED: 429, RATE_LIMITED: 429
+    TJ_RATE_LIMITED: 429, RATE_LIMITED: 429,
+    AI_NOT_CONFIGURED: 503, EXTERNAL_API_ERROR: 502
   };
   return c.json({ ok: false, data: null, error: mapped, requestId: requestId(c), serverTime: now() }, (status ?? codeStatus[mapped.code] ?? 500) as 500);
 }
@@ -324,6 +328,13 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     const parsed = songDeleteRequestSchema.safeParse({ ...(await c.req.json()), songId: c.req.param("id") });
     if (!parsed.success) throw parsed.error;
     return service.deleteSong(actor, { id: parsed.data.songId, expectedVersion: parsed.data.expectedVersion, clientRequestId: parsed.data.clientRequestId });
+  }));
+
+  app.post("/api/readings/generate", (c) => mutate(c, async () => {
+    if (!options.readingGenerator) throw new DomainError("AI_NOT_CONFIGURED", "독음 자동 생성이 설정되지 않았어. 수동으로 입력해줘.");
+    const parsed = readingGenerateInputSchema.safeParse(await c.req.json());
+    if (!parsed.success) throw parsed.error;
+    return options.readingGenerator.generate(parsed.data);
   }));
 
   app.post("/api/tj/search", (c) => mutate(c, async () => {
