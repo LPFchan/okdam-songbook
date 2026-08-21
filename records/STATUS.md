@@ -5,10 +5,13 @@ Recorded by agent: codex-orchestrator
 
 ## Snapshot
 
-- Last updated: 2026-08-21 (key stepper UI deployed; memo-stored keys migrated to `keyCandidates`).
+- Last updated: 2026-08-21 (signed-in performance identity deployed at commit
+  `8010e54`; key stepper UI deployed; memo-stored keys migrated to
+  `keyCandidates`).
 - Overall posture: `live in production on OCI single-server`.
-- Production baseline: current `main` with single-role allowlist authorization,
-  running as `songbook:local` (ARM64) on oci-ubuntu.
+- Production baseline: current `main` with single-role authorization and an
+  exact email-to-public-name allowlist, running as `songbook:local` (ARM64) on
+  oci-ubuntu.
 - Public URL: https://okdam.lost.plus via the Cloudflare Tunnel
   (`obsidian-sync` tunnel, hostname `okdam.lost.plus` → `localhost:3010`).
 - Current product shape: one catalog-first main surface whose search input
@@ -55,6 +58,10 @@ Recorded by agent: codex-orchestrator
   compatibility alias rather than a separate page composition.
 - The song form generates schema-checked Korean-reading candidates for the
   title and artist, leaves them editable, and requires a separate save action.
+- `오늘 불렀어요!` attributes one performance to the signed-in account. The
+  detail sheet publicly shows the latest mapped name, timestamp, and shared
+  count; unknown historical creators keep the timestamp-only display. The
+  anonymous catalog exposes no email fields.
 
 ### TJ-assisted entry
 
@@ -79,8 +86,8 @@ Recorded by agent: codex-orchestrator
   resource-binding state. Import/reconciliation, CSV recovery, backup,
   integrity-check, and guarded restore tools are checked in.
 - Browser access uses same-origin HTTP-only sessions, exact-origin mutation
-  checks, JSON-only bodies, and a per-request email allowlist. Every admitted
-  user has the same `allowed` role and may delete songs.
+  checks, JSON-only bodies, and a per-request email-to-public-name allowlist.
+  Every admitted user has the same `allowed` role and may delete songs.
 - The offline performance queue drains on startup, reconnect, visibility, and
   authentication recovery, with bounded retry, dead letters, and preserved
   write identities.
@@ -126,6 +133,7 @@ Recorded by agent: codex-orchestrator
 
 ## Evidence
 
+- Performance identity decision: `DEC-20260821-001`.
 - Cutover decision: `DEC-20260814-001`.
 - Architecture decision: `DEC-20260813-005`.
 - Reviewed refactor plan: `RSH-20260813-002`.
