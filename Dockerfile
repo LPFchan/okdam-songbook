@@ -65,7 +65,6 @@ COPY --from=builder --chown=node:node /app/packages/songbook-admin/package.json 
 # npm workspaces link local packages from node_modules. Copy their compiled
 # output and the server/web artifacts the runtime needs.
 COPY --from=builder --chown=node:node /app/node_modules ./node_modules
-COPY --from=builder --chown=node:node /app/apps/server/node_modules ./apps/server/node_modules
 COPY --from=builder --chown=node:node /app/packages/server-core/node_modules ./packages/server-core/node_modules
 COPY --from=builder --chown=node:node /app/apps/server/dist ./apps/server/dist
 COPY --from=builder --chown=node:node /app/apps/web/dist ./apps/web/dist
