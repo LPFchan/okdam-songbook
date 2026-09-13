@@ -46,7 +46,8 @@ describe("SQLite storage foundation", () => {
 
   it("runs numbered migrations once and records them", () => {
     expect(runMigrations(database.sqlite)).toEqual([]);
-    expect(database.sqlite.prepare("SELECT id FROM schema_migrations").all()).toEqual(expect.arrayContaining([{ id: "0001_core" }, { id: "0100_mcp_token_resources" }, { id: "0101_tj_mirror" }, { id: "0102_drop_song_genres" }, { id: "0103_drop_practicing_status" }, { id: "0104_personal_favorites" }, { id: "0105_collapse_song_schema" }]));
+    expect(database.sqlite.prepare("SELECT id FROM schema_migrations").all()).toEqual(expect.arrayContaining([{ id: "0001_core" }, { id: "0100_mcp_token_resources" }, { id: "0101_tj_mirror" }, { id: "0102_drop_song_genres" }, { id: "0103_drop_practicing_status" }, { id: "0104_personal_favorites" }, { id: "0105_collapse_song_schema" }, { id: "0106_drop_mcp_token_resources" }]));
+    expect(database.sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='mcp_token_resources'").get()).toBeUndefined();
     const songColumns = database.sqlite.prepare("PRAGMA table_info('songs')").all() as Array<{ name: string }>;
     expect(songColumns.map((column) => column.name)).not.toContain("genres_json");
   });

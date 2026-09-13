@@ -1,25 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { parseAllowedUsers, readingGeneratorFromEnvironment } from "../src/main.js";
+import { commonAuthOriginFromEnvironment, readingGeneratorFromEnvironment } from "../src/main.js";
 
-describe("ALLOWED_USERS_JSON", () => {
-  it("normalizes a non-empty email-to-name object", () => {
-    expect(parseAllowedUsers('{" Allowed@Example.COM ":"마리","other@example.com":"여울"}')).toEqual({
-      "allowed@example.com": "마리",
-      "other@example.com": "여울"
-    });
-  });
-
-  it.each([
-    [undefined, "required"],
-    ["", "required"],
-    ["not-json", "valid JSON"],
-    ["{}", "non-empty JSON object"],
-    ["[]", "non-empty JSON object"],
-    ['{"not-an-email":"마리"}', "non-empty JSON object"],
-    ['{"allowed@example.com":""}', "non-empty JSON object"],
-    ['{"allowed@example.com":"마리","ALLOWED@example.com":"여울"}', "duplicate"]
-  ])("rejects %j", (value, message) => {
-    expect(() => parseAllowedUsers(value)).toThrow(message);
+describe("common auth environment", () => {
+  it("defaults to auth.lost.plus and accepts an override for local tests", () => {
+    expect(commonAuthOriginFromEnvironment({})).toBe("https://auth.lost.plus");
+    expect(commonAuthOriginFromEnvironment({ AUTH_ORIGIN: "http://auth.test:3001/" })).toBe("http://auth.test:3001");
   });
 });
 

@@ -347,6 +347,10 @@ export const migrations = [
       )
       WHERE key_selection_json IS NOT NULL;
     `
+  },
+  {
+    id: "0106_drop_mcp_token_resources",
+    sql: `DROP TABLE IF EXISTS mcp_token_resources;`
   }
 ] as const;
 

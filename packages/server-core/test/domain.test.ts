@@ -212,7 +212,7 @@ describe("songbook domain services", () => {
     expect(service.performanceStats(created.id)).toEqual({ count: 1, lastPerformedAt: "2026-08-13T10:00:00.000Z" });
     expect(service.getSong(created.id)?.lastPerformedByName).toBe("Peer");
     database.sqlite.prepare("UPDATE performances SET created_by_email=? WHERE id=?").run("unknown@example.com", performance.id);
-    expect(service.getSong(created.id)?.lastPerformedByName).toBe("");
+    expect(service.getSong(created.id)?.lastPerformedByName).toBe("Peer");
     expect(service.cancelPerformance(allowed, { performanceId: performance.id, expectedVersion: 1, clientRequestId: crypto.randomUUID() }).cancelledAt).toBeTruthy();
     expect(service.performanceStats(created.id)).toEqual({ count: 0, lastPerformedAt: "" });
   });

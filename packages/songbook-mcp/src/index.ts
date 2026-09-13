@@ -8,7 +8,7 @@ import {
   tjSongCandidateSchema,
   type McpScope,
   type McpProtocolRevision,
-  type OptionalOAuthMcpMountOptions
+  type OptionalBearerMcpMountOptions
 } from "@songbook/shared";
 import type { RequestActor, SongbookService, TjAdapter } from "@songbook/server-core";
 import { combinedSongSearch } from "@songbook/server-core";
@@ -17,7 +17,7 @@ import { z } from "zod/v4";
 export interface StatelessMcpContract {
   revision: McpProtocolRevision;
   scopes: McpScope[];
-  mount: OptionalOAuthMcpMountOptions;
+  mount: OptionalBearerMcpMountOptions;
 }
 
 export interface McpVerifiedPrincipal {
@@ -57,7 +57,7 @@ export const mcpContract: StatelessMcpContract = {
   revision: "2026-07-28",
   scopes: ["songbook:read", "songbook:write"],
   mount: {
-    authentication: "optional-oauth",
+    authentication: "optional-bearer",
     path: "/mcp",
     audience: "songbook-mcp",
     stateless: true

@@ -3,8 +3,8 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { openDatabase, type SongbookDatabase } from "@songbook/server-core";
-import { createServerApp, type McpOAuthDiagnosticRecord } from "../src/api.js";
-import { allowedUserMap, createAllowlistRoleResolver, createMcpAuthAdapter, mcpScopeFromString } from "../src/auth.js";
+import { createServerApp } from "../src/api.js";
+import { createCommonAuthRoleResolver } from "../src/auth.js";
 
 const origin = "https://songbook.example";
 let database: SongbookDatabase | undefined;
@@ -24,26 +24,13 @@ function request(path: string, init: globalThis.RequestInit = {}) {
 }
 
 describe("same-origin server surface", () => {
-  it("resolves normalized allowlisted users and fails closed", async () => {
-    const resolver = createAllowlistRoleResolver({ "allowed@example.com": "마리", "peer@example.com": "여울" });
+  it("resolves identities already admitted by common auth and fails closed without a resolver", async () => {
+    const resolver = createCommonAuthRoleResolver();
     expect(resolver.resolve({ email: "ALLOWED@example.com" })?.role).toBe("allowed");
-    expect(resolver.resolve({ email: "PEER@example.com", displayName: "Untrusted Google Name" })?.displayName).toBe("여울");
-    expect(resolver.resolve({ email: "revoked@example.com" })).toBeNull();
+    expect(resolver.resolve({ email: "PEER@example.com", displayName: "여울" })?.displayName).toBe("여울");
     const noResolverServer = app({ sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }) });
     const response = await noResolverServer.request(request("/api/me"));
     expect(response.status).toBe(401);
-  });
-
-  it("keeps MCP authorization to read and write scopes", () => {
-    expect(mcpScopeFromString("songbook:read songbook:write songbook:admin")).toEqual(["songbook:read", "songbook:write"]);
-  });
-
-  it("rejects malformed programmatic allowlists instead of admitting a valid subset", () => {
-    expect(allowedUserMap(undefined)).toEqual(new Map());
-    expect(() => allowedUserMap({})).toThrow("non-empty email-to-name object");
-    expect(() => allowedUserMap({ "allowed@example.com": "마리", "not-an-email": "여울" })).toThrow("valid email strings");
-    expect(() => allowedUserMap({ "allowed@example.com": "마리", "ALLOWED@example.com": "여울" })).toThrow("duplicate");
-    expect(() => createAllowlistRoleResolver({ "allowed@example.com": "마리", "not-an-email": "여울" })).toThrow("valid email strings");
   });
 
   it("serves anonymous catalog with an ETag and supports conditional reads", async () => {
@@ -60,7 +47,7 @@ describe("same-origin server surface", () => {
     let email = "allowed@example.com";
     const server = app({
       sessionResolver: async () => email ? { email, displayName: email } : null,
-      roleResolver: createAllowlistRoleResolver({ "allowed@example.com": "Allowed", "peer@example.com": "Peer" })
+      roleResolver: createCommonAuthRoleResolver()
     });
     const headers = { Origin: origin, "Content-Type": "application/json" };
     const createdResponse = await server.request(request("/api/songs", {
@@ -85,8 +72,8 @@ describe("same-origin server surface", () => {
 
   it("publishes the mapped latest singer name without publishing an email", async () => {
     const server = app({
-      sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Untrusted Google Name" }),
-      roleResolver: createAllowlistRoleResolver({ "allowed@example.com": "마리" })
+      sessionResolver: async () => ({ email: "allowed@example.com", displayName: "마리" }),
+      roleResolver: createCommonAuthRoleResolver()
     });
     const headers = { Origin: origin, "Content-Type": "application/json" };
     const created = await server.request(request("/api/songs", {
@@ -139,7 +126,7 @@ describe("same-origin server surface", () => {
   it("maps malformed and schema-invalid JSON bodies to validation errors", async () => {
     const server = app({
       sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }),
-      roleResolver: createAllowlistRoleResolver({ "allowed@example.com": "Allowed" })
+      roleResolver: createCommonAuthRoleResolver()
     });
     const headers = { Origin: origin, "Content-Type": "application/json" };
     const malformed = await server.request(request("/api/songs", { method: "POST", headers, body: "{" }));
@@ -154,7 +141,7 @@ describe("same-origin server surface", () => {
     let received: unknown;
     const server = app({
       sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }),
-      roleResolver: createAllowlistRoleResolver({ "allowed@example.com": "Allowed" }),
+      roleResolver: createCommonAuthRoleResolver(),
       readingGenerator: {
         generate: async (input) => {
           received = input;
@@ -175,7 +162,7 @@ describe("same-origin server surface", () => {
   it("fails safely when reading generation is unconfigured or input is empty", async () => {
     const server = app({
       sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }),
-      roleResolver: createAllowlistRoleResolver({ "allowed@example.com": "Allowed" })
+      roleResolver: createCommonAuthRoleResolver()
     });
     const headers = { Origin: origin, "Content-Type": "application/json" };
     const unconfigured = await server.request(request("/api/readings/generate", {
@@ -186,7 +173,7 @@ describe("same-origin server surface", () => {
 
     const configured = app({
       sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }),
-      roleResolver: createAllowlistRoleResolver({ "allowed@example.com": "Allowed" }),
+      roleResolver: createCommonAuthRoleResolver(),
       readingGenerator: { generate: async () => ({ titleReadingKo: "", artistReadingKo: "" }) }
     });
     const empty = await configured.request(request("/api/readings/generate", {
@@ -196,11 +183,11 @@ describe("same-origin server surface", () => {
     expect((await empty.json()).error.code).toBe("VALIDATION_ERROR");
   });
 
-  it("allows every allowlisted user to delete and rejects unknown users", async () => {
+  it("allows every common-auth user to delete", async () => {
     const headers = { Origin: origin, "Content-Type": "application/json" };
     const allowedServer = app({
       sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }),
-      roleResolver: createAllowlistRoleResolver({ "allowed@example.com": "Allowed" })
+      roleResolver: createCommonAuthRoleResolver()
     });
     const created = await allowedServer.request(
       request("/api/songs", {
@@ -235,32 +222,12 @@ describe("same-origin server surface", () => {
     expect(reAdded.status).toBe(200);
     expect((await reAdded.json()).data.id).not.toBe(song.id);
 
-    const unknownServer = app({
-      sessionResolver: async () => ({ email: "unknown@example.com", displayName: "Unknown" }),
-      roleResolver: createAllowlistRoleResolver({ "allowed@example.com": "Allowed" })
-    });
-    const madeByAllowed = await allowedServer.request(
-      request("/api/songs", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ title: "허용된 곡", artist: "가수", clientRequestId: crypto.randomUUID() })
-      })
-    );
-    const allowedSong = (await madeByAllowed.json()).data;
-    const forbidden = await unknownServer.request(
-      request(`/api/songs/${allowedSong.id}/delete`, {
-        method: "DELETE",
-        headers,
-        body: JSON.stringify({ songId: allowedSong.id, expectedVersion: allowedSong.version, clientRequestId: crypto.randomUUID() })
-      })
-    );
-    expect(forbidden.status).toBe(401);
   });
 
   it("returns the browser session contract with name and expiry fields", async () => {
     const server = app({
       sessionResolver: async () => ({ id: "session-1", email: "allowed@example.com", displayName: "Allowed", expiresAt: "2026-08-14T00:00:00.000Z" }),
-      roleResolver: createAllowlistRoleResolver({ "allowed@example.com": "Allowed" })
+      roleResolver: createCommonAuthRoleResolver()
     });
     const response = await server.request(request("/api/session"));
     expect(response.status).toBe(200);
@@ -283,265 +250,55 @@ describe("same-origin server surface", () => {
   });
 });
 
-describe("MCP OAuth resource-server gate", () => {
+describe("MCP common-auth gate", () => {
   it("runs the stateless MCP handler only after bearer verification", async () => {
     database = openDatabase();
-    let verified = false;
     let verifiedScopes: string[] = [];
     const server = createServerApp({
       database,
       origin,
       mcpAuth: {
-        captureToken: async () => undefined,
-        verifyRequest: async (request, requiredScopes) => {
-          verified = true;
+        verifyRequest: async (incoming, requiredScopes) => {
           verifiedScopes = requiredScopes;
-          expect(request.headers.get("Authorization")).toBe("Bearer accepted");
+          expect(incoming.headers.get("Authorization")).toBe("Bearer accepted");
           return {
             ok: true,
-            token: { accessToken: "accepted", resource: `${origin}/mcp`, scopes: ["songbook:read"], expiresAt: new Date(Date.now() + 60_000).toISOString() },
-            session: { userId: "user-1" },
-            principal: { userId: "user-1", actor: { email: "allowed@example.com", displayName: "Allowed" } }
+            token: { accessToken: "accepted", scopes: ["songbook:read", "songbook:write"] },
+            principal: { userId: "allowed@example.com", actor: { email: "allowed@example.com", displayName: "Allowed" } }
           };
         }
       },
-      roleResolver: createAllowlistRoleResolver({ "allowed@example.com": "Allowed" })
+      roleResolver: createCommonAuthRoleResolver()
     }).app;
-    const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: { _meta: { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } });
-    const response = await server.request(request("/mcp", { method: "POST", headers: { Authorization: "Bearer accepted", "Content-Type": "application/json", Accept: "application/json, text/event-stream", "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/list" }, body }));
-    expect(verified).toBe(true);
-    expect(response.status).toBe(200);
-    expect((await response.json()).result.tools).toEqual(expect.arrayContaining([expect.objectContaining({ name: "catalog" })]));
-    const search = await server.request(request("/mcp", { method: "POST", headers: { Authorization: "Bearer accepted", "Content-Type": "application/json", Accept: "application/json, text/event-stream", "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call", "Mcp-Name": "search_songs" }, body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "search_songs", arguments: { query: "Song" }, _meta: { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } }) }));
+    const headers = { Authorization: "Bearer accepted", "Content-Type": "application/json", Accept: "application/json, text/event-stream", "MCP-Protocol-Version": "2026-07-28" };
+    const listed = await server.request(request("/mcp", { method: "POST", headers, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: { _meta: { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } }) }));
+    expect(listed.status).toBe(200);
+    expect((await listed.json()).result.tools).toEqual(expect.arrayContaining([expect.objectContaining({ name: "catalog" })]));
+    const search = await server.request(request("/mcp", { method: "POST", headers, body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "search_songs", arguments: { query: "Song" }, _meta: { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } }) }));
     expect(search.status).toBe(200);
     expect(verifiedScopes).toEqual(["songbook:read"]);
   });
 
-  it("allows anonymous public discovery and protected calls start OAuth", async () => {
-    database = openDatabase();
-    const server = createServerApp({
-      database,
-      origin,
-      mcpAuth: {
-        captureToken: async () => undefined,
-        verifyRequest: async () => ({ ok: false, response: new Response("should not run", { status: 500 }) })
-      }
-    }).app;
-    const listed = await server.request(request("/mcp", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", "Mcp-Method": "tools/list" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }) }));
-    expect(listed.status).toBe(200);
-    const cookiePublic = await server.request(request("/mcp", { method: "POST", headers: { Cookie: "better-auth.session_token=browser-only", "Content-Type": "application/json", Accept: "application/json, text/event-stream" }, body: JSON.stringify({ jsonrpc: "2.0", id: 15, method: "tools/list", params: {} }) }));
-    expect(cookiePublic.status).toBe(200);
-    const cookieProtected = await server.request(request("/mcp", { method: "POST", headers: { Cookie: "better-auth.session_token=browser-only", "Content-Type": "application/json", Accept: "application/json, text/event-stream" }, body: JSON.stringify({ jsonrpc: "2.0", id: 17, method: "tools/call", params: { name: "record_performance", arguments: {} } }) }));
-    expect(cookieProtected.status).toBe(401);
-    expect(cookieProtected.headers.get("WWW-Authenticate")).toBe(`Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource/mcp"`);
-    const protectedCall = await server.request(request("/mcp", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", "Mcp-Method": "tools/call", "Mcp-Name": "catalog" }, body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "record_performance", arguments: {} } }) }));
-    expect(protectedCall.status).toBe(401);
-    expect(protectedCall.headers.get("WWW-Authenticate")).toBe(`Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource/mcp"`);
-  });
-
-  it("routes anonymous MCP from the body, ignores method/name headers, and fails closed", async () => {
+  it("keeps public MCP calls anonymous and challenges protected calls for a shared bearer token", async () => {
     database = openDatabase();
     const server = createServerApp({ database, origin }).app;
-    const publicWithProtectedHeader = await server.request(request("/mcp", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call", "Mcp-Name": "delete_song" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "catalog", arguments: {}, _meta: { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } }) }));
+    const listed = await server.request(request("/mcp", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }) }));
+    expect(listed.status).toBe(200);
+    const protectedCall = await server.request(request("/mcp", { method: "POST", headers: { Cookie: "lp_auth=browser-only", "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "record_performance", arguments: {} } }) }));
+    expect(protectedCall.status).toBe(401);
+    expect(protectedCall.headers.get("WWW-Authenticate")).toBe('Bearer realm="auth.lost.plus"');
+  });
+
+  it("routes anonymous MCP from the body and fails closed for malformed or protected input", async () => {
+    database = openDatabase();
+    const server = createServerApp({ database, origin }).app;
+    const publicWithProtectedHeader = await server.request(request("/mcp", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", "Mcp-Name": "delete_song" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "catalog", arguments: {} } }) }));
     expect(publicWithProtectedHeader.status).toBe(200);
-    const protectedWithPublicHeader = await server.request(request("/mcp", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", "MCP-Protocol-Version": "2026-07-28", "Mcp-Method": "tools/call", "Mcp-Name": "catalog" }, body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "delete_song", arguments: {}, _meta: { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } }) }));
+    const protectedWithPublicHeader = await server.request(request("/mcp", { method: "POST", headers: { "Content-Type": "application/json", "Mcp-Name": "catalog" }, body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "delete_song", arguments: {} } }) }));
     expect(protectedWithPublicHeader.status).toBe(401);
     const batch = await server.request(request("/mcp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify([{ jsonrpc: "2.0", id: 3, method: "tools/list", params: {} }]) }));
     expect(batch.status).toBe(401);
     const malformed = await server.request(request("/mcp", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{" }));
     expect(malformed.status).toBe(401);
-    expect((await server.request(request("/mcp", { method: "GET" }))).status).not.toBe(401);
-    expect((await server.request(request("/mcp", { method: "DELETE" }))).status).not.toBe(401);
-  });
-
-  it("binds opaque Better Auth tokens to the canonical resource and rejects cookie auth", async () => {
-    database = openDatabase();
-    const auth = { api: { getMcpSession: async () => ({ userId: "user-1" }) }, $context: Promise.resolve({ internalAdapter: { findUserById: async () => ({ email: "allowed@example.com", name: "Allowed" }) } }) } as never;
-    const adapter = createMcpAuthAdapter({ auth, database, origin });
-    await adapter.captureToken(new Response(JSON.stringify({ access_token: "opaque-token", expires_in: 60, scope: "songbook:read" }), { headers: { "Content-Type": "application/json" } }), new Request(`${origin}/mcp/token`));
-    const accepted = await adapter.verifyRequest(new Request(`${origin}/mcp`, { headers: { Authorization: "Bearer opaque-token" } }), ["songbook:read"]);
-    expect(accepted.ok).toBe(true);
-    if (accepted.ok) expect(accepted.principal).toEqual({ userId: "user-1", actor: { email: "allowed@example.com", displayName: "Allowed" } });
-    const cookie = await adapter.verifyRequest(new Request(`${origin}/mcp`, { headers: { Authorization: "Bearer opaque-token", Cookie: "better-auth.session_token=stale" } }), ["songbook:read"]);
-    expect(cookie.ok).toBe(false);
-  });
-
-  it("rejects malformed and invalid bearer headers without anonymous downgrade", async () => {
-    database = openDatabase();
-    const auth = { api: { getMcpSession: async () => ({ userId: "user-1" }) }, $context: Promise.resolve({ internalAdapter: { findUserById: async () => ({ email: "allowed@example.com", name: "Allowed" }) } }) } as never;
-    const adapter = createMcpAuthAdapter({ auth, database, origin });
-    for (const value of ["Basic abc", "Bearer", "Bearer "]) {
-      const response = await adapter.verifyRequest(new Request(`${origin}/mcp`, { headers: { Authorization: value } }), []);
-      expect(response.ok).toBe(false);
-      if (!response.ok) expect(response.response.headers.get("WWW-Authenticate")).toContain("invalid_token");
-    }
-    const invalid = await adapter.verifyRequest(new Request(`${origin}/mcp`, { headers: { Authorization: "Bearer never-valid" } }), []);
-    expect(invalid.ok).toBe(false);
-    if (!invalid.ok) expect(invalid.response.headers.get("WWW-Authenticate")).toContain("invalid_token");
-  });
-
-  it("rejects a token whose application-owned audience/resource binding is wrong", async () => {
-    database = openDatabase();
-    database.sqlite.prepare("INSERT INTO mcp_token_resources (access_token, resource, scopes, expires_at, created_at) VALUES (?, ?, ?, ?, ?)").run("wrong-audience", "https://other.example/mcp", "songbook:read", new Date(Date.now() + 60_000).toISOString(), new Date().toISOString());
-    const adapter = createMcpAuthAdapter({ auth: { api: { getMcpSession: async () => ({}) }, $context: Promise.resolve({ internalAdapter: { findUserById: async () => null } }) } as never, database, origin });
-    const result = await adapter.verifyRequest(new Request(`${origin}/mcp`, { headers: { Authorization: "Bearer wrong-audience" } }), ["songbook:read"]);
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.response.status).toBe(401);
-  });
-
-  it("rejects expired and revoked opaque tokens with invalid-token challenges", async () => {
-    database = openDatabase();
-    database.sqlite.prepare("INSERT INTO mcp_token_resources (access_token, resource, scopes, expires_at, created_at) VALUES (?, ?, ?, ?, ?)").run("expired", `${origin}/mcp`, "songbook:read", new Date(Date.now() - 1_000).toISOString(), new Date().toISOString());
-    const expiredAdapter = createMcpAuthAdapter({ auth: { api: { getMcpSession: async () => ({ userId: "user-1" }) }, $context: Promise.resolve({ internalAdapter: { findUserById: async () => ({ email: "allowed@example.com" }) } }) } as never, database, origin });
-    const expired = await expiredAdapter.verifyRequest(new Request(`${origin}/mcp`, { headers: { Authorization: "Bearer expired" } }), []);
-    expect(expired.ok).toBe(false);
-    if (!expired.ok) expect(expired.response.headers.get("WWW-Authenticate")).toContain("invalid_token");
-
-    const revokedAdapter = createMcpAuthAdapter({ auth: { api: { getMcpSession: async () => null }, $context: Promise.resolve({ internalAdapter: { findUserById: async () => null } }) } as never, database, origin });
-    await revokedAdapter.captureToken(new Response(JSON.stringify({ access_token: "revoked", expires_in: 60, scope: "songbook:read" })), new Request(`${origin}/mcp/token`));
-    const revoked = await revokedAdapter.verifyRequest(new Request(`${origin}/mcp`, { headers: { Authorization: "Bearer revoked" } }), []);
-    expect(revoked.ok).toBe(false);
-    if (!revoked.ok) expect(revoked.response.headers.get("WWW-Authenticate")).toContain("invalid_token");
-  });
-
-  it("rejects missing scopes before invoking the auth provider", async () => {
-    database = openDatabase();
-    let invoked = false;
-    const auth = { api: { getMcpSession: async () => { invoked = true; return {}; } }, $context: Promise.resolve({ internalAdapter: { findUserById: async () => null } }) } as never;
-    const adapter = createMcpAuthAdapter({ auth, database, origin });
-    await adapter.captureToken(new Response(JSON.stringify({ access_token: "read-only", expires_in: 60, scope: "songbook:read" })), new Request(`${origin}/mcp/token`));
-    const result = await adapter.verifyRequest(new Request(`${origin}/mcp`, { headers: { Authorization: "Bearer read-only" } }), ["songbook:write"]);
-    expect(result.ok).toBe(false);
-    expect(invoked).toBe(false);
-  });
-
-  it("does not accept an opaque token that was never captured", async () => {
-    database = openDatabase();
-    const adapter = createMcpAuthAdapter({ auth: { api: { getMcpSession: async () => ({}) }, $context: Promise.resolve({ internalAdapter: { findUserById: async () => null } }) } as never, database, origin });
-    const result = await adapter.verifyRequest(new Request(`${origin}/mcp`, { headers: { Authorization: "Bearer never-captured" } }), ["songbook:read"]);
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.response.status).toBe(401);
-  });
-
-  it("captures successful token responses through both exposed issuance aliases", async () => {
-    database = openDatabase();
-    const captured: string[] = [];
-    const fakeAuth = { handler: async () => new Response(JSON.stringify({ access_token: "alias-token", expires_in: 60, scope: "songbook:read" }), { headers: { "Content-Type": "application/json" } }) };
-    const server = createServerApp({
-      database,
-      origin,
-      auth: fakeAuth as never,
-      mcpAuth: {
-        captureToken: async (response) => { captured.push((await response.json()).access_token as string); },
-        verifyRequest: async () => ({ ok: false, response: new Response(null, { status: 401 }) })
-      }
-    }).app;
-    expect((await server.request(request("/mcp/token", { method: "POST" }))).status).toBe(200);
-    expect((await server.request(request("/api/auth/mcp/token", { method: "POST" }))).status).toBe(200);
-    expect(captured).toEqual(["alias-token", "alias-token"]);
-    const directDiscovery = await server.request(request("/api/auth/.well-known/oauth-authorization-server"));
-    const metadata = await directDiscovery.json();
-    expect(metadata).toEqual(expect.objectContaining({ issuer: `${origin}/api/auth`, authorization_endpoint: `${origin}/api/auth/mcp/authorize`, token_endpoint: `${origin}/api/auth/mcp/token`, registration_endpoint: `${origin}/api/auth/mcp/register` }));
-    expect(await (await server.request(request("/.well-known/oauth-authorization-server"))).json()).toEqual(metadata);
-    expect(await (await server.request(request("/.well-known/oauth-protected-resource/mcp"))).json()).toEqual({ resource: `${origin}/mcp`, authorization_servers: [`${origin}/api/auth`], jwks_uri: `${origin}/api/auth/mcp/jwks`, scopes_supported: ["songbook:read", "songbook:write"], bearer_methods_supported: ["header"], resource_signing_alg_values_supported: ["RS256"] });
-    expect(await (await server.request(request("/.well-known/oauth-protected-resource"))).json()).toEqual(await (await server.request(request("/api/auth/.well-known/oauth-protected-resource"))).json());
-  });
-
-  it("logs OAuth outcomes without logging credentials, codes, or callback state", async () => {
-    database = openDatabase();
-    const records: McpOAuthDiagnosticRecord[] = [];
-    let providerAuthorizeScope: string | null = null;
-    const fakeAuth = {
-      handler: async (incoming: Request) => {
-        const pathname = new URL(incoming.url).pathname;
-        if (pathname.endsWith("/mcp/authorize")) {
-          providerAuthorizeScope = new URL(incoming.url).searchParams.get("scope");
-          return new Response(null, { status: 302, headers: { Location: "https://chatgpt.com/connector/oauth/callback-id?code=secret-code&state=secret-state" } });
-        }
-        if (pathname.endsWith("/mcp/token")) {
-          return new Response(JSON.stringify({ error: "invalid_grant", error_description: "secret-code was rejected" }), {
-            status: 400,
-            headers: { "Content-Type": "application/json" }
-          });
-        }
-        return new Response(null, {
-          status: 302,
-          headers: {
-            Location: `${origin}/?returned=1`,
-            "Set-Cookie": "better-auth.session_token=secret-session; Path=/; HttpOnly"
-          }
-        });
-      }
-    };
-    const server = createServerApp({
-      database,
-      origin,
-      auth: fakeAuth as never,
-      oauthDiagnosticLogger: (record) => records.push(record)
-    }).app;
-
-    const authorize = new URL(`${origin}/api/auth/mcp/authorize`);
-    authorize.searchParams.set("client_id", "secret-client");
-    authorize.searchParams.set("redirect_uri", "https://chatgpt.com/connector/oauth/callback-id");
-    authorize.searchParams.set("scope", "songbook:write songbook:read songbook:admin mcp:tools https://example.test/private");
-    authorize.searchParams.set("code_challenge", "secret-challenge");
-    authorize.searchParams.set("code_challenge_method", "S256");
-    authorize.searchParams.set("resource", `${origin}/mcp`);
-    await server.request(new Request(authorize));
-    await server.request(request("/api/auth/mcp/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "authorization_code",
-        client_id: "secret-client",
-        code: "secret-code",
-        code_verifier: "secret-verifier",
-        resource: `${origin}/mcp`
-      })
-    }));
-    await server.request(request("/api/auth/callback/google", { headers: { Cookie: "oidc_login_prompt=secret-prompt" } }));
-
-    expect(records).toHaveLength(3);
-    expect(providerAuthorizeScope).toBe("songbook:write songbook:read mcp:tools https://example.test/private");
-    expect(records[0]).toMatchObject({
-      endpoint: "authorize",
-      status: 302,
-      request: {
-        hasPkce: true,
-        resourceMatches: true,
-        scopes: {
-          known: ["songbook:read", "songbook:write"],
-          legacy: ["songbook:admin"],
-          unknown: ["mcp:tools", expect.stringMatching(/^sha256:[a-f0-9]{12}$/u)],
-          unknownCount: 2
-        }
-      },
-      response: { redirect: { kind: "chatgpt_callback", hasCode: true, hasState: true } }
-    });
-    expect(records[1]).toMatchObject({
-      endpoint: "token",
-      status: 400,
-      request: { grantType: "authorization_code", hasCodeVerifier: true, resourceMatches: true },
-      response: { outcome: "oauth_error", error: "invalid_grant" }
-    });
-    expect(records[2]).toMatchObject({
-      endpoint: "browser_callback",
-      status: 302,
-      request: { hasPendingMcpLogin: true },
-      response: { redirect: { kind: "login" }, setCookies: ["better-auth.session_token"] }
-    });
-    const serialized = JSON.stringify(records);
-    for (const secret of ["secret-client", "secret-code", "secret-state", "secret-challenge", "secret-verifier", "secret-session", "secret-prompt"]) {
-      expect(serialized).not.toContain(secret);
-    }
-  });
-
-  it("rejects a valid opaque token when its authoritative user is not allowlisted", async () => {
-    database = openDatabase();
-    const auth = { api: { getMcpSession: async () => ({ userId: "user-1" }) }, $context: Promise.resolve({ internalAdapter: { findUserById: async () => ({ email: "revoked@example.com", name: "Revoked" }) } }) } as never;
-    const adapter = createMcpAuthAdapter({ auth, database, origin });
-    await adapter.captureToken(new Response(JSON.stringify({ access_token: "revoked-token", expires_in: 60, scope: "songbook:read" })), new Request(`${origin}/mcp/token`));
-    const server = createServerApp({ database, origin, mcpAuth: adapter }).app;
-    expect((await server.request(request("/mcp", { headers: { Authorization: "Bearer revoked-token" } }))).status).toBe(401);
   });
 });

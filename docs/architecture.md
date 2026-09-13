@@ -1,8 +1,8 @@
 # Architecture
 
 Songbook is a mobile-first PWA served by one Node/Hono application on OCI. The
-catalog remains public; protected browser writes use Better Auth sessions and
-the same SQLite database owns application state.
+catalog remains public; protected browser writes use shared `auth.lost.plus`
+sessions and SQLite owns application state.
 
 ```mermaid
 flowchart LR
@@ -12,7 +12,7 @@ flowchart LR
   Node --> SQLite[(SQLite operational DB)]
   Node --> TJ[TJ public HTML, fixed host, bounded fetch]
   Node --> Mirror[(TJ SQLite mirror)]
-  Node --> Google[Better Auth Google OAuth]
+  Node --> Auth[auth.lost.plus identity validation]
 ```
 
 ## Frontend
@@ -30,29 +30,30 @@ flowchart LR
 
 ## Node application
 
-- One Node/Hono process serves the PWA, same-origin API, Better Auth routes,
+- One Node/Hono process serves the PWA, same-origin API,
   health endpoint, and stateless MCP endpoint.
 - SQLite is the operational source of truth for songs, performances, audit and
-  idempotency state, Better Auth state, MCP token resources, and the TJ mirror.
+  idempotency state, and the TJ mirror. Identity, sessions, bearer tokens,
+  service admission, and revocation live in `auth.lost.plus`.
 - The retired Apps Script/Sheets implementation remains historical migration
   material only; it is not on the live request path.
 
 ## MCP transport and authorization
 
-- `/mcp` is an optional-OAuth mount serving modern and legacy stateless MCP
+- `/mcp` is an optional-bearer mount serving modern and legacy stateless MCP
   exchanges without long-lived MCP session state.
 - Requests without an Authorization header are anonymous. Anonymous transport
   admission is derived from the JSON body and allows discovery, listings,
   notifications, ping, and public catalog/search/lookup calls. Unknown,
   malformed, ambiguous, and batch requests fail closed.
-- A present Authorization header is always evaluated as OAuth bearer input;
-  malformed, expired, revoked, resource-mismatched, and unsupported headers
-  are rejected. Cookies never provide MCP identity, and mixed cookies plus a
-  bearer are rejected.
+- A present Authorization header is always evaluated by `auth.lost.plus`;
+  malformed, expired, revoked, and unsupported credentials are rejected.
+  Cookies never provide MCP identity. Common auth gives the bearer precedence
+  when both credential shapes arrive.
 - The single tool-policy table defines public access and `songbook:write`
   requirements for both transport gating and tool guards.
-  Every authenticated request resolves the Better Auth token user and current
-  allowlist before reaching a shared service.
+  Every authenticated request resolves the common-auth identity and `okdam`
+  service admission before reaching a shared service.
 - `search_songs` always returns saved matches and a TJ section. Anonymous
   searches never invoke TJ; authenticated read-scoped eligible searches use
   the existing mirror-backed adapter and preserve local matches when TJ fails.
@@ -81,6 +82,5 @@ boundaries after the OCI cutover.
 ## Separate legacy ChatGPT OAuth
 
 The Worker’s `/authorize`, `/oauth/callback`, `/token`, and `/api/gpt*` routes
-remain a separate OAuth protocol for ChatGPT Actions. Better Auth browser
-sessions do not replace its redirect allowlist, bearer token, or GPT action
-contracts.
+remain a separate OAuth protocol for ChatGPT Actions. Shared browser sessions
+do not replace its redirect allowlist, bearer token, or GPT action contracts.

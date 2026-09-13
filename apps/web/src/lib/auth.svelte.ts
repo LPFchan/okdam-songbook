@@ -1,5 +1,5 @@
 import { fetchCurrentUser, isApiAuthError, mockMode } from "./api";
-import { signInWithGoogle, signOutBrowser } from "./auth/client";
+import { signInWithCommonAuth, signOutBrowser } from "./auth/client";
 
 export type AuthStatus = "unknown" | "anonymous" | "authenticating" | "authenticated" | "reauthRequired";
 
@@ -14,7 +14,7 @@ const SESSION_KEY = "songbook:display-user";
 
 export class AuthRequiredError extends Error {
   readonly code = "AUTH_REQUIRED";
-  constructor(message = "기록하려면 Google 로그인이 필요해요.") {
+  constructor(message = "기록하려면 로그인이 필요해요.") {
     super(message);
     this.name = "AuthRequiredError";
   }
@@ -75,14 +75,14 @@ class AuthStore {
     }
     this.status = "authenticating";
     try {
-      await signInWithGoogle();
+      signInWithCommonAuth();
     } catch (error) {
       if (error instanceof AuthRequiredError) throw error;
       this.status = "reauthRequired";
-      const message = error instanceof Error && error.message ? error.message : "Google 로그인을 시작하지 못했어요.";
+      const message = error instanceof Error && error.message ? error.message : "로그인을 시작하지 못했어요.";
       throw new AuthRequiredError(message);
     }
-    throw new AuthRequiredError("Google 로그인 화면으로 이동했어요.");
+    throw new AuthRequiredError("로그인 화면으로 이동했어요.");
   }
 
   signOut() {

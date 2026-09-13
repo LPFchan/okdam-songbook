@@ -354,7 +354,7 @@
             : item
         );
         await enqueuePerformanceCreate(song.id, auth.user?.email ?? "unknown", clientRequestId, performedAt);
-        snackbar.show("기록하려면 Google 로그인이 필요해요.");
+        snackbar.show("기록하려면 로그인이 필요해요.");
         return;
       }
       await enqueuePerformanceCreate(song.id, auth.user?.email ?? "unknown", clientRequestId, performedAt);
@@ -390,7 +390,7 @@
       if (error instanceof AuthRequiredError) {
         const queued = await enqueuePerformanceCancel(target.songId, target.performanceId, auth.user?.email ?? "unknown", cancellationRequestId);
         await markQueueItemFailed(queued.id, new Error("로그인 후 다시 시도할 수 있어요."), "auth");
-        snackbar.show("취소하려면 Google 로그인이 필요해요.");
+        snackbar.show("취소하려면 로그인이 필요해요.");
         return;
       }
       snackbar.show(error instanceof Error ? error.message : "취소에 실패했어요.");
@@ -483,7 +483,7 @@
       await auth.requireValidCredential();
       favoriteOnly = !favoriteOnly;
     } catch (error) {
-      snackbar.show(error instanceof AuthRequiredError ? "즐겨찾기를 보려면 Google 로그인이 필요해요." : error instanceof Error ? error.message : "즐겨찾기를 열지 못했어요.");
+      snackbar.show(error instanceof AuthRequiredError ? "즐겨찾기를 보려면 로그인이 필요해요." : error instanceof Error ? error.message : "즐겨찾기를 열지 못했어요.");
     }
   }
 
@@ -492,7 +492,7 @@
     try {
       await auth.requireValidCredential();
     } catch (error) {
-      snackbar.show(error instanceof AuthRequiredError ? "즐겨찾기를 쓰려면 Google 로그인이 필요해요." : error instanceof Error ? error.message : "로그인이 필요해요.");
+      snackbar.show(error instanceof AuthRequiredError ? "즐겨찾기를 쓰려면 로그인이 필요해요." : error instanceof Error ? error.message : "로그인이 필요해요.");
       return;
     }
     const wasFavorite = favoriteSongIds.includes(song.id);

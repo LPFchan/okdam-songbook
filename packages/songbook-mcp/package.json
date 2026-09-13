@@ -19,7 +19,6 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@better-auth/mcp": "^1.4.17",
     "@modelcontextprotocol/server": "^2.0.0",
     "@songbook/server-core": "file:../../packages/server-core",
     "@songbook/shared": "file:../../packages/shared",

@@ -2,8 +2,6 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { serve } from "@hono/node-server";
 import { createTjAdapter, createTjSearchMirror } from "@songbook/server-core";
-import { normalizeEmail } from "@songbook/shared";
-import { z } from "zod";
 import { createConfiguredServer } from "./api.js";
 import { createAiReadingGenerator, type ReadingGenerator } from "./reading.js";
 
@@ -19,20 +17,8 @@ function port(): number {
   return value;
 }
 
-const allowedUsersSchema = z.record(z.string(), z.string().trim().min(1).max(80));
-
-export function parseAllowedUsers(raw: string | undefined): Record<string, string> {
-  if (!raw?.trim()) throw new Error("ALLOWED_USERS_JSON is required");
-  let parsed: unknown;
-  try { parsed = JSON.parse(raw); } catch { throw new Error("ALLOWED_USERS_JSON must be valid JSON"); }
-  const result = allowedUsersSchema.safeParse(parsed);
-  const entries = result.success ? Object.entries(result.data) : [];
-  if (!result.success || entries.length === 0 || entries.some(([email]) => !z.string().trim().email().safeParse(email).success)) {
-    throw new Error("ALLOWED_USERS_JSON must be a non-empty JSON object mapping valid email addresses to display names");
-  }
-  const normalized = entries.map(([email, displayName]) => [normalizeEmail(email), displayName] as const);
-  if (new Set(normalized.map(([email]) => email)).size !== normalized.length) throw new Error("ALLOWED_USERS_JSON must not contain duplicate email addresses");
-  return Object.fromEntries(normalized);
+export function commonAuthOriginFromEnvironment(environment: NodeJS.ProcessEnv): string {
+  return environment.AUTH_ORIGIN?.trim().replace(/\/$/u, "") || "https://auth.lost.plus";
 }
 
 export function readingGeneratorFromEnvironment(environment: NodeJS.ProcessEnv): ReadingGenerator | undefined {
@@ -46,13 +32,10 @@ export function readingGeneratorFromEnvironment(environment: NodeJS.ProcessEnv):
 
 export async function startFromEnvironment() {
   const origin = required("ORIGIN").replace(/\/$/, "");
-  const secret = required("BETTER_AUTH_SECRET");
-  if (secret.length < 32) throw new Error("BETTER_AUTH_SECRET must be at least 32 characters");
   const dbPath = resolve(process.env.DATABASE_PATH?.trim() || "/var/lib/songbook/songbook.sqlite");
   mkdirSync(dirname(dbPath), { recursive: true });
-  const users = parseAllowedUsers(process.env.ALLOWED_USERS_JSON);
   const database = (await import("@songbook/server-core")).openDatabase({ filename: dbPath });
-  const server = await createConfiguredServer({
+  const server = createConfiguredServer({
     database,
     origin,
     tj: createTjAdapter({
@@ -62,13 +45,8 @@ export async function startFromEnvironment() {
     readingGenerator: readingGeneratorFromEnvironment(process.env),
     assetsRoot: process.env.ASSETS_ROOT?.trim() || resolve(process.cwd(), "apps/web/dist"),
     auth: {
-      database,
-      origin,
-      secret,
-      allowedUsers: users,
-      googleClientId: process.env.GOOGLE_CLIENT_ID,
-      googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      production: process.env.NODE_ENV === "production"
+      origin: commonAuthOriginFromEnvironment(process.env),
+      serviceKey: "okdam"
     }
   });
   const listener = serve({ fetch: server.app.fetch, hostname: process.env.HOST?.trim() || "0.0.0.0", port: port() }, (info) => {

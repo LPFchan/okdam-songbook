@@ -18,8 +18,7 @@ import {
   tjLookupRequestSchema,
   tjSearchRequestSchema,
   tjSongCandidateSchema,
-  type CurrentUser,
-  type McpScope
+  type CurrentUser
 } from "@songbook/shared";
 import type { SongbookDatabase } from "@songbook/server-core";
 import {
@@ -33,11 +32,10 @@ import {
 } from "@songbook/server-core";
 import { z } from "zod";
 import {
-  createBrowserAuth,
-  createAllowlistRoleResolver,
-  type BrowserAuth,
-  type BrowserAuthConfig,
-  initializeBrowserAuth,
+  createCommonAuthClient,
+  createCommonAuthRoleResolver,
+  type CommonAuthClient,
+  type CommonAuthConfig,
   type McpAuthAdapter,
   createMcpAuthAdapter,
   mcpBearerChallenge
@@ -59,34 +57,22 @@ export interface ServerAppOptions {
   service?: SongbookService;
   roleResolver?: RoleResolver;
   sessionResolver?: BrowserSessionResolver;
-  auth?: BrowserAuth;
+  auth?: CommonAuthClient;
   tj?: TjAdapter;
   readingGenerator?: ReadingGenerator;
   mcpAuth?: McpAuthAdapter;
-  oauthDiagnosticLogger?: (record: McpOAuthDiagnosticRecord) => void;
   now?: () => string;
-}
-
-export interface McpOAuthDiagnosticRecord {
-  event: "mcp_oauth";
-  at: string;
-  endpoint: "authorize" | "token" | "register" | "browser_callback";
-  status: number;
-  durationMs: number;
-  request: Record<string, unknown>;
-  response: Record<string, unknown>;
 }
 
 export interface ServerApp {
   app: Hono;
   database: SongbookDatabase;
   service: SongbookService;
-  auth?: BrowserAuth;
+  auth?: CommonAuthClient;
   mcpAuth: McpAuthAdapter;
 }
 
 const JSON_MEDIA_TYPE = /^application\/json(?:\s*;|$)/i;
-const PUBLIC_MCP_SCOPES: McpScope[] = ["songbook:read", "songbook:write"];
 const ANONYMOUS_MCP_METHODS = new Set([
   "initialize",
   "server/discover",
@@ -177,160 +163,6 @@ function etag(value: string): string {
   return `"${createHash("sha256").update(value).digest("hex")}"`;
 }
 
-function publicMcpMetadata(origin: string): Record<string, unknown> {
-  const issuer = `${origin}/api/auth`;
-  return {
-    issuer,
-    authorization_endpoint: `${issuer}/mcp/authorize`,
-    token_endpoint: `${issuer}/mcp/token`,
-    registration_endpoint: `${issuer}/mcp/register`,
-    jwks_uri: `${origin}/api/auth/mcp/jwks`,
-    scopes_supported: ["openid", "profile", "email", "offline_access", ...PUBLIC_MCP_SCOPES],
-    response_types_supported: ["code"],
-    response_modes_supported: ["query"],
-    grant_types_supported: ["authorization_code", "refresh_token"],
-    token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post", "none"],
-    code_challenge_methods_supported: ["S256"],
-    claims_supported: ["sub", "iss", "aud", "exp", "nbf", "iat", "jti", "email", "email_verified", "name"]
-  };
-}
-
-function protectedResourceMetadata(origin: string): Record<string, unknown> {
-  return {
-    resource: `${origin}/mcp`,
-    authorization_servers: [`${origin}/api/auth`],
-    jwks_uri: `${origin}/api/auth/mcp/jwks`,
-    scopes_supported: PUBLIC_MCP_SCOPES,
-    bearer_methods_supported: ["header"],
-    resource_signing_alg_values_supported: ["RS256"]
-  };
-}
-
-function oauthFingerprint(value: string | null | undefined): string | null {
-  return value ? createHash("sha256").update(value).digest("hex").slice(0, 12) : null;
-}
-
-function oauthValue(value: unknown): string | null {
-  return typeof value === "string" && value.length <= 200 ? value : null;
-}
-
-function oauthLabel(value: unknown): string | null {
-  const parsed = oauthValue(value);
-  return parsed && /^[a-z][a-z0-9_:-]{0,63}$/u.test(parsed) ? parsed : null;
-}
-
-function oauthScopeFacts(value: unknown): Record<string, unknown> {
-  const allowed = new Set(["openid", "profile", "email", "offline_access", "songbook:read", "songbook:write"]);
-  const legacy = new Set(["songbook:admin"]);
-  const requested = String(value ?? "").split(/\s+/u).filter(Boolean);
-  const unknown = requested.filter((scope) => !allowed.has(scope) && !legacy.has(scope));
-  return {
-    known: requested.filter((scope) => allowed.has(scope)).sort(),
-    legacy: requested.filter((scope) => legacy.has(scope)).sort(),
-    unknown: unknown.map((scope) => oauthLabel(scope) ?? `sha256:${oauthFingerprint(scope)}`),
-    unknownCount: unknown.length
-  };
-}
-
-function normalizeLegacyMcpAuthorizeRequest(request: Request): Request {
-  const url = new URL(request.url);
-  const requested = (url.searchParams.get("scope") ?? "").split(/\s+/u).filter(Boolean);
-  if (!requested.includes("songbook:admin")) return request;
-  const normalized = Array.from(new Set(requested.map((scope) => scope === "songbook:admin" ? "songbook:write" : scope)));
-  url.searchParams.set("scope", normalized.join(" "));
-  return new Request(url, request);
-}
-
-function oauthRedirectFacts(location: string | null, origin: string): Record<string, unknown> {
-  if (!location) return { kind: "none" };
-  try {
-    const url = new URL(location, origin);
-    const sameOrigin = url.origin === origin;
-    const kind = sameOrigin
-      ? url.pathname === "/" ? "login" : "same_origin"
-      : url.hostname === "chatgpt.com" || url.hostname === "chat.openai.com" ? "chatgpt_callback" : "external";
-    return {
-      kind,
-      hasCode: url.searchParams.has("code"),
-      code: oauthFingerprint(url.searchParams.get("code")),
-      hasState: url.searchParams.has("state"),
-      hasIssuer: url.searchParams.has("iss"),
-      error: oauthLabel(url.searchParams.get("error"))
-    };
-  } catch {
-    return { kind: "invalid" };
-  }
-}
-
-function oauthCookieNames(headers: Headers): string[] {
-  const values = typeof headers.getSetCookie === "function"
-    ? headers.getSetCookie()
-    : [headers.get("set-cookie")].filter((value): value is string => Boolean(value));
-  return values.map((value) => value.slice(0, value.indexOf("="))).filter(Boolean).sort();
-}
-
-async function oauthRequestFacts(request: Request, endpoint: McpOAuthDiagnosticRecord["endpoint"], origin: string): Promise<Record<string, unknown>> {
-  if (endpoint === "browser_callback") {
-    return { hasPendingMcpLogin: /(?:^|;\s*)oidc_login_prompt=/u.test(request.headers.get("Cookie") ?? "") };
-  }
-  if (endpoint === "authorize") {
-    const url = new URL(request.url);
-    return {
-      client: oauthFingerprint(url.searchParams.get("client_id")),
-      redirect: oauthRedirectFacts(url.searchParams.get("redirect_uri"), origin),
-      scopes: oauthScopeFacts(url.searchParams.get("scope")),
-      hasPkce: url.searchParams.get("code_challenge_method")?.toUpperCase() === "S256" && url.searchParams.has("code_challenge"),
-      resourceMatches: url.searchParams.get("resource") === `${origin}/mcp`,
-      prompt: oauthLabel(url.searchParams.get("prompt"))
-    };
-  }
-  let body: Record<string, unknown> = {};
-  try {
-    const contentType = request.headers.get("Content-Type") ?? "";
-    if (contentType.includes("application/json")) body = await request.clone().json() as Record<string, unknown>;
-    else body = Object.fromEntries(new URLSearchParams(await request.clone().text()));
-  } catch {
-    body = {};
-  }
-  if (endpoint === "register") {
-    const redirects = Array.isArray(body.redirect_uris) ? body.redirect_uris : [];
-    return {
-      redirectKinds: redirects.map((value) => oauthRedirectFacts(typeof value === "string" ? value : null, origin).kind),
-      tokenAuthMethod: oauthLabel(body.token_endpoint_auth_method)
-    };
-  }
-  return {
-    grantType: oauthLabel(body.grant_type),
-    client: oauthFingerprint(oauthValue(body.client_id)),
-    code: oauthFingerprint(oauthValue(body.code)),
-    hasCodeVerifier: Boolean(oauthValue(body.code_verifier)),
-    resourceMatches: oauthValue(body.resource) === `${origin}/mcp`
-  };
-}
-
-async function oauthResponseFacts(response: Response, endpoint: McpOAuthDiagnosticRecord["endpoint"], origin: string): Promise<Record<string, unknown>> {
-  if (endpoint === "authorize" || endpoint === "browser_callback") {
-    return {
-      redirect: oauthRedirectFacts(response.headers.get("Location"), origin),
-      setCookies: oauthCookieNames(response.headers)
-    };
-  }
-  let payload: Record<string, unknown> = {};
-  try { payload = await response.clone().json() as Record<string, unknown>; } catch { /* no JSON body */ }
-  if (endpoint === "register") {
-    return {
-      outcome: response.ok ? "registered" : "oauth_error",
-      client: response.ok ? oauthFingerprint(oauthValue(payload.client_id)) : null,
-      error: response.ok ? null : oauthLabel(payload.error)
-    };
-  }
-  return {
-    outcome: response.ok && typeof payload.access_token === "string" ? "issued" : response.ok ? "unexpected_success" : "oauth_error",
-    scopes: response.ok ? oauthScopeFacts(payload.scope) : oauthScopeFacts(""),
-    error: response.ok ? null : oauthLabel(payload.error)
-  };
-}
-
 function safeAssetPath(root: string, pathname: string): string | null {
   const relative = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
   const candidate = resolve(root, normalize(relative));
@@ -358,22 +190,15 @@ function staticResponse(root: string | undefined, pathname: string): Response | 
   return null;
 }
 
-async function authSession(auth: BrowserAuth, request: Request): Promise<BrowserPrincipal | null> {
-  const session = await auth.api.getSession({ headers: request.headers, query: { disableCookieCache: true } });
-  if (!session) return null;
-  return { id: session.user.id, email: session.user.email, displayName: session.user.name, expiresAt: session.session.expiresAt };
-}
-
 function currentUser(principal: BrowserPrincipal, roleResolver: RoleResolver): CurrentUser | null {
   const resolved = roleResolver.resolve(principal);
   if (!resolved) return null;
   return currentUserSchema.parse({ email: resolved.email, displayName: resolved.displayName, role: resolved.role });
 }
 
-export async function createConfiguredServer(options: Omit<ServerAppOptions, "auth" | "roleResolver"> & { auth: BrowserAuthConfig }): Promise<ServerApp> {
-  const auth = createBrowserAuth(options.auth);
-  await initializeBrowserAuth(auth);
-  return createServerApp({ ...options, auth, roleResolver: createAllowlistRoleResolver(options.auth.allowedUsers) });
+export function createConfiguredServer(options: Omit<ServerAppOptions, "auth" | "roleResolver"> & { auth: CommonAuthConfig }): ServerApp {
+  const auth = createCommonAuthClient(options.auth);
+  return createServerApp({ ...options, auth, roleResolver: createCommonAuthRoleResolver() });
 }
 
 export function createServerApp(options: ServerAppOptions): ServerApp {
@@ -381,27 +206,15 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
   const roleResolver = options.roleResolver ?? { resolve: () => null };
   const service = options.service ?? createSongbookService(options.database, { roleResolver, now });
   const auth = options.auth;
-  const sessionResolver = options.sessionResolver ?? (auth ? (request: Request) => authSession(auth, request) : async () => null);
-  const mcpAuth = options.mcpAuth ?? (auth ? createMcpAuthAdapter({ auth, database: options.database, origin: options.origin }) : createMcpAuthAdapter({ database: options.database, origin: options.origin }));
+  const sessionResolver: BrowserSessionResolver = options.sessionResolver ?? (auth ? async (request: Request) => {
+    const identity = await auth.resolve(request);
+    return identity ? { id: identity.email, email: identity.email, displayName: identity.name } : null;
+  } : async () => null);
+  const mcpAuth = options.mcpAuth ?? (auth ? createMcpAuthAdapter(auth) : {
+    verifyRequest: async () => ({ ok: false as const, response: mcpBearerChallenge(true) })
+  });
   const mcpHandler = createSongbookMcpHandler({ service, tj: options.tj });
-  const oauthDiagnosticLogger = options.oauthDiagnosticLogger ?? ((record: McpOAuthDiagnosticRecord) => console.info(JSON.stringify(record)));
   const app = new Hono();
-
-  const logOAuthExchange = async (endpoint: McpOAuthDiagnosticRecord["endpoint"], request: Request, response: Response, startedAt: number) => {
-    try {
-      oauthDiagnosticLogger({
-        event: "mcp_oauth",
-        at: now(),
-        endpoint,
-        status: response.status,
-        durationMs: Date.now() - startedAt,
-        request: await oauthRequestFacts(request, endpoint, options.origin),
-        response: await oauthResponseFacts(response, endpoint, options.origin)
-      });
-    } catch {
-      // Diagnostics must never alter an OAuth response.
-    }
-  };
 
   const protectBrowser = async (c: Context): Promise<BrowserPrincipal | Response> => {
     if (hasAuthorizationHeader(c)) return failure(c, new DomainError("UNAUTHORIZED", "브라우저 세션이 필요해."), now);
@@ -531,57 +344,23 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     return service.createTjSong(actor, candidate.data, parsed.data.clientRequestId);
   }));
 
-  app.get("/.well-known/oauth-authorization-server", (c) => c.json(publicMcpMetadata(options.origin)));
-  app.get("/.well-known/oauth-protected-resource", (c) => c.json(protectedResourceMetadata(options.origin)));
-  app.get("/.well-known/oauth-protected-resource/mcp", (c) => c.json(protectedResourceMetadata(options.origin)));
+  app.post("/api/logout", async (c) => {
+    if (!auth) return c.notFound();
+    return auth.logout(c.req.raw);
+  });
 
-  const authAlias = async (c: Context, target: string): Promise<Response> => {
-    if (!auth) return c.notFound();
-    const startedAt = Date.now();
-    const url = new URL(c.req.url);
-    url.pathname = `/api/auth${target}`;
-    const request = new Request(url, c.req.raw);
-    const diagnosticRequest = request.clone();
-    const providerRequest = target === "/mcp/authorize" ? normalizeLegacyMcpAuthorizeRequest(request) : request;
-    const response = await auth.handler(providerRequest);
-    if (target === "/mcp/token" && response.ok) await mcpAuth.captureToken(response.clone(), c.req.raw);
-    const endpoint = target.slice(5) as "authorize" | "token" | "register";
-    await logOAuthExchange(endpoint, diagnosticRequest, response.clone(), startedAt);
-    return response;
-  };
-  // Keep the provider's direct token and discovery paths behind the same
-  // application-owned aliases; the generic auth wildcard must come last.
-  app.get("/api/auth/.well-known/oauth-authorization-server", (c) => c.json(publicMcpMetadata(options.origin)));
-  app.get("/api/auth/.well-known/oauth-protected-resource", (c) => c.json(protectedResourceMetadata(options.origin)));
-  app.get("/api/auth/mcp/authorize", (c) => authAlias(c, "/mcp/authorize"));
-  app.post("/api/auth/mcp/token", (c) => authAlias(c, "/mcp/token"));
-  app.post("/api/auth/mcp/register", (c) => authAlias(c, "/mcp/register"));
-  app.get("/mcp/authorize", (c) => authAlias(c, "/mcp/authorize"));
-  app.post("/mcp/token", (c) => authAlias(c, "/mcp/token"));
-  app.post("/mcp/register", (c) => authAlias(c, "/mcp/register"));
-  const authHandler = async (c: Context): Promise<Response> => {
-    if (!auth) return c.notFound();
-    const request = c.req.raw;
-    const startedAt = Date.now();
-    const response = await auth.handler(request);
-    if (new URL(request.url).pathname.startsWith("/api/auth/callback/")) {
-      await logOAuthExchange("browser_callback", request.clone(), response.clone(), startedAt);
-    }
-    return response;
-  };
-  app.on(["GET", "POST", "OPTIONS"], "/api/auth/*", authHandler);
   app.all("/mcp", async (c) => {
     const request = c.req.raw;
     const body = request.method === "POST" ? await request.clone().json().catch(() => null) : null;
     const handlerRequest = bodyDerivedMcpRequest(request, body);
     if (request.headers.get("Authorization") === null) {
-      if (!anonymousMcpRequestAllowed(request.method, body)) return mcpBearerChallenge(options.origin);
+      if (!anonymousMcpRequestAllowed(request.method, body)) return mcpBearerChallenge();
       return mcpHandler.fetch(handlerRequest, { parsedBody: body ?? undefined });
     }
     const requiredScope = mcpRequiredScopeForBody(body);
     const checked = await mcpAuth.verifyRequest(request, requiredScope ? [requiredScope] : []);
     if (!checked.ok) return checked.response;
-    if (!roleResolver.resolve(checked.principal.actor)) return mcpBearerChallenge(options.origin, true);
+    if (!roleResolver.resolve(checked.principal.actor)) return mcpBearerChallenge(true);
     return mcpHandler.fetch(handlerRequest, {
       authInfo: authInfoForPrincipal({ ...checked.principal, scopes: checked.token.scopes }, checked.token.accessToken),
       parsedBody: body ?? undefined
@@ -595,4 +374,4 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
   return { app, database: options.database, service, auth, mcpAuth };
 }
 
-export { publicMcpMetadata, protectedResourceMetadata, safeAssetPath };
+export { safeAssetPath };

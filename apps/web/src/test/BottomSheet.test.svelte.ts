@@ -78,7 +78,7 @@ describe("BottomSheet motion", () => {
     for (let i = 0; i < 40; i++) {
       await new Promise((r) => setTimeout(r, 100));
       const t = sheet.style.transform;
-      offset = t ? Math.abs(parseFloat(t.replace(/[^0-9.\-]/g, ""))) : 0;
+      offset = t ? Math.abs(parseFloat(t.replace(/[^0-9.-]/g, ""))) : 0;
       if (offset < 5) break;
     }
     expect(Math.abs(offset)).toBeLessThan(5); // settled back to rest
@@ -103,14 +103,14 @@ describe("BottomSheet motion", () => {
     });
 
     sheet.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 1, clientX: 200, clientY: 300, bubbles: true }));
-    const startOffset = parseFloat((sheet.style.transform || "0").replace(/[^0-9.\-]/g, "")) || 0;
+    const startOffset = parseFloat((sheet.style.transform || "0").replace(/[^0-9.-]/g, "")) || 0;
     // Pull down 80px (< the 120px scroll): content scrolls toward top, sheet stays.
     for (let i = 1; i <= 4; i++) {
       window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 200, clientY: 300 + i * 20, bubbles: true }));
       await new Promise((r) => setTimeout(r, 30));
     }
     expect(scrollTop).toBeLessThan(120);
-    const duringScroll = parseFloat((sheet.style.transform || "0").replace(/[^0-9.\-]/g, "")) || 0;
+    const duringScroll = parseFloat((sheet.style.transform || "0").replace(/[^0-9.-]/g, "")) || 0;
     // The sheet must not move while the content is still absorbing the pull.
     expect(Math.abs(duringScroll - startOffset)).toBeLessThan(5);
 
@@ -120,7 +120,7 @@ describe("BottomSheet motion", () => {
       await new Promise((r) => setTimeout(r, 30));
     }
     expect(scrollTop).toBe(0);
-    const afterTop = parseFloat((sheet.style.transform || "0").replace(/[^0-9.\-]/g, "")) || 0;
+    const afterTop = parseFloat((sheet.style.transform || "0").replace(/[^0-9.-]/g, "")) || 0;
     expect(afterTop).toBeGreaterThan(0); // sheet now dragging down
     cleanup();
   });
@@ -178,7 +178,6 @@ describe("BottomSheet motion", () => {
       window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 200, clientY: 400 - i * 20, bubbles: true }));
       await new Promise((r) => setTimeout(r, 30));
     }
-    const raw = sheet.style.transform || "";
     // transform is only set when offset > 0; a rubber-banded (negative) offset
     // clears it, but motion.drag still holds the value. Assert via offset sign:
     // the sheet must NOT be dismissed and the content must not have scrolled.

@@ -1,104 +1,91 @@
-import { betterAuth, type Auth, type BetterAuthOptions } from "better-auth";
-import { mcp } from "better-auth/plugins";
-import type Database from "better-sqlite3";
-import type { RequestActor, ResolvedActor, RoleResolver, SongbookDatabase } from "@songbook/server-core";
-import { normalizeEmail, parseAuthorizationHeader, type McpScope } from "@songbook/shared";
+import type { RequestActor, ResolvedActor, RoleResolver } from "@songbook/server-core";
+import { normalizeEmail, type McpScope } from "@songbook/shared";
 import { z } from "zod";
 
-export interface BrowserAuthConfig {
-  database: SongbookDatabase;
+const commonAuthIdentitySchema = z.object({
+  email: z.string().trim().email(),
+  name: z.string().trim().min(1).max(80),
+  role: z.enum(["administrator", "user"]),
+  services: z.array(z.string())
+});
+
+export interface CommonAuthIdentity {
+  email: string;
+  name: string;
+  role: "administrator" | "user";
+  services: string[];
+}
+
+export interface CommonAuthConfig {
   origin: string;
-  secret: string;
-  googleClientId?: string;
-  googleClientSecret?: string;
-  allowedUsers?: Record<string, string>;
-  production?: boolean;
+  serviceKey: string;
+  fetch?: typeof globalThis.fetch;
 }
 
-export type BrowserAuth = Auth<BetterAuthOptions>;
-
-const allowedEmailSchema = z.string().trim().email();
-
-export interface AllowedUserIdentity {
-  displayName: string;
-  role: "allowed";
+export interface CommonAuthClient {
+  origin: string;
+  resolve(request: Request): Promise<CommonAuthIdentity | null>;
+  logout(request: Request): Promise<Response>;
 }
 
-export function allowedUserMap(value: BrowserAuthConfig["allowedUsers"]): Map<string, AllowedUserIdentity> {
-  if (value === undefined) return new Map();
-  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length === 0) throw new Error("allowedUsers must be a non-empty email-to-name object");
-  const entries: Array<[string, AllowedUserIdentity]> = [];
-  const seen = new Set<string>();
-  for (const [email, displayName] of Object.entries(value)) {
-    const parsed = allowedEmailSchema.safeParse(email);
-    if (!parsed.success || typeof displayName !== "string" || !displayName.trim() || displayName.trim().length > 80) throw new Error("allowedUsers must map valid email strings to non-empty display names");
-    const normalized = normalizeEmail(parsed.data);
-    if (!normalized || seen.has(normalized)) throw new Error("allowedUsers must not contain duplicate email addresses");
-    seen.add(normalized);
-    entries.push([normalized, { displayName: displayName.trim(), role: "allowed" }]);
-  }
-  return new Map(entries);
+function forwardedCredentials(request: Request): Headers {
+  const headers = new Headers();
+  const cookie = request.headers.get("Cookie");
+  const authorization = request.headers.get("Authorization");
+  if (cookie !== null) headers.set("Cookie", cookie);
+  if (authorization !== null) headers.set("Authorization", authorization);
+  return headers;
 }
 
-/** Resolve admission from the configured allowlist on every call. */
-export function createAllowlistRoleResolver(value: BrowserAuthConfig["allowedUsers"]): RoleResolver {
-  const allowed = allowedUserMap(value);
+export function createCommonAuthClient(config: CommonAuthConfig): CommonAuthClient {
+  const origin = config.origin.trim().replace(/\/$/u, "");
+  const serviceKey = config.serviceKey.trim();
+  if (!origin) throw new Error("AUTH_ORIGIN is required");
+  if (!serviceKey) throw new Error("common auth serviceKey is required");
+  const request = config.fetch ?? globalThis.fetch;
+
   return {
-    resolve: (actor: RequestActor): ResolvedActor | null => {
-      const identity = allowed.get(normalizeEmail(actor.email));
-      return identity ? { email: normalizeEmail(actor.email), displayName: identity.displayName, role: identity.role } : null;
+    origin,
+    async resolve(incoming) {
+      let response: Response;
+      try {
+        response = await request(`${origin}/api/whoami`, {
+          method: "GET",
+          headers: forwardedCredentials(incoming)
+        });
+      } catch {
+        return null;
+      }
+      if (!response.ok) return null;
+      const parsed = commonAuthIdentitySchema.safeParse(await response.json().catch(() => null));
+      if (!parsed.success) return null;
+      if (parsed.data.services.length > 0 && !parsed.data.services.includes(serviceKey)) return null;
+      return { ...parsed.data, email: normalizeEmail(parsed.data.email) };
+    },
+    logout(incoming) {
+      return request(`${origin}/api/logout`, {
+        method: "POST",
+        headers: forwardedCredentials(incoming)
+      });
     }
   };
 }
 
-/**
- * Better Auth owns browser sessions and its OAuth provider. The allowlist
- * admission hook only prevents unknown accounts from being created; request
- * authorization still resolves the current allowlist/role through server-core.
- */
-export function createBrowserAuth(config: BrowserAuthConfig): BrowserAuth {
-  if (!config.secret || config.secret.length < 32) throw new Error("BETTER_AUTH_SECRET must be at least 32 characters");
-  const allowed = allowedUserMap(config.allowedUsers);
-  const plugins = [mcp({
-    loginPage: "/",
-    resource: `${config.origin}/mcp`,
-    oidcConfig: { loginPage: "/", scopes: ["songbook:read", "songbook:write"] }
-  })];
-  return betterAuth({
-    database: config.database.sqlite as unknown as Database.Database,
-    secret: config.secret,
-    baseURL: config.origin,
-    basePath: "/api/auth",
-    defaultCookieAttributes: {
-      sameSite: "lax",
-      secure: config.production ?? true,
-      httpOnly: true
-    },
-    trustedOrigins: [config.origin],
-    socialProviders: config.googleClientId && config.googleClientSecret ? {
-      google: { clientId: config.googleClientId, clientSecret: config.googleClientSecret, disableSignUp: false }
-    } : undefined,
-    databaseHooks: {
-      user: {
-        create: {
-          before: async (user: { email: string }) => allowed.has(normalizeEmail(user.email))
-        }
-      }
-    },
-    plugins
-  }) as unknown as BrowserAuth;
-}
-
-export async function initializeBrowserAuth(auth: BrowserAuth): Promise<void> {
-  const context = await auth.$context;
-  await context.runMigrations();
+/** Every identity reaching this resolver has already been admitted by common auth. */
+export function createCommonAuthRoleResolver(): RoleResolver {
+  return {
+    resolve: (actor: RequestActor): ResolvedActor | null => {
+      const email = normalizeEmail(actor.email);
+      if (!email) return null;
+      const displayName = actor.displayName?.trim() || email;
+      return { email, displayName, role: "allowed" };
+    }
+  };
 }
 
 export interface McpTokenBinding {
   accessToken: string;
-  resource: string;
   scopes: McpScope[];
-  expiresAt: string;
 }
 
 export interface McpPrincipal {
@@ -107,15 +94,13 @@ export interface McpPrincipal {
 }
 
 export interface McpAuthAdapter {
-  captureToken(response: Response, request: Request): Promise<void>;
-  verifyRequest(request: Request, requiredScopes: McpScope[]): Promise<{ ok: true; token: McpTokenBinding; session: unknown; principal: McpPrincipal } | { ok: false; response: Response }>;
+  verifyRequest(request: Request, requiredScopes: McpScope[]): Promise<{ ok: true; token: McpTokenBinding; principal: McpPrincipal } | { ok: false; response: Response }>;
 }
 
-function unauthorized(message: string, origin: string, invalidToken = false): Response {
-  const metadata = `${origin}/.well-known/oauth-protected-resource/mcp`;
+function unauthorized(message: string, invalidToken = false): Response {
   const challenge = invalidToken
-    ? `Bearer error="invalid_token", resource_metadata="${metadata}"`
-    : `Bearer resource_metadata="${metadata}"`;
+    ? 'Bearer realm="auth.lost.plus", error="invalid_token"'
+    : 'Bearer realm="auth.lost.plus"';
   return new Response(JSON.stringify({ ok: false, error: message }), {
     status: 401,
     headers: {
@@ -125,75 +110,30 @@ function unauthorized(message: string, origin: string, invalidToken = false): Re
   });
 }
 
-export function mcpBearerChallenge(origin: string, invalidToken = false): Response {
-  return unauthorized(invalidToken ? "Invalid bearer authentication" : "Bearer authentication is required", origin, invalidToken);
+export function mcpBearerChallenge(invalidToken = false): Response {
+  return unauthorized(invalidToken ? "Invalid bearer authentication" : "Bearer authentication is required", invalidToken);
 }
 
-function forbidden(message: string): Response {
-  return new Response(JSON.stringify({ ok: false, error: message }), {
-    status: 403,
-    headers: { "Content-Type": "application/json", "WWW-Authenticate": "Bearer error=\"insufficient_scope\"" }
-  });
-}
-
-/**
- * Narrow resource-server adapter. The Better Auth MCP plugin returns opaque
- * tokens without RFC8707 audience data, so the application-owned binding is
- * inserted immediately after token issuance and checked before getMcpSession.
- */
-export function createMcpAuthAdapter(options: { auth?: BrowserAuth; database: SongbookDatabase; origin: string }): McpAuthAdapter {
-  const canonical = `${options.origin}/mcp`;
-  const sqlite = options.database.sqlite;
+export function createMcpAuthAdapter(auth: CommonAuthClient): McpAuthAdapter {
+  const scopes: McpScope[] = ["songbook:read", "songbook:write"];
   return {
-    async captureToken(response, request) {
-      if (!response.ok) return;
-      const payload = await response.json().catch(() => null) as { access_token?: unknown; expires_in?: unknown; scope?: unknown } | null;
-      if (!payload || typeof payload.access_token !== "string") return;
-      const expiresIn = typeof payload.expires_in === "number" && payload.expires_in > 0 ? payload.expires_in : 3600;
-      const scopes = String(payload.scope ?? "").split(/\s+/).filter((scope): scope is McpScope => scope === "songbook:read" || scope === "songbook:write");
-      sqlite.prepare(`INSERT INTO mcp_token_resources (access_token,resource,scopes,expires_at,created_at) VALUES (?,?,?,?,?) ON CONFLICT(access_token) DO UPDATE SET resource=excluded.resource,scopes=excluded.scopes,expires_at=excluded.expires_at`).run(payload.access_token, canonical, scopes.join(" "), new Date(Date.now() + expiresIn * 1000).toISOString(), new Date().toISOString());
-      void request;
-    },
     async verifyRequest(request, requiredScopes) {
       const authorization = request.headers.get("Authorization");
-      const hasAuthorization = authorization !== null;
-      const token = parseAuthorizationHeader(authorization);
-      if (request.headers.get("Cookie") && hasAuthorization) return { ok: false, response: unauthorized("Mixed cookie and bearer authentication is not allowed", options.origin, true) };
-      if (!hasAuthorization) return { ok: false, response: unauthorized("Bearer authentication is required", options.origin) };
-      if (!token) return { ok: false, response: unauthorized("Malformed bearer authentication", options.origin, true) };
-      const row = sqlite.prepare("SELECT access_token,resource,scopes,expires_at FROM mcp_token_resources WHERE access_token=?").get(token) as { access_token: string; resource: string; scopes: string; expires_at: string } | undefined;
-      if (!row || row.resource !== canonical || Date.parse(row.expires_at) <= Date.now()) return { ok: false, response: unauthorized("Invalid or resource-mismatched token", options.origin, true) };
-      const scopes = row.scopes.split(/\s+/).filter((scope): scope is McpScope => scope === "songbook:read" || scope === "songbook:write");
-      if (requiredScopes.some((scope) => !scopes.includes(scope))) return { ok: false, response: forbidden("The token does not grant the requested scope") };
-      if (!options.auth) return { ok: false, response: unauthorized("OAuth provider is not configured", options.origin, true) };
-      const authHeaders = new Headers(request.headers);
-      authHeaders.set("Authorization", `Bearer ${token}`);
-      const getMcpSession = (options.auth.api as unknown as { getMcpSession: (input: { headers: Headers; asResponse: false }) => Promise<unknown> }).getMcpSession;
-      let session: unknown;
-      try {
-        session = await getMcpSession({ headers: authHeaders, asResponse: false });
-      } catch {
-        return { ok: false, response: unauthorized("Invalid or expired token", options.origin, true) };
+      if (authorization === null) return { ok: false, response: unauthorized("Bearer authentication is required") };
+      const identity = await auth.resolve(request);
+      if (!identity) return { ok: false, response: unauthorized("Invalid bearer authentication", true) };
+      if (requiredScopes.some((scope) => !scopes.includes(scope))) {
+        return { ok: false, response: new Response(JSON.stringify({ ok: false, error: "The credential does not grant the requested permission" }), { status: 403, headers: { "Content-Type": "application/json" } }) };
       }
-      if (!session) return { ok: false, response: unauthorized("Invalid or expired token", options.origin, true) };
-      const userId = typeof session === "object" && session !== null && "userId" in session && typeof session.userId === "string" ? session.userId : "";
-      if (!userId) return { ok: false, response: unauthorized("Token has no authoritative user", options.origin, true) };
-      let user: { email?: unknown; name?: unknown } | null;
-      try {
-        const context = await options.auth.$context;
-        const internalAdapter = context.internalAdapter as unknown as { findUserById?: (id: string) => Promise<{ email?: unknown; name?: unknown } | null> };
-        user = typeof internalAdapter.findUserById === "function" ? await internalAdapter.findUserById(userId) : null;
-      } catch {
-        user = null;
-      }
-      const email = normalizeEmail(typeof user?.email === "string" ? user.email : "");
-      if (!email) return { ok: false, response: unauthorized("Token user cannot be resolved", options.origin, true) };
-      const displayName = typeof user?.name === "string" && user.name.trim() ? user.name.trim() : email;
-      return { ok: true, token: { accessToken: row.access_token, resource: row.resource, scopes, expiresAt: row.expires_at }, session, principal: { userId, actor: { email, displayName } } };
+      const accessToken = authorization.replace(/^Bearer\s+/iu, "");
+      return {
+        ok: true,
+        token: { accessToken, scopes },
+        principal: {
+          userId: identity.email,
+          actor: { email: identity.email, displayName: identity.name }
+        }
+      };
     }
   };
-}
-
-export function mcpScopeFromString(value: string): McpScope[] {
-  return value.split(/\s+/).filter((scope): scope is McpScope => scope === "songbook:read" || scope === "songbook:write");
 }

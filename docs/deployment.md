@@ -4,11 +4,9 @@ Production is the OCI single server at https://okdam.lost.plus. The legacy
 GitHub Pages / Apps Script / Cloudflare Worker stack is retired: the Pages
 workflow is a manual-dispatch redirect stub and nothing deploys automatically.
 
-The anonymous MCP and OAuth-protected operations from commit `3e8d623` are live.
-Production smoke verifies the protected-resource challenge, Better Auth OAuth
-discovery, anonymous listing/search, invalid-token handling, and local/public
-health. Interactive PKCE login, resource-bound token calls, revocation, restart,
-and the modern/legacy external-client matrix remain open.
+Public MCP operations remain anonymous. Protected browser and MCP requests use
+`auth.lost.plus`; the shared bearer revocation and modern/legacy MCP client
+matrix must be verified after auth-related releases.
 
 ## Current production components
 
@@ -17,8 +15,8 @@ and the modern/legacy external-client matrix remain open.
 - The repo checkout lives at `/home/ubuntu/okdam-songbook` on the host.
 - `deploy/container/compose.oci.yaml` (host-local, untracked) overrides the
   published port to `127.0.0.1:3010:3000`; `deploy/container/songbook.env`
-  (host-local, untracked) carries the origin, Google OAuth client, Better
-  Auth secret, and JSON email allowlist.
+  (host-local, untracked) carries the public origin, shared-auth origin, and
+  optional AI configuration.
 - Cloudflare Tunnel `obsidian-sync` routes `okdam.lost.plus` to
   `http://localhost:3010` via `/etc/cloudflared/config.yml`; the container
   port is localhost-only.
@@ -42,10 +40,10 @@ and the modern/legacy external-client matrix remain open.
 4. Verify `curl http://127.0.0.1:3010/healthz` and
    `curl https://okdam.lost.plus/healthz` both return `{"ok":true}`, and
    that `docker ps` reports the container healthy.
-5. For an MCP release, verify `/.well-known/oauth-protected-resource/mcp`,
-   authorization-server discovery, anonymous public calls, protected-tool
-   OAuth, invalid-token challenges, and the external client matrix before
-   calling the release complete.
+5. For an auth or MCP release, verify shared-cookie identity, path-preserving
+   login, anonymous public calls, a protected tool with a shared bearer, an
+   invalid-token challenge, token revocation, and the external client matrix
+   before calling the release complete.
 
 The image builds natively on the ARM64 host; never push an amd64-built image
 to production.

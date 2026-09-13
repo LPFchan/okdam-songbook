@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("../lib/auth/client", () => ({ signInWithCommonAuth: vi.fn(), signOutBrowser: vi.fn() }));
 import { auth, AuthRequiredError } from "../lib/auth.svelte";
 import { isApiAuthError } from "../lib/api";
+import { signInWithCommonAuth } from "../lib/auth/client";
 
 const mockFetch = vi.fn();
 
@@ -17,6 +19,7 @@ describe("auth store", () => {
   beforeEach(async () => {
     vi.stubGlobal("fetch", mockFetch);
     mockFetch.mockReset();
+    vi.mocked(signInWithCommonAuth).mockClear();
     await resetAuth();
   });
 
@@ -36,31 +39,23 @@ describe("auth store", () => {
     expect(auth.user?.displayName).toBe("마리");
   });
 
-  it("redirects to Google when the session is missing", async () => {
-    mockFetch.mockImplementation((input: string | URL | Request) => {
-      if (String(input).includes("/api/auth/sign-in/social")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ url: "/api/auth/callback/google" })
-        });
-      }
-      return Promise.resolve({
-        ok: false,
-        status: 401,
-        json: () => Promise.resolve({ ok: false, error: { code: "UNAUTHORIZED", message: "로그인이 필요해." } })
-      });
+  it("redirects to common auth when the session is missing", async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: () => Promise.resolve({ ok: false, error: { code: "UNAUTHORIZED", message: "로그인이 필요해." } })
     });
     await auth.requireValidCredential().catch(() => undefined);
-    expect(mockFetch).toHaveBeenCalledWith("/api/auth/sign-in/social", expect.objectContaining({ method: "POST" }));
+    expect(signInWithCommonAuth).toHaveBeenCalledOnce();
   });
 
-  it("returns to reauthRequired when the server session is unauthorized", async () => {
+  it("enters authenticating while redirecting after the server session is unauthorized", async () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ ok: false, error: { code: "UNAUTHORIZED", message: "로그인이 필요해." } })
     });
     await auth.requireValidCredential().catch(() => undefined);
-    expect(auth.status).toBe("reauthRequired");
+    expect(auth.status).toBe("authenticating");
   });
 
   it("exposes AuthRequiredError for callers that miss a credential", async () => {

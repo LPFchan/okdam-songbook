@@ -42,14 +42,15 @@ path remains enabled:
 Requests are authenticated and permission-checked by Apps Script. The browser
 must not supply an actor email or role as authority.
 
-## Better Auth browser routes
+## Shared-auth browser routes
 
-The live Better Auth browser path is served by the OCI application:
+The live browser path uses the `.lost.plus` shared session:
 
-- `GET|POST /api/auth/*` — Better Auth Google OAuth/session handler.
 - `GET /api/session` — returns the active HTTP-only-cookie session and the
-  current allowlisted user with role `allowed`.
-- `GET /api/me` — returns the current allowlisted user.
+  current common-auth user with role `allowed`.
+- `GET /api/me` — returns the current common-auth user.
+- `POST /api/logout` — ends the shared browser session through
+  `auth.lost.plus`.
 - `POST /api/songs`, `PATCH /api/songs/:id`, and
   `DELETE /api/songs/:id/delete` — protected song mutations.
 - `POST /api/performances` and `DELETE /api/performances/:id` — protected
@@ -59,17 +60,18 @@ The live Better Auth browser path is served by the OCI application:
 
 Browser calls use `credentials: include`, exact same-origin mutation checks,
 and JSON request bodies. There is no browser-readable bearer token in this
-transport. Every protected route requires an authenticated allowlisted
-session; all allowlisted users share the same mutation permissions, including
-song deletion.
+transport. Every protected route requires an authenticated session whose
+common-auth service list is empty or includes `okdam`; all admitted users share
+the same mutation permissions, including song deletion.
 
 ## MCP
 
-The stateless MCP mount at `/mcp` uses optional OAuth. Public tools are
+The stateless MCP mount at `/mcp` uses optional shared bearer authentication. Public tools are
 available without a bearer: `catalog`, `search_songs`, and `get_song`.
 `record_performance`,
 `cancel_performance`, `create_song`, `update_song`, and `delete_song` require
-an OAuth bearer with `songbook:write`.
+a bearer minted at `auth.lost.plus`. Every admitted bearer receives the
+internal `songbook:read` and `songbook:write` capabilities.
 
 `search_songs` always returns `{ query, saved, tj }`. It uses the website’s
 trimmed query gate: TJ is eligible for queries with at least two characters or
@@ -85,9 +87,9 @@ outcome. `update_song` and `delete_song` accept `id` or their corresponding
 `songId` alias, plus `expectedVersion` and `clientRequestId`.
 
 MCP cookies are not identity. A missing Authorization header is anonymous;
-any present malformed or invalid bearer is rejected, and cookie-plus-bearer
-requests are rejected. Transport authorization is derived from the JSON body,
-not client-supplied method/name headers.
+any present malformed or invalid bearer is rejected. When cookie and bearer
+both arrive, common auth gives the bearer precedence. Transport authorization
+is derived from the JSON body, not client-supplied method/name headers.
 
 ## TJ contracts
 
@@ -115,11 +117,11 @@ with `원작:`; aliases, romanization, YouTube metadata, and song status are not
 part of the live song contract.
 
 POST bodies are JSON sent as `text/plain;charset=utf-8` on the legacy Apps
-Script transport. Better Auth browser gateway bodies use JSON and
+Script transport. The live browser gateway uses JSON and
 `Content-Type: application/json`.
 
 ## Separate ChatGPT Action API
 
 `/authorize`, `/oauth/callback`, `/token`, and `/api/gptSearchSongs`,
 `/api/gptCheckDuplicate`, `/api/gptAddSong` remain the separate ChatGPT OAuth
-contract. Better Auth browser sessions do not change those routes.
+contract. Shared browser sessions do not change those retired routes.

@@ -17,6 +17,7 @@ function nullableString(value: unknown): string | undefined {
 export function songFromRow(row: RawSong, displayNameForEmail: (email: string) => string = () => ""): Song {
   const performances = Number(row.performance_count ?? 0);
   const lastPerformedByEmail = String(row.last_performed_by_email ?? "");
+  const lastPerformedByName = String(row.last_performed_by_name ?? "");
   return {
     id: String(row.id), tjNumber: nullableString(row.tj_number) ?? "", title: String(row.title),
     titleReadingKo: String(row.title_reading_ko ?? ""), artist: String(row.artist),
@@ -27,7 +28,7 @@ export function songFromRow(row: RawSong, displayNameForEmail: (email: string) =
     createdByName: String(row.created_by_name ?? ""), createdAt: String(row.created_at), updatedByName: String(row.updated_by_name ?? ""),
     updatedAt: String(row.updated_at), deletedAt: String(row.deleted_at ?? ""), version: Number(row.version),
     lastPerformedAt: String(row.last_performed_at ?? ""),
-    lastPerformedByName: lastPerformedByEmail ? displayNameForEmail(lastPerformedByEmail) : "",
+    lastPerformedByName: lastPerformedByName || (lastPerformedByEmail ? displayNameForEmail(lastPerformedByEmail) : ""),
     performanceCount: performances
   };
 }
@@ -52,7 +53,7 @@ export interface SongRepository {
 }
 
 export function createSongRepository(sqlite: Database.Database, displayNameForEmail: (email: string) => string = () => ""): SongRepository {
-  const select = `SELECT s.*, (SELECT COUNT(*) FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL) AS performance_count, (SELECT MAX(p.performed_at) FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL) AS last_performed_at, (SELECT p.created_by_email FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL ORDER BY p.performed_at DESC, p.created_at DESC, p.id DESC LIMIT 1) AS last_performed_by_email FROM songs s`;
+  const select = `SELECT s.*, (SELECT COUNT(*) FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL) AS performance_count, (SELECT MAX(p.performed_at) FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL) AS last_performed_at, (SELECT p.created_by_email FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL ORDER BY p.performed_at DESC, p.created_at DESC, p.id DESC LIMIT 1) AS last_performed_by_email, (SELECT p.created_by_name FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL ORDER BY p.performed_at DESC, p.created_at DESC, p.id DESC LIMIT 1) AS last_performed_by_name FROM songs s`;
   const map = (row: RawSong) => songFromRow(row, displayNameForEmail);
   return {
     list: (options = {}) => (sqlite.prepare(`${select} ${options.includeDeleted ? "" : "WHERE s.deleted_at IS NULL"} ORDER BY s.updated_at DESC`).all() as RawSong[]).map(map),

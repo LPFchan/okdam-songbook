@@ -52,7 +52,7 @@ describe("stateless Songbook MCP", () => {
     ]);
     expect(mcpToolPolicy.search_songs).toEqual({ access: "public", requiredScope: "songbook:read" });
     expect(mcpToolPolicy.delete_song).toEqual({ access: "write", requiredScope: "songbook:write" });
-    expect(mcpContract.mount).toEqual({ authentication: "optional-oauth", path: "/mcp", audience: "songbook-mcp", stateless: true });
+    expect(mcpContract.mount).toEqual({ authentication: "optional-bearer", path: "/mcp", audience: "songbook-mcp", stateless: true });
     expect(mcpRequiredScopeForBody({ method: "tools/call", params: { name: "record_performance" } })).toBe("songbook:write");
     expect(mcpRequiredScopeForBody({ method: "tools/call", params: { name: "search_songs" } })).toBe("songbook:read");
     expect(mcpRequiredScopeForBody({ method: "tools/call", params: { name: "delete_song" } })).toBe("songbook:write");
