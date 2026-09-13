@@ -5,13 +5,11 @@ Recorded by agent: codex-orchestrator
 
 ## Snapshot
 
-- Last updated: 2026-08-22 (the song schema is collapsed to fields used by the
-  live product; original-work values moved into memo, recommended keys use one
-  compact value, and favorites remain private to each signed-in account).
+- Last updated: 2026-09-14 (browser sessions and MCP bearer validation now use
+  `auth.lost.plus`; app-owned Better Auth and local token bindings are retired).
 - Overall posture: `live in production on OCI single-server`.
-- Production baseline: current `main` with single-role authorization and an
-  exact email-to-public-name allowlist, running as `songbook:local` (ARM64) on
-  oci-ubuntu.
+- Production baseline: `d812381` with common-auth identity and single-role
+  Songbook authorization, running as `songbook:local` (ARM64) on oci-ubuntu.
 - Public URL: https://okdam.lost.plus via the Cloudflare Tunnel
   (`obsidian-sync` tunnel, hostname `okdam.lost.plus` → `localhost:3010`).
 - Current product shape: one catalog-first main surface whose search input
@@ -37,6 +35,9 @@ Recorded by agent: codex-orchestrator
   `http://localhost:3010`; the container port is localhost-only.
 - Health: `/healthz` returns `{"ok":true}` locally and through the public
   hostname; the container healthcheck passes.
+- Shared auth: `https://auth.lost.plus/api/ready` is healthy. The host-only
+  environment contains `AUTH_ORIGIN`; retired Better Auth, Google OAuth, and
+  app-local allowlist values have been removed.
 - Korean-reading generation uses Cloudflare Workers AI with
   `@cf/google/gemma-4-26b-a4b-it`; its server-only credential is not bundled
   into the web application.
@@ -59,9 +60,8 @@ Recorded by agent: codex-orchestrator
 - The song form generates schema-checked Korean-reading candidates for the
   title and artist, leaves them editable, and requires a separate save action.
 - `오늘 불렀어요!` attributes one performance to the signed-in account. The
-  detail sheet publicly shows the latest mapped name, timestamp, and shared
-  count; unknown historical creators keep the timestamp-only display. The
-  anonymous catalog exposes no email fields.
+  detail sheet publicly shows the latest stored public-name snapshot,
+  timestamp, and shared count. The anonymous catalog exposes no email fields.
 - The catalog heart writes a private account-to-song favorite relationship.
   Each account sees only its own favorite IDs through the protected API, and
   the favorite-only chip requires login. Anonymous catalog reads contain no
@@ -87,33 +87,26 @@ Recorded by agent: codex-orchestrator
 ### OCI single-server foundation
 
 - One executable Hono server serves the built PWA, anonymous catalog API,
-  protected browser API, Better Auth, health checks, and `/mcp`.
-- SQLite owns domain, private favorites, audit, idempotency, Better Auth, and MCP
-  resource-binding state. Import/reconciliation, CSV recovery, backup,
-  integrity-check, and guarded restore tools are checked in.
-- Browser access uses same-origin HTTP-only sessions, exact-origin mutation
-  checks, JSON-only bodies, and a per-request email-to-public-name allowlist.
-  Every admitted user has the same `allowed` role and may delete songs.
+  protected browser API, health checks, and `/mcp`.
+- SQLite owns domain, private favorites, audit, idempotency, and TJ mirror
+  state. Migration `0106_drop_mcp_token_resources` is applied in production;
+  the retired local token table is absent. Import/reconciliation, CSV recovery,
+  backup, integrity-check, and guarded restore tools are checked in.
+- Browser access uses the shared `lp_auth` cookie, per-request validation at
+  `auth.lost.plus`, `okdam` service admission, exact-origin mutation checks,
+  and JSON-only bodies. Every admitted user has the same `allowed` role and may
+  delete songs.
 - The offline performance queue drains on startup, reconnect, visibility, and
   authentication recovery, with bounded retry, dead letters, and preserved
   write identities.
 - MCP uses stateless SDK v2 transport with legacy stateless fallback. Public
   catalog/search/lookup operations work anonymously; every mutation requires
-  `songbook:write`. Authoritative Better Auth identity is resolved before any
+  `songbook:write`. Authoritative common-auth identity is resolved before any
   authenticated request reaches the shared domain service, and anonymous
-  search never invokes TJ.
-- MCP/OAuth commit `3e8d623` is live. Production smoke verified protected
-  resource and authorization-server discovery, anonymous tool listing and
-  combined search, read/write-only scope metadata, missing/invalid bearer
-  challenges, and local/public health. OAuth authorization, browser callback,
-  registration, and token outcomes emit structured diagnostics containing
-  status, redirect shape, scope shape, and short one-way fingerprints; raw
-  credentials, authorization codes, callback state, and tokens are excluded.
-  Unknown OAuth scopes are recorded only when they match the bounded safe-label
-  format; all other values are represented by short one-way fingerprints.
-  Authorization requests from previously registered ChatGPT clients translate
-  the retired `songbook:admin` name to `songbook:write` before provider
-  validation; discovery, issued tokens, and authorization remain read/write-only.
+  search never invokes TJ. Browser cookies alone never grant MCP identity.
+- Common-auth production smoke verified an anonymous 126-song catalog,
+  anonymous MCP tool listing, invalid shared-bearer rejection, auth readiness,
+  local/public health, and the retired token-table migration.
 - The Docker image runs non-root with a read-only root filesystem, persistent
   SQLite bind mount, localhost-only published port, bounded logs/resources,
   and an application-owned `/healthz` check.
@@ -130,9 +123,10 @@ Recorded by agent: codex-orchestrator
 
 ## Remaining Verification
 
-- Real external MCP client flow (discovery, dynamic registration where
-  required, PKCE, token issuance/resource binding, initialize, tool listing,
-  read call, scoped write, revocation, restart) through the public hostname.
+- Shared browser cookie with path-preserving login/logout and a protected write
+  through the public hostname.
+- Real shared-bearer MCP flow: valid token, `okdam` admission, protected read
+  and write, revocation, and modern/legacy restart behavior.
 - Live TJ lookup/search behavior through `okdam.lost.plus` beyond local
   adapter tests.
 - Offline replay and multi-tab queue behavior on real devices.

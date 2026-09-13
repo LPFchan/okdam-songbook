@@ -38,7 +38,8 @@ Recorded by agent: codex-orchestrator
 
 ### Anonymous MCP and common-auth-protected operations
 
-- Status: `common-auth cutover in progress`.
+- Status: `live in production at okdam.lost.plus` (`4d98aa5`, packaging fix
+  `d812381`).
 - Stateless MCP exposes public catalog, combined saved/TJ search, and active
   song lookup without a bearer. Every mutation uses `songbook:write`.
 - Body-derived routing rejects malformed credentials and prevents anonymous
