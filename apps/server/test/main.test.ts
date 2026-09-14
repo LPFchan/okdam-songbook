@@ -17,7 +17,7 @@ describe("reading AI environment", () => {
     expect(() => readingGeneratorFromEnvironment({ AI_ENDPOINT: "https://ai.example/v1/chat/completions" })).toThrow("must be set together");
     expect(readingGeneratorFromEnvironment({
       AI_ENDPOINT: "https://ai.example/v1/chat/completions",
-      AI_API_KEY: "secret",
+      CLOUDFLARE_AI_API_TOKEN: "secret",
       AI_MODEL: "reading-model"
     })).toBeDefined();
   });

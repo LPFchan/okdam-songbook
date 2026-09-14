@@ -27,7 +27,8 @@ The server reads `DATABASE_PATH`, `ORIGIN`, `AUTH_ORIGIN`, and `ASSETS_ROOT`;
 Compose fixes the two path values for the container. `AUTH_ORIGIN` defaults to
 `https://auth.lost.plus`, whose `okdam` service membership controls admission.
 Korean
-reading generation optionally uses `AI_ENDPOINT`, `AI_MODEL`, and `AI_API_KEY`;
+reading generation optionally uses `AI_ENDPOINT`, `AI_MODEL`, and
+`CLOUDFLARE_AI_API_TOKEN`;
 set all three together or leave all three empty. `AI_ENDPOINT` is the full
 OpenAI-compatible chat-completions URL. The
 example uses a reserved invalid hostname and placeholder account, not live

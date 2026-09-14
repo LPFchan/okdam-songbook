@@ -23,10 +23,10 @@ export function commonAuthOriginFromEnvironment(environment: NodeJS.ProcessEnv):
 
 export function readingGeneratorFromEnvironment(environment: NodeJS.ProcessEnv): ReadingGenerator | undefined {
   const endpoint = environment.AI_ENDPOINT?.trim();
-  const apiKey = environment.AI_API_KEY?.trim();
+  const apiKey = environment.CLOUDFLARE_AI_API_TOKEN?.trim();
   const model = environment.AI_MODEL?.trim();
   if (!endpoint && !apiKey && !model) return undefined;
-  if (!endpoint || !apiKey || !model) throw new Error("AI_ENDPOINT, AI_API_KEY, and AI_MODEL must be set together");
+  if (!endpoint || !apiKey || !model) throw new Error("AI_ENDPOINT, CLOUDFLARE_AI_API_TOKEN, and AI_MODEL must be set together");
   return createAiReadingGenerator({ endpoint, apiKey, model });
 }
 

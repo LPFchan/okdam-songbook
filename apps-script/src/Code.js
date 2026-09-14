@@ -1153,7 +1153,7 @@ function aiAdapter() {
       }
     };
   }
-  if (!scriptProps().getProperty("AI_API_KEY")) {
+  if (!scriptProps().getProperty("CLOUDFLARE_AI_API_TOKEN")) {
     return {
       generateKoreanReading() {
         throw publicError("AI_NOT_CONFIGURED", "AI 설정이 없어. 수동 입력을 사용해줘.");
@@ -1174,7 +1174,7 @@ function aiAdapter() {
 }
 
 function callStructuredAi(task, input) {
-  const key = scriptProps().getProperty("AI_API_KEY");
+  const key = scriptProps().getProperty("CLOUDFLARE_AI_API_TOKEN");
   const endpoint = scriptProps().getProperty("AI_ENDPOINT");
   if (!endpoint || !key) throw publicError("AI_NOT_CONFIGURED", "AI endpoint 또는 key가 없어.");
   const response = UrlFetchApp.fetch(endpoint, {

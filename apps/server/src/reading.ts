@@ -43,7 +43,7 @@ export function createAiReadingGenerator(options: AiReadingGeneratorOptions): Re
   const url = endpoint(options.endpoint);
   const apiKey = options.apiKey.trim();
   const model = options.model.trim();
-  if (!apiKey) throw new Error("AI_API_KEY is required when AI_ENDPOINT is set");
+  if (!apiKey) throw new Error("CLOUDFLARE_AI_API_TOKEN is required when AI_ENDPOINT is set");
   if (!model) throw new Error("AI_MODEL is required when AI_ENDPOINT is set");
   const fetcher = options.fetch ?? globalThis.fetch;
   const timeoutMs = options.timeoutMs ?? 20_000;

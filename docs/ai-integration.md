@@ -5,8 +5,8 @@ AI helpers are server-mediated.
 ## Live reading adapter
 
 The OCI server calls an OpenAI-compatible chat-completions endpoint. Set the
-full endpoint URL, model name, and bearer credential with `AI_ENDPOINT`,
-`AI_MODEL`, and `AI_API_KEY`. All three values must be present together. If
+full endpoint URL, model name, and Cloudflare bearer credential with
+`AI_ENDPOINT`, `AI_MODEL`, and `CLOUDFLARE_AI_API_TOKEN`. All three values must be present together. If
 none are set, the application still starts and the reading route returns
 `AI_NOT_CONFIGURED` so manual entry remains available.
 

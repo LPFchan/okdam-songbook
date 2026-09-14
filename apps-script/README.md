@@ -12,7 +12,7 @@
    - `ALLOWED_ORIGINS`
    - `APP_ENV`
    - `INTERNAL_PROXY_SECRET` when the Worker gateway is enabled
-   - optional: `AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL`, `YOUTUBE_API_KEY`
+   - optional: `AI_PROVIDER`, `CLOUDFLARE_AI_API_TOKEN`, `AI_MODEL`, `YOUTUBE_API_KEY`
 5. Push with `clasp push`.
 6. Run `setupSpreadsheet()` once from the Apps Script editor.
 7. Deploy as Web App. Use "execute as me" and allow anyone with the deployment URL, because write authorization is enforced inside the script with Google ID tokens.
