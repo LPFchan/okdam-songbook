@@ -76,7 +76,7 @@ describe("offline performance queue", () => {
     await drainOfflineQueue({ auth: { requireValidCredential: requireCredential }, ownerSubject: accountA });
     expect((await queueItems(accountA))[0]).toMatchObject({ status: "failed", errorClassification: "auth" });
 
-    await retryQueueItem(item.id);
+    await retryQueueItem(item.id, accountA);
     await drainOfflineQueue({ auth: { requireValidCredential: requireCredential }, ownerSubject: accountA });
     expect(createPerformance).toHaveBeenCalledWith(item.songId, item.clientRequestId, expect.any(String), accountA);
     expect(await queueItems("a@example.com")).toEqual([]);
@@ -89,7 +89,7 @@ describe("offline performance queue", () => {
     expect((await queueItems(accountA))[0]).toMatchObject({ status: "dead-letter", errorClassification: "not_found", attemptCount: 1 });
     expect((await queueCounts(accountA)).deadLetter).toBe(1);
 
-    await discardQueueItem(item.id);
+    await discardQueueItem(item.id, accountA);
     expect(await queueItems("a@example.com")).toEqual([]);
   });
 
@@ -112,7 +112,7 @@ describe("offline performance queue", () => {
     expect(cancelPerformance).toHaveBeenCalledWith("performance-1", cancellationRequestId, accountA);
     expect(queued).toMatchObject({ id: cancellationRequestId, clientRequestId: cancellationRequestId, performanceId: "performance-1", status: "failed", errorClassification: "network" });
 
-    await retryQueueItem(queued.id);
+    await retryQueueItem(queued.id, accountA);
     await drainOfflineQueue({ auth: { requireValidCredential: async () => undefined }, ownerSubject: accountA });
     expect(cancelPerformance).toHaveBeenNthCalledWith(2, "performance-1", cancellationRequestId, accountA);
     expect(await queueItems("a@example.com")).toEqual([]);
@@ -128,6 +128,18 @@ describe("offline performance queue", () => {
     await drainOfflineQueue({ auth: { requireValidCredential: async () => undefined }, ownerSubject: accountB });
     expect(createPerformance).not.toHaveBeenCalled();
     expect((await queueItems(accountA)).length).toBe(1);
+  });
+
+  it("does not let another account retry or discard a queued row by id", async () => {
+    const item = await enqueuePerformanceCreate("song-1", accountA, "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+
+    expect(await retryQueueItem(item.id, accountB)).toBe(false);
+    expect(await discardQueueItem(item.id, accountB)).toBe(false);
+    expect(await db.queue.get(item.id)).toMatchObject({ ownerSubject: accountA, status: "pending" });
+
+    expect(await retryQueueItem(item.id, accountA)).toBe(true);
+    expect(await discardQueueItem(item.id, accountA)).toBe(true);
+    expect(await db.queue.get(item.id)).toBeUndefined();
   });
 
   it("ignores the queue entirely when no user is signed in", async () => {

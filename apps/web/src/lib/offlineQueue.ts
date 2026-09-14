@@ -251,20 +251,34 @@ export function drainOfflineQueue(options: QueueReplayOptions = {}): Promise<Que
   return drainPromise;
 }
 
-export async function retryQueueItem(id: string): Promise<void> {
-  await db.queue.update(id, {
-    status: "pending",
-    nextRetryAt: undefined,
-    errorClassification: undefined,
-    errorMessage: undefined
+export async function retryQueueItem(id: string, ownerSubject: string): Promise<boolean> {
+  const updated = await db.transaction("rw", db.queue, async () => {
+    const item = await db.queue.get(id);
+    if (!item || !ownedBy(item, ownerSubject)) return false;
+    await db.queue.update(id, {
+      status: "pending",
+      nextRetryAt: undefined,
+      errorClassification: undefined,
+      errorMessage: undefined
+    });
+    return true;
   });
-  authPaused = false;
-  notify();
+  if (updated) {
+    authPaused = false;
+    notify();
+  }
+  return updated;
 }
 
-export async function discardQueueItem(id: string): Promise<void> {
-  await db.queue.delete(id);
-  notify();
+export async function discardQueueItem(id: string, ownerSubject: string): Promise<boolean> {
+  const deleted = await db.transaction("rw", db.queue, async () => {
+    const item = await db.queue.get(id);
+    if (!item || !ownedBy(item, ownerSubject)) return false;
+    await db.queue.delete(id);
+    return true;
+  });
+  if (deleted) notify();
+  return deleted;
 }
 
 export async function markQueueItemFailed(id: string, error: unknown, classification: QueueFailureClassification): Promise<void> {

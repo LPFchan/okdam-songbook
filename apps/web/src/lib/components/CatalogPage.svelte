@@ -31,6 +31,7 @@
   import { auth, AuthRequiredError } from "../auth.svelte";
   import { onlineStatus } from "../online.svelte";
   import { snackbar } from "../snackbar.svelte";
+  import { whileSubjectCurrent } from "../subjectBound";
   import { createSpring, GENTLE } from "../spring";
   import { chipStagger } from "../chipStagger";
   import { chipsHeight } from "../chipsHeight";
@@ -57,7 +58,7 @@
   let topbarShift = $state(0);
   let topbarEl = $state<HTMLElement | null>(null);
   let topbarHeight = $state(0);
-  let lastPerformed = $state<{ performanceId: string; clientRequestId: string; songId: string } | null>(null);
+  let lastPerformed = $state<{ performanceId: string; clientRequestId: string; songId: string; ownerSubject: string } | null>(null);
   let undoTimer: ReturnType<typeof setTimeout> | undefined;
 
   let queueList = $state<QueueItem[]>([]);
@@ -222,12 +223,19 @@
       favoriteSongIds = [];
       pendingFavoriteSongIds = [];
       favoriteOnly = false;
+      queueList = [];
+      queueCountsState = { pending: 0, inFlight: 0, failed: 0, deadLetter: 0, authPaused: false };
+      if (lastPerformed && lastPerformed.ownerSubject !== subject) {
+        lastPerformed = null;
+        if (undoTimer !== undefined) clearTimeout(undoTimer);
+      }
     }
     if (!subject) {
       favoriteSongIds = [];
       favoriteOnly = false;
     } else {
       void refreshFavorites(subject, refreshToken);
+      void refreshQueue();
     }
   });
 
@@ -277,9 +285,19 @@
   ];
 
   async function refreshQueue() {
-    const [items, counts] = await Promise.all([queueItems(auth.user?.subject), queueCounts(auth.user?.subject)]);
-    queueList = items;
-    queueCountsState = counts;
+    const ownerSubject = auth.user?.subject;
+    if (!ownerSubject) {
+      queueList = [];
+      queueCountsState = { pending: 0, inFlight: 0, failed: 0, deadLetter: 0, authPaused: false };
+      return;
+    }
+    const snapshot = await whileSubjectCurrent(ownerSubject, () => auth.user?.subject, async () => {
+      const [items, counts] = await Promise.all([queueItems(ownerSubject), queueCounts(ownerSubject)]);
+      return { items, counts };
+    });
+    if (!snapshot) return;
+    queueList = snapshot.items;
+    queueCountsState = snapshot.counts;
   }
 
   async function refreshFavorites(subject: string, _refreshToken: number) {
@@ -300,13 +318,21 @@
   }
 
   async function retryQueuedItem(id: string) {
-    await retryQueueItem(id);
+    const ownerSubject = auth.user?.subject;
+    if (!ownerSubject || !(await retryQueueItem(id, ownerSubject))) {
+      await refreshQueue();
+      return;
+    }
     await drainQueue();
     snackbar.show("동기화를 다시 시도할게요.");
   }
 
   async function discardQueuedItem(id: string) {
-    await discardQueueItem(id);
+    const ownerSubject = auth.user?.subject;
+    if (!ownerSubject || !(await discardQueueItem(id, ownerSubject))) {
+      await refreshQueue();
+      return;
+    }
     await refreshQueue();
     snackbar.show("실패한 기록을 버렸어요.");
   }
@@ -323,9 +349,12 @@
   }
 
   async function performSong(song: Song, clientRequestId: string, performedAt: string, ownerSubject: string) {
-    const result = await createPerformance(song.id, clientRequestId, performedAt, ownerSubject);
+    const result = await whileSubjectCurrent(ownerSubject, () => auth.user?.subject, () =>
+      createPerformance(song.id, clientRequestId, performedAt, ownerSubject)
+    );
+    if (!result) return;
     const performanceId = result && typeof result === "object" && "id" in result ? String(result.id) : "";
-    lastPerformed = performanceId ? { performanceId, clientRequestId, songId: song.id } : null;
+    lastPerformed = performanceId ? { performanceId, clientRequestId, songId: song.id, ownerSubject } : null;
     if (performanceId) {
       scheduleUndoExpiry();
       snackbar.show("오늘 부른 곡으로 기록했어요.", {
@@ -383,7 +412,9 @@
       snackbar.show("취소할 기록이 없어요.");
       return;
     }
-    if (!auth.user) {
+    if (!auth.user || auth.user.subject !== target.ownerSubject) {
+      lastPerformed = null;
+      if (undoTimer !== undefined) clearTimeout(undoTimer);
       snackbar.show("취소하려면 로그인이 필요해요.");
       return;
     }
@@ -395,7 +426,7 @@
         : item
     );
     const cancellationRequestId = crypto.randomUUID();
-    const ownerSubject = auth.user.subject;
+    const ownerSubject = target.ownerSubject;
     if (!onlineStatus.online) {
       await enqueuePerformanceCancel(target.songId, target.performanceId, ownerSubject, cancellationRequestId);
       snackbar.show("오프라인이라 취소는 큐에 저장했어요.");
