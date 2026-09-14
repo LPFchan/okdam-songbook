@@ -49,7 +49,8 @@ history.
   song title and artist; generated values are never saved automatically.
 - Quick filter chips plus a complete responsive filter surface; sort remains
   separate.
-- Favorites belong to the signed-in account, not to the song. The heart toggles
+- Favorites belong to the signed-in account's immutable Common Auth subject,
+  not its mutable email and not to the song. The heart toggles
   that private relationship directly, and the favorite-only filter requires a
   valid session. Favorite state is never included in the anonymous catalog.
 - Song add/edit uses one country chip: `일본`, `미국`, `한국`, or `그 외`.
@@ -97,6 +98,9 @@ history.
 - Browser- or MCP-supplied identity values are never authority. The gateway
   removes them and the server uses only gateway-injected account ID, email,
   public name, and role.
+- Private ownership and idempotency use the immutable Common Auth `sub` with
+  an `auth.lost.plus:` namespace. Stored email/name fields are historical
+  attribution snapshots only.
 - Public catalog rows may expose the configured public name of the account that
   created the latest active performance. They never expose its email address;
   an unmapped historical email falls back to timestamp-only display.

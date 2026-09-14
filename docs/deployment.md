@@ -15,11 +15,11 @@ matrix must be verified after auth-related releases.
 - The repo checkout lives at `/home/ubuntu/okdam-songbook` on the host.
 - `deploy/container/compose.oci.yaml` (host-local, untracked) overrides the
   published port to `127.0.0.1:3010:3000`; `deploy/container/songbook.env`
-  (host-local, untracked) carries the public origin, shared-auth origin, and
-  optional AI configuration.
-- Cloudflare Tunnel `obsidian-sync` routes `okdam.lost.plus` to
-  `http://localhost:3010` via `/etc/cloudflared/config.yml`; the container
-  port is localhost-only.
+  (host-local, untracked) carries the public origin and optional AI
+  configuration.
+- Cloudflare Tunnel `obsidian-sync` routes `okdam.lost.plus` to the Common Auth
+  gateway at `http://localhost:8740`; the gateway reaches the container's
+  localhost-only port at `http://localhost:3010`.
 - SQLite lives at `/var/lib/songbook/songbook.sqlite` on the host, bind
   mounted into the container.
 - `songbook-backup.timer` (systemd, user `opc`) runs
@@ -37,12 +37,21 @@ matrix must be verified after auth-related releases.
    docker compose -f compose.yaml -f deploy/container/compose.oci.yaml build songbook
    docker compose -f compose.yaml -f deploy/container/compose.oci.yaml up -d songbook
    ```
+   Before the first release containing migration
+   `0107_immutable_account_ownership`, stop the restarted container, back up
+   both `/var/lib/songbook/songbook.sqlite` and `/var/lib/auth/auth.db`, and
+   map each `legacy-email:<normalized-email>` favorite owner to
+   `auth.lost.plus:<users.id>` by joining the two databases on normalized
+   email. Abort on an unmatched or duplicate email, then restart. This is a
+   one-time offline data migration; never let a runtime request claim a legacy
+   owner from an email address.
 4. Verify `curl http://127.0.0.1:3010/healthz` and
-   `curl https://okdam.lost.plus/healthz` both return `{"ok":true}`, and
+   `curl https://okdam.lost.plus/healthz` both return healthy responses, and
    that `docker ps` reports the container healthy.
 5. For an auth or MCP release, verify shared-cookie identity, path-preserving
    login, anonymous public calls, a protected tool with a shared bearer, an
-   invalid-token challenge, token revocation, and the external client matrix
+   invalid-token challenge, a visibility-restricted bearer rejection, token
+   revocation, and the external client matrix
    before calling the release complete.
 
 The image builds natively on the ARM64 host; never push an amd64-built image

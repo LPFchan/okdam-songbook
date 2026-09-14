@@ -45,7 +45,8 @@ export function createCommonAuthRoleResolver(): RoleResolver {
       const email = normalizeEmail(actor.email);
       if (!email) return null;
       const displayName = actor.displayName?.trim() || email;
-      return { email, displayName, role: "allowed" };
+      const subject = actor.subject?.trim() || `legacy-email:${email}`;
+      return { subject, email, displayName, role: "allowed" };
     }
   };
 }
@@ -95,7 +96,7 @@ export function createGatewayMcpAuthAdapter(): McpAuthAdapter {
         token: { accessToken: "gateway-verified", scopes },
         principal: {
           userId: identity.sub,
-          actor: { email: identity.email, displayName: identity.name }
+          actor: { subject: `auth.lost.plus:${identity.sub}`, email: identity.email, displayName: identity.name }
         }
       };
     }

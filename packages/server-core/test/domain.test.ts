@@ -27,9 +27,9 @@ function songInput(overrides: Partial<Omit<Song, "id" | "createdAt" | "updatedAt
 function roleResolver(): RoleResolver {
   return {
     resolve: (actor) => actor.email === allowed.email
-      ? { email: actor.email, displayName: allowed.displayName, role: "allowed" }
+      ? { subject: actor.subject ?? `legacy-email:${actor.email}`, email: actor.email, displayName: allowed.displayName, role: "allowed" }
       : actor.email === allowedPeer.email
-        ? { email: actor.email, displayName: allowedPeer.displayName, role: "allowed" }
+        ? { subject: actor.subject ?? `legacy-email:${actor.email}`, email: actor.email, displayName: allowedPeer.displayName, role: "allowed" }
         : null
   };
 }
@@ -107,7 +107,7 @@ describe("songbook domain services", () => {
   it("assigns a TJ-added song to the signed-in performer", () => {
     const marieResolver: RoleResolver = {
       resolve: (actor) => actor.email === allowed.email
-        ? { email: actor.email, displayName: "마리", role: "allowed" }
+        ? { subject: actor.subject ?? `legacy-email:${actor.email}`, email: actor.email, displayName: "마리", role: "allowed" }
         : null
     };
     const service = createSongbookService(database, { roleResolver: marieResolver });

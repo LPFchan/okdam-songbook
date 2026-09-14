@@ -92,13 +92,18 @@ Recorded by agent: codex-orchestrator
   protected browser API, health checks, and `/mcp`.
 - SQLite owns domain, private favorites, audit, idempotency, and TJ mirror
   state. Migration `0106_drop_mcp_token_resources` is applied in production;
-  the retired local token table is absent. Import/reconciliation, CSV recovery,
+  migration `0107_immutable_account_ownership` is ready for the next release
+  and moves favorites/idempotency from mutable email to Common Auth subject.
+  The retired local token table is absent. Import/reconciliation, CSV recovery,
   backup, integrity-check, and guarded restore tools are checked in.
 - Browser access uses the shared `lp_auth` cookie. The local gateway validates
   it at `auth.lost.plus`, enforces `okdam` service admission, strips the cookie,
   and supplies verified identity headers. Songbook retains exact-origin
   mutation checks and JSON-only bodies. Every admitted user has the same
   `allowed` role and may delete songs.
+- Favorites and idempotency are keyed by the namespaced immutable Common Auth
+  subject. Email and public name remain historical attribution snapshots and
+  can change without transferring private state.
 - The offline performance queue drains on startup, reconnect, visibility, and
   authentication recovery, with bounded retry, dead letters, and preserved
   write identities.

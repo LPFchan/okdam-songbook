@@ -198,7 +198,7 @@ export function createConfiguredServer(options: Omit<ServerAppOptions, "roleReso
     roleResolver: createCommonAuthRoleResolver(),
     sessionResolver: async (request) => {
       const identity = resolveGatewayIdentity(request);
-      return identity ? { id: identity.sub, email: identity.email, displayName: identity.name } : null;
+      return identity ? { id: identity.sub, subject: `auth.lost.plus:${identity.sub}`, email: identity.email, displayName: identity.name } : null;
     },
     mcpAuth: createGatewayMcpAuthAdapter()
   });

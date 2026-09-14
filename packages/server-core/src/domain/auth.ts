@@ -1,11 +1,13 @@
 import type { UserRole } from "@songbook/shared";
 
 export interface RequestActor {
+  subject?: string;
   email: string;
   displayName?: string;
 }
 
 export interface ResolvedActor {
+  subject: string;
   email: string;
   displayName: string;
   role: UserRole;

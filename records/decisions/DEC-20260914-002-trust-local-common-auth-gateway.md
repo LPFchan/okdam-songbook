@@ -21,6 +21,8 @@ The Node server trusts only the gateway's percent-encoded identity headers.
 It no longer forwards cookies or bearer tokens to auth.lost.plus. Songbook
 continues to own tool permissions, user roles, JSON validation, exact-origin
 mutation checks, and anonymous MCP method/tool admission.
+Private account ownership uses the immutable Common Auth `sub`; email and
+display name remain mutable attribution fields only.
 
 ## Context
 
@@ -57,3 +59,6 @@ which application actions are allowed.
 - Anonymous MCP transport still reaches Songbook without identity; explicit
   invalid credentials are rejected before the backend.
 - Authenticated MCP callers use the `okdam-mcp` machine-token scope.
+- Favorites and idempotency records use a namespaced immutable subject. The
+  production cutover maps legacy email-owned favorites while both databases
+  are offline; runtime email matching cannot claim old private state.

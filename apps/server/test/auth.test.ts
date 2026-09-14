@@ -46,7 +46,7 @@ describe("MCP gateway identity", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.token).toEqual({ accessToken: "gateway-verified", scopes: ["songbook:read", "songbook:write"] });
-      expect(result.principal).toEqual({ userId: "42", actor: { email: "allowed@example.com", displayName: "마리" } });
+      expect(result.principal).toEqual({ userId: "42", actor: { subject: "auth.lost.plus:42", email: "allowed@example.com", displayName: "마리" } });
     }
   });
 

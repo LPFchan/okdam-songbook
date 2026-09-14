@@ -45,11 +45,11 @@ export const performances = sqliteTable("performances", {
 }));
 
 export const songFavorites = sqliteTable("song_favorites", {
-  userEmail: text("user_email").notNull(),
+  userSubject: text("user_subject").notNull(),
   songId: text("song_id").notNull().references(() => songs.id, { onDelete: "cascade", onUpdate: "cascade" }),
   createdAt: text("created_at").notNull()
 }, (table) => ({
-  primary: primaryKey({ columns: [table.userEmail, table.songId] }),
+  primary: primaryKey({ columns: [table.userSubject, table.songId] }),
   song: index("song_favorites_song_idx").on(table.songId)
 }));
 
@@ -75,7 +75,7 @@ export const auditEvents = sqliteTable("audit_events", {
 
 export const idempotencyKeys = sqliteTable("idempotency_keys", {
   key: text("key").primaryKey(),
-  actorEmail: text("actor_email").notNull().default(""),
+  actorSubject: text("actor_subject").notNull().default(""),
   operation: text("operation").notNull(),
   requestHash: text("request_hash").notNull(),
   responseJson: jsonText("response_json"),
@@ -83,7 +83,7 @@ export const idempotencyKeys = sqliteTable("idempotency_keys", {
   expiresAt: text("expires_at").notNull()
 }, (table) => ({
   expiry: index("idempotency_keys_expiry_idx").on(table.expiresAt),
-  actorOperation: index("idempotency_keys_actor_operation_idx").on(table.actorEmail, table.operation)
+  actorOperation: index("idempotency_keys_actor_operation_idx").on(table.actorSubject, table.operation)
 }));
 
 export const tjMirrorSongs = sqliteTable("tj_mirror_songs", {

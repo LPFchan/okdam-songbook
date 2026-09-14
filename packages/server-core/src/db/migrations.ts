@@ -351,6 +351,40 @@ export const migrations = [
   {
     id: "0106_drop_mcp_token_resources",
     sql: `DROP TABLE IF EXISTS mcp_token_resources;`
+  },
+  {
+    id: "0107_immutable_account_ownership",
+    sql: `
+      ALTER TABLE song_favorites RENAME TO song_favorites_email;
+      CREATE TABLE song_favorites (
+        user_subject TEXT NOT NULL,
+        song_id TEXT NOT NULL REFERENCES songs(id) ON DELETE CASCADE ON UPDATE CASCADE,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (user_subject, song_id)
+      );
+      INSERT INTO song_favorites (user_subject,song_id,created_at)
+      SELECT 'legacy-email:' || lower(trim(user_email)),song_id,created_at
+      FROM song_favorites_email;
+      DROP TABLE song_favorites_email;
+      CREATE INDEX song_favorites_song_idx ON song_favorites(song_id);
+
+      ALTER TABLE idempotency_keys RENAME TO idempotency_keys_email;
+      CREATE TABLE idempotency_keys (
+        key TEXT PRIMARY KEY NOT NULL,
+        actor_subject TEXT NOT NULL DEFAULT '',
+        operation TEXT NOT NULL,
+        request_hash TEXT NOT NULL,
+        response_json TEXT,
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL
+      );
+      INSERT INTO idempotency_keys (key,actor_subject,operation,request_hash,response_json,created_at,expires_at)
+      SELECT key,'legacy-email:' || lower(trim(actor_email)),operation,request_hash,response_json,created_at,expires_at
+      FROM idempotency_keys_email;
+      DROP TABLE idempotency_keys_email;
+      CREATE INDEX idempotency_keys_expiry_idx ON idempotency_keys(expires_at);
+      CREATE INDEX idempotency_keys_actor_operation_idx ON idempotency_keys(actor_subject, operation);
+    `
   }
 ] as const;
 

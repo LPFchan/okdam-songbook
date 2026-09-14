@@ -4,8 +4,8 @@ This directory describes the future OCI deployment. It does not install
 Docker, change a Cloudflare Tunnel, publish DNS, or deploy the application.
 
 The root `compose.yaml` builds the Node 22 application for the host platform,
-keeps the HTTP port bound to `127.0.0.1:3000`, and expects the existing
-`cloudflared` process on OCI to provide public ingress. The service stores its
+keeps the HTTP port bound to `127.0.0.1:3000`, and expects the local Common
+Auth gateway to provide public ingress. The service stores its
 database at `/var/lib/songbook/songbook.sqlite` and optional local backup
 archives at `/var/backups/songbook` inside the container. Both paths are bind
 mounted from the host so the container can be replaced without losing data.
@@ -63,13 +63,14 @@ and backup directories. Verify a backup exists before removing an old image.
 
 ## Cloudflare Tunnel route
 
-After the container passes its local and OCI gates, add a route in the existing
-host-level `cloudflared` configuration, using the real hostname at cutover:
+After the container passes its local and OCI gates, point the public hostname
+at the Common Auth gateway. Never route public ingress to this trusted-header
+backend directly:
 
 ```yaml
 ingress:
   - hostname: <songbook-hostname>
-    service: http://127.0.0.1:3000
+    service: http://127.0.0.1:8740
   # keep existing routes below this entry
 ```
 

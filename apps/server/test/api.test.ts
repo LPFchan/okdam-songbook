@@ -70,6 +70,26 @@ describe("same-origin server surface", () => {
     expect(JSON.stringify(catalog.data)).not.toContain("allowed@example.com");
   });
 
+  it("keeps favorites with the immutable account subject across email changes", async () => {
+    let principal = { subject: "auth.lost.plus:42", email: "old@example.com", displayName: "User" };
+    const server = app({
+      sessionResolver: async () => principal,
+      roleResolver: createCommonAuthRoleResolver()
+    });
+    const headers = { Origin: origin, "Content-Type": "application/json" };
+    const created = (await (await server.request(request("/api/songs", {
+      method: "POST", headers, body: JSON.stringify({ title: "Stable favorite", artist: "Artist", clientRequestId: crypto.randomUUID() })
+    }))).json()).data;
+    await server.request(request(`/api/favorites/${created.id}`, {
+      method: "POST", headers, body: JSON.stringify({ favorite: true, clientRequestId: crypto.randomUUID() })
+    }));
+
+    principal = { ...principal, email: "new@example.com" };
+    expect((await (await server.request(request("/api/favorites"))).json()).data.songIds).toEqual([created.id]);
+    principal = { subject: "auth.lost.plus:99", email: "old@example.com", displayName: "Other" };
+    expect((await (await server.request(request("/api/favorites"))).json()).data.songIds).toEqual([]);
+  });
+
   it("publishes the mapped latest singer name without publishing an email", async () => {
     const server = app({
       sessionResolver: async () => ({ email: "allowed@example.com", displayName: "마리" }),

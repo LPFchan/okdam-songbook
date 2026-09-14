@@ -123,7 +123,7 @@ function isUniqueConstraint(error: unknown): boolean {
 
 export function createSongbookService(database: SongbookDatabase, options: ServiceOptions = {}): SongbookService {
   const roleResolver = options.roleResolver ?? denyAllRoleResolver;
-  const songs = options.songRepository ?? createSongRepository(database.sqlite, (email) => roleResolver.resolve({ email })?.displayName ?? "");
+  const songs = options.songRepository ?? createSongRepository(database.sqlite);
   const performances = options.performanceRepository ?? createPerformanceRepository(database.sqlite);
   const favorites = options.favoriteRepository ?? createFavoriteRepository(database.sqlite);
   const audit = options.auditRepository ?? createAuditRepository(database.sqlite);
@@ -147,7 +147,7 @@ export function createSongbookService(database: SongbookDatabase, options: Servi
     const resolved = requireAction(actor, action);
     try {
       return database.sqlite.transaction(() => {
-        const claim = idempotency.reserve({ key: clientRequestId, actorEmail: resolved.email, operation, requestHash: requestHash(payload), createdAt: now(), expiresAt: new Date(Date.parse(now()) + 86_400_000).toISOString() });
+        const claim = idempotency.reserve({ key: clientRequestId, actorSubject: resolved.subject, operation, requestHash: requestHash(payload), createdAt: now(), expiresAt: new Date(Date.parse(now()) + 86_400_000).toISOString() });
         if (claim.kind === "replay") {
           if (!claim.record.responseJson) throw new DomainError("CONFLICT", "요청이 아직 처리 중이야.");
           return normalizeMutationResult(operation, JSON.parse(claim.record.responseJson) as T);
@@ -284,12 +284,15 @@ export function createSongbookService(database: SongbookDatabase, options: Servi
       appendAudit(resolved, "performance", input.performanceId, "cancel", before, after, input.clientRequestId, before.version, after.version);
       return after;
     }),
-    favoriteSongIds: (actor) => favorites.listSongIds(actorFor(actor).email),
+    favoriteSongIds: (actor) => {
+      const resolved = actorFor(actor);
+      return favorites.listSongIds(resolved.subject);
+    },
     setFavorite: (actor, input) => withMutation(actor, "favorite:update", "favorite.set", input.clientRequestId, input, (resolved) => {
       const song = songs.get(input.songId);
       if (!song || isDeletedSong(song)) throw new DomainError("NOT_FOUND", "곡을 찾을 수 없어.");
-      const before = favorites.has(resolved.email, input.songId);
-      favorites.set(resolved.email, input.songId, input.favorite, now());
+      const before = favorites.has(resolved.subject, input.songId);
+      favorites.set(resolved.subject, input.songId, input.favorite, now());
       appendAudit(resolved, "favorite", input.songId, input.favorite ? "add" : "remove", { favorite: before }, { favorite: input.favorite }, input.clientRequestId, null, null);
       return { songId: input.songId, favorite: input.favorite };
     }),

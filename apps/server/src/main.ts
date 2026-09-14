@@ -41,7 +41,7 @@ export async function startFromEnvironment() {
     readingGenerator: readingGeneratorFromEnvironment(process.env),
     assetsRoot: process.env.ASSETS_ROOT?.trim() || resolve(process.cwd(), "apps/web/dist")
   });
-  const listener = serve({ fetch: server.app.fetch, hostname: process.env.HOST?.trim() || "0.0.0.0", port: port() }, (info) => {
+  const listener = serve({ fetch: server.app.fetch, hostname: process.env.HOST?.trim() || "127.0.0.1", port: port() }, (info) => {
     console.log(`songbook listening on http://${info.address}:${info.port}`);
   });
   const shutdown = () => {

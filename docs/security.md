@@ -18,9 +18,10 @@
   `.lost.plus`. Login redirects to
   `https://auth.lost.plus/login?to=<current-songbook-url>` and returns to the
   original Songbook path after authentication.
-- The gateway forwards the shared cookie to auth.lost.plus and admits an
-  identity when its `services` list is empty or contains `okdam`. It strips the
-  cookie before forwarding verified identity headers to Songbook.
+- The gateway asks auth.lost.plus to admit the `okdam` audience. Auth checks
+  the account visibility list for browser sessions and machine tokens, then
+  the gateway strips the credential before forwarding verified identity
+  headers to Songbook.
 - Rejected, revoked, expired, malformed, or unavailable validation fails closed
   at the gateway.
 - Browser API routes reject bearer credentials. Mutations also require JSON and
@@ -46,11 +47,18 @@
 
 ## Stored identity data
 
-- Domain rows and audit events retain normalized account email as the durable
-  actor identifier.
+- Private favorites and idempotency ownership use the immutable, namespaced
+  Common Auth subject (`auth.lost.plus:<sub>`), not email.
+- Domain rows and audit events retain the email and public-name snapshot that
+  was current when a write happened. These fields are historical attribution,
+  never live ownership or authorization keys.
 - Public song data never exposes email. The latest singer name comes from the
   public-name snapshot stored on the performance when it was created.
-- Favorites remain private and are keyed by the authenticated account email.
+- Migration `0107_immutable_account_ownership` converts older favorite owners
+  to explicit `legacy-email:<normalized-email>` placeholders. Deployment maps
+  those placeholders to Auth subjects while both databases are backed up and
+  offline; runtime requests never claim legacy data merely by presenting the
+  old address.
 
 ## TJ boundary
 

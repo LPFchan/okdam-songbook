@@ -46,7 +46,7 @@ describe("SQLite storage foundation", () => {
 
   it("runs numbered migrations once and records them", () => {
     expect(runMigrations(database.sqlite)).toEqual([]);
-    expect(database.sqlite.prepare("SELECT id FROM schema_migrations").all()).toEqual(expect.arrayContaining([{ id: "0001_core" }, { id: "0100_mcp_token_resources" }, { id: "0101_tj_mirror" }, { id: "0102_drop_song_genres" }, { id: "0103_drop_practicing_status" }, { id: "0104_personal_favorites" }, { id: "0105_collapse_song_schema" }, { id: "0106_drop_mcp_token_resources" }]));
+    expect(database.sqlite.prepare("SELECT id FROM schema_migrations").all()).toEqual(expect.arrayContaining([{ id: "0001_core" }, { id: "0100_mcp_token_resources" }, { id: "0101_tj_mirror" }, { id: "0102_drop_song_genres" }, { id: "0103_drop_practicing_status" }, { id: "0104_personal_favorites" }, { id: "0105_collapse_song_schema" }, { id: "0106_drop_mcp_token_resources" }, { id: "0107_immutable_account_ownership" }]));
     expect(database.sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='mcp_token_resources'").get()).toBeUndefined();
     const songColumns = database.sqlite.prepare("PRAGMA table_info('songs')").all() as Array<{ name: string }>;
     expect(songColumns.map((column) => column.name)).not.toContain("genres_json");
@@ -70,6 +70,8 @@ describe("SQLite storage foundation", () => {
       expect(legacy.pragma("foreign_key_check")).toEqual([]);
       const columns = legacy.prepare("PRAGMA table_info('songs')").all() as Array<{ name: string }>;
       expect(columns.map((column) => column.name)).not.toEqual(expect.arrayContaining(["genres_json", "original_work", "key_candidates_json", "status", "title_romanized", "title_aliases_json", "artist_aliases_json", "youtube_url", "youtube_video_id", "is_official_tj_video"]));
+      expect((legacy.prepare("PRAGMA table_info('song_favorites')").all() as Array<{ name: string }>).map((column) => column.name)).toContain("user_subject");
+      expect((legacy.prepare("PRAGMA table_info('idempotency_keys')").all() as Array<{ name: string }>).map((column) => column.name)).toContain("actor_subject");
     } finally {
       legacy.close();
     }
@@ -145,11 +147,11 @@ describe("SQLite storage foundation", () => {
 
   it("claims idempotency keys, returns same-request replays, rejects mismatches, and prunes expiry", () => {
     const repo = createIdempotencyRepository(database.sqlite);
-    const input = { key: "request-1", actorEmail: "allowed@example.com", operation: "song.create", requestHash: "hash-a", createdAt: "2026-08-13T00:00:00.000Z", expiresAt: "2026-08-14T00:00:00.000Z" };
+    const input = { key: "request-1", actorSubject: "auth.lost.plus:1", operation: "song.create", requestHash: "hash-a", createdAt: "2026-08-13T00:00:00.000Z", expiresAt: "2026-08-14T00:00:00.000Z" };
     expect(repo.reserve(input).kind).toBe("new");
     expect(repo.reserve(input).kind).toBe("replay");
     expect(() => repo.reserve({ ...input, requestHash: "hash-b" })).toThrow(IdempotencyMismatchError);
-    expect(() => repo.reserve({ ...input, actorEmail: "other@example.com" })).toThrow(IdempotencyMismatchError);
+    expect(() => repo.reserve({ ...input, actorSubject: "auth.lost.plus:2" })).toThrow(IdempotencyMismatchError);
     repo.complete("request-1", '{"ok":true}');
     expect(repo.get("request-1")?.responseJson).toBe('{"ok":true}');
     expect(repo.reserve({ ...input, createdAt: "2026-08-15T00:00:00.000Z", expiresAt: "2026-08-16T00:00:00.000Z" }).kind).toBe("new");

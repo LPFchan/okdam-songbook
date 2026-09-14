@@ -101,20 +101,20 @@ export function createPerformanceRepository(sqlite: Database.Database): Performa
 }
 
 export interface FavoriteRepository {
-  listSongIds(userEmail: string): string[];
-  has(userEmail: string, songId: string): boolean;
-  set(userEmail: string, songId: string, favorite: boolean, createdAt: string): void;
+  listSongIds(subject: string): string[];
+  has(subject: string, songId: string): boolean;
+  set(subject: string, songId: string, favorite: boolean, createdAt: string): void;
 }
 
 export function createFavoriteRepository(sqlite: Database.Database): FavoriteRepository {
   return {
-    listSongIds: (userEmail) => (sqlite.prepare("SELECT f.song_id FROM song_favorites f JOIN songs s ON s.id=f.song_id WHERE f.user_email=? AND s.deleted_at IS NULL ORDER BY f.created_at DESC, f.song_id ASC").all(userEmail) as Array<{ song_id: string }>).map((row) => row.song_id),
-    has: (userEmail, songId) => Boolean(sqlite.prepare("SELECT 1 FROM song_favorites WHERE user_email=? AND song_id=?").get(userEmail, songId)),
-    set: (userEmail, songId, favorite, createdAt) => {
+    listSongIds: (subject) => (sqlite.prepare("SELECT f.song_id FROM song_favorites f JOIN songs s ON s.id=f.song_id WHERE f.user_subject=? AND s.deleted_at IS NULL ORDER BY f.created_at DESC, f.song_id ASC").all(subject) as Array<{ song_id: string }>).map((row) => row.song_id),
+    has: (subject, songId) => Boolean(sqlite.prepare("SELECT 1 FROM song_favorites WHERE user_subject=? AND song_id=?").get(subject, songId)),
+    set: (subject, songId, favorite, createdAt) => {
       if (favorite) {
-        sqlite.prepare("INSERT OR IGNORE INTO song_favorites (user_email,song_id,created_at) VALUES (?,?,?)").run(userEmail, songId, createdAt);
+        sqlite.prepare("INSERT OR IGNORE INTO song_favorites (user_subject,song_id,created_at) VALUES (?,?,?)").run(subject, songId, createdAt);
       } else {
-        sqlite.prepare("DELETE FROM song_favorites WHERE user_email=? AND song_id=?").run(userEmail, songId);
+        sqlite.prepare("DELETE FROM song_favorites WHERE user_subject=? AND song_id=?").run(subject, songId);
       }
     }
   };
@@ -142,7 +142,7 @@ export interface IdempotencyRepository {
 
 export interface IdempotencyClaimInput {
   key: string;
-  actorEmail: string;
+  actorSubject: string;
   operation: string;
   requestHash: string;
   createdAt: string;
@@ -168,20 +168,20 @@ export function createIdempotencyRepository(sqlite: Database.Database): Idempote
   const rowForKey = (key: string): IdempotencyKeyRow | null => {
     const row = sqlite.prepare("SELECT * FROM idempotency_keys WHERE key=?").get(key) as Record<string, unknown> | undefined;
     if (!row) return null;
-    return { key: String(row.key), actorEmail: String(row.actor_email ?? ""), operation: String(row.operation), requestHash: String(row.request_hash), responseJson: row.response_json === null ? null : String(row.response_json), createdAt: String(row.created_at), expiresAt: String(row.expires_at) } as IdempotencyKeyRow;
+    return { key: String(row.key), actorSubject: String(row.actor_subject ?? ""), operation: String(row.operation), requestHash: String(row.request_hash), responseJson: row.response_json === null ? null : String(row.response_json), createdAt: String(row.created_at), expiresAt: String(row.expires_at) } as IdempotencyKeyRow;
   };
   return {
     get: rowForKey,
     reserve: (input) => sqlite.transaction(() => {
       sqlite.prepare("DELETE FROM idempotency_keys WHERE key=? AND expires_at<=?").run(input.key, input.createdAt);
-      const result = sqlite.prepare("INSERT OR IGNORE INTO idempotency_keys (key,actor_email,operation,request_hash,response_json,created_at,expires_at) VALUES (?,?,?,?,NULL,?,?)").run(input.key,input.actorEmail,input.operation,input.requestHash,input.createdAt,input.expiresAt);
+      const result = sqlite.prepare("INSERT OR IGNORE INTO idempotency_keys (key,actor_subject,operation,request_hash,response_json,created_at,expires_at) VALUES (?,?,?,?,NULL,?,?)").run(input.key,input.actorSubject,input.operation,input.requestHash,input.createdAt,input.expiresAt);
       if (result.changes === 1) return { kind: "new", record: rowForKey(input.key)! };
       const existing = rowForKey(input.key);
       if (!existing) throw new Error("Idempotency claim disappeared during reservation.");
-      if (existing.actorEmail !== input.actorEmail || existing.operation !== input.operation || existing.requestHash !== input.requestHash) throw new IdempotencyMismatchError(existing);
+      if (existing.actorSubject !== input.actorSubject || existing.operation !== input.operation || existing.requestHash !== input.requestHash) throw new IdempotencyMismatchError(existing);
       return { kind: "replay", record: existing };
     })() as IdempotencyClaim,
-    put: (input) => sqlite.prepare("INSERT INTO idempotency_keys (key,actor_email,operation,request_hash,response_json,created_at,expires_at) VALUES (?,?,?,?,?,?,?)").run(input.key,input.actorEmail,input.operation,input.requestHash,input.responseJson ?? null,input.createdAt,input.expiresAt),
+    put: (input) => sqlite.prepare("INSERT INTO idempotency_keys (key,actor_subject,operation,request_hash,response_json,created_at,expires_at) VALUES (?,?,?,?,?,?,?)").run(input.key,input.actorSubject,input.operation,input.requestHash,input.responseJson ?? null,input.createdAt,input.expiresAt),
     complete: (key, responseJson) => sqlite.prepare("UPDATE idempotency_keys SET response_json=? WHERE key=?").run(responseJson,key),
     prune: (now) => sqlite.prepare("DELETE FROM idempotency_keys WHERE expires_at<=?").run(now).changes
   };
