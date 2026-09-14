@@ -5,13 +5,14 @@ Recorded by agent: codex-orchestrator
 
 ## Snapshot
 
-- Last updated: 2026-09-14 (browser sessions and MCP bearer validation now use
-  `auth.lost.plus`; app-owned Better Auth and local token bindings are retired).
+- Last updated: 2026-09-14 (browser and MCP credentials are now validated by
+  the local Common Auth gateway; the private server consumes verified identity).
 - Overall posture: `live in production on OCI single-server`.
-- Production baseline: `d812381` with common-auth identity and single-role
+- Production baseline: `0943067` with gateway identity and single-role
   Songbook authorization, running as `songbook:local` (ARM64) on oci-ubuntu.
 - Public URL: https://okdam.lost.plus via the Cloudflare Tunnel
-  (`obsidian-sync` tunnel, hostname `okdam.lost.plus` → `localhost:3010`).
+  (`obsidian-sync` tunnel, hostname `okdam.lost.plus` → the OCI Common Auth
+  gateway on `localhost:8740` → private Songbook on `localhost:3010`).
 - Current product shape: one catalog-first main surface whose search input
   returns saved songs first and debounced TJ candidates second. Manage/history
   remain contextual utilities; `/admin` is a compatibility alias.
@@ -32,12 +33,13 @@ Recorded by agent: codex-orchestrator
 - Database: `/var/lib/songbook/songbook.sqlite` bind-mounted into the
   container, with WAL sidecars managed by the backup script.
 - Ingress: Cloudflare Tunnel `obsidian-sync` routes `okdam.lost.plus` to
-  `http://localhost:3010`; the container port is localhost-only.
+  `http://localhost:8740`; the gateway routes to the localhost-only container
+  port at `127.0.0.1:3010`.
 - Health: `/healthz` returns `{"ok":true}` locally and through the public
   hostname; the container healthcheck passes.
-- Shared auth: `https://auth.lost.plus/api/ready` is healthy. The host-only
-  environment contains `AUTH_ORIGIN`; retired Better Auth, Google OAuth, and
-  app-local allowlist values have been removed.
+- Shared auth: `https://auth.lost.plus/api/ready` is healthy. The Node server
+  has no Auth origin or credential validator; the gateway admits `okdam`
+  browser sessions and `okdam-mcp` machine tokens.
 - Korean-reading generation uses Cloudflare Workers AI with
   `@cf/google/gemma-4-26b-a4b-it`; its server-only credential is not bundled
   into the web application.
@@ -92,21 +94,24 @@ Recorded by agent: codex-orchestrator
   state. Migration `0106_drop_mcp_token_resources` is applied in production;
   the retired local token table is absent. Import/reconciliation, CSV recovery,
   backup, integrity-check, and guarded restore tools are checked in.
-- Browser access uses the shared `lp_auth` cookie, per-request validation at
-  `auth.lost.plus`, `okdam` service admission, exact-origin mutation checks,
-  and JSON-only bodies. Every admitted user has the same `allowed` role and may
-  delete songs.
+- Browser access uses the shared `lp_auth` cookie. The local gateway validates
+  it at `auth.lost.plus`, enforces `okdam` service admission, strips the cookie,
+  and supplies verified identity headers. Songbook retains exact-origin
+  mutation checks and JSON-only bodies. Every admitted user has the same
+  `allowed` role and may delete songs.
 - The offline performance queue drains on startup, reconnect, visibility, and
   authentication recovery, with bounded retry, dead letters, and preserved
   write identities.
-- MCP uses stateless SDK v2 transport with legacy stateless fallback. Public
+- MCP uses the gateway's `okdam-mcp` token scope and stateless SDK v2 transport
+  with legacy stateless fallback. Public
   catalog/search/lookup operations work anonymously; every mutation requires
   `songbook:write`. Authoritative common-auth identity is resolved before any
   authenticated request reaches the shared domain service, and anonymous
   search never invokes TJ. Browser cookies alone never grant MCP identity.
-- Common-auth production smoke verified an anonymous 126-song catalog,
-  anonymous MCP tool listing, invalid shared-bearer rejection, auth readiness,
-  local/public health, and the retired token-table migration.
+- Common-auth production smoke verified the public shell and catalog, API
+  `401` versus navigation redirect behavior, gateway logout, anonymous MCP
+  listing, protected anonymous rejection, invalid-token rejection, a valid
+  protected MCP call, auth readiness, and local/public health.
 - The Docker image runs non-root with a read-only root filesystem, persistent
   SQLite bind mount, localhost-only published port, bounded logs/resources,
   and an application-owned `/healthz` check.
