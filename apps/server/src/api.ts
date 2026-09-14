@@ -189,6 +189,16 @@ function mcpBodyFailure(status: 408 | 413, message: string): Response {
   });
 }
 
+async function settledMcpResponse(response: Response | Promise<Response>): Promise<Response> {
+  const source = await response;
+  const body = await source.arrayBuffer();
+  return new Response(body, {
+    status: source.status,
+    statusText: source.statusText,
+    headers: source.headers
+  });
+}
+
 function requestId(c: Context): string {
   return c.req.header("X-Request-Id")?.trim() || crypto.randomUUID();
 }
@@ -498,16 +508,16 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
       const handlerRequest = bodyDerivedMcpRequest(replayRequest(request, rawBody), body);
       if (resolveGatewayIdentity(request) === null) {
         if (!anonymousMcpRequestAllowed(request.method, body)) return mcpBearerChallenge();
-        return mcpHandler.fetch(handlerRequest, { parsedBody: body ?? undefined });
+        return await settledMcpResponse(mcpHandler.fetch(handlerRequest, { parsedBody: body ?? undefined }));
       }
       const requiredScope = mcpRequiredScopeForBody(body);
       const checked = await mcpAuth.verifyRequest(request, requiredScope ? [requiredScope] : []);
       if (!checked.ok) return checked.response;
       if (!roleResolver.resolve(checked.principal.actor)) return mcpBearerChallenge(true);
-      return mcpHandler.fetch(handlerRequest, {
+      return await settledMcpResponse(mcpHandler.fetch(handlerRequest, {
         authInfo: authInfoForPrincipal({ ...checked.principal, scopes: checked.token.scopes }, checked.token.accessToken),
         parsedBody: body ?? undefined
-      });
+      }));
     } finally {
       release();
     }

@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { ReadableStream } from "node:stream/web";
-import { openDatabase, type SongbookDatabase } from "@songbook/server-core";
+import { openDatabase, type SongbookDatabase, type TjAdapter } from "@songbook/server-core";
 import { createServerApp } from "../src/api.js";
 import { createCommonAuthRoleResolver } from "../src/auth.js";
 
@@ -393,30 +393,44 @@ describe("MCP common-auth gate", () => {
     expect(response.status).toBe(408);
   });
 
-  it("holds an MCP body permit until request handling finishes", async () => {
+  it("holds an MCP body permit until tool dispatch finishes", async () => {
     database = openDatabase();
-    let verified = 0;
+    let searches = 0;
     let firstEntered!: () => void;
     let releaseFirst!: () => void;
     const entered = new Promise<void>((resolve) => { firstEntered = resolve; });
     const blocked = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    const tj = {
+      search: async (input) => {
+        searches += 1;
+        if (searches === 1) {
+          firstEntered();
+          await blocked;
+        }
+        return {
+          query: input.query,
+          searchType: "all" as const,
+          nation: "",
+          page: 1,
+          pageSize: 15,
+          hasMore: false,
+          candidates: [],
+          sourceUrl: "https://tj.example/search"
+        };
+      },
+      lookup: async () => { throw new Error("not used"); }
+    } as TjAdapter;
     const server = createServerApp({
       database,
       origin,
       mcpMaxInflightBodies: 1,
+      tj,
       mcpAuth: {
-        verifyRequest: async () => {
-          verified += 1;
-          if (verified === 1) {
-            firstEntered();
-            await blocked;
-          }
-          return {
-            ok: true as const,
-            token: { accessToken: "accepted", scopes: ["songbook:read"] },
-            principal: { userId: "allowed@example.com", actor: { email: "allowed@example.com", displayName: "Allowed" } }
-          };
-        }
+        verifyRequest: async () => ({
+          ok: true as const,
+          token: { accessToken: "accepted", scopes: ["songbook:read"] },
+          principal: { userId: "allowed@example.com", actor: { email: "allowed@example.com", displayName: "Allowed" } }
+        })
       },
       roleResolver: createCommonAuthRoleResolver()
     }).app;
@@ -429,16 +443,16 @@ describe("MCP common-auth gate", () => {
       "Content-Type": "application/json",
       Accept: "application/json, text/event-stream"
     };
-    const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} });
+    const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "search_songs", arguments: { query: "Song" } } });
     const first = server.request(request("/mcp", { method: "POST", headers, body }));
     await entered;
     const second = server.request(request("/mcp", { method: "POST", headers, body }));
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(verified).toBe(1);
+    expect(searches).toBe(1);
     releaseFirst();
     expect((await first).status).toBe(200);
     expect((await second).status).toBe(200);
-    expect(verified).toBe(2);
+    expect(searches).toBe(2);
   });
 
   it("runs the stateless MCP handler only after bearer verification", async () => {
