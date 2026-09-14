@@ -58,6 +58,9 @@ export interface ServerAppOptions {
   tj?: TjAdapter;
   readingGenerator?: ReadingGenerator;
   mcpAuth?: McpAuthAdapter;
+  mcpMaxBodyBytes?: number;
+  mcpMaxInflightBodies?: number;
+  mcpBodyTimeoutMs?: number;
   now?: () => string;
 }
 
@@ -88,6 +91,103 @@ const ANONYMOUS_MCP_METHODS = new Set([
   "notifications/tasks/status",
   "notifications/elicitation/complete"
 ]);
+const DEFAULT_MCP_MAX_BODY_BYTES = 1024 * 1024;
+const DEFAULT_MCP_MAX_INFLIGHT_BODIES = 4;
+const DEFAULT_MCP_BODY_TIMEOUT_MS = 30_000;
+
+class McpBodyTooLarge extends Error {}
+class McpBodyTimedOut extends Error {}
+
+class McpBodyGate {
+  private available: number;
+  private readonly waiting: Array<() => void> = [];
+
+  constructor(limit: number) {
+    if (!Number.isInteger(limit) || limit < 1) throw new Error("MCP body concurrency must be a positive integer");
+    this.available = limit;
+  }
+
+  async acquire(): Promise<() => void> {
+    if (this.available > 0) this.available -= 1;
+    else await new Promise<void>((resolve) => this.waiting.push(resolve));
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      const next = this.waiting.shift();
+      if (next) next();
+      else this.available += 1;
+    };
+  }
+}
+
+function positiveInteger(value: number | undefined, fallback: number, label: string): number {
+  const resolved = value ?? fallback;
+  if (!Number.isInteger(resolved) || resolved < 1) throw new Error(`${label} must be a positive integer`);
+  return resolved;
+}
+
+function rejectDeclaredMcpBody(request: Request, limit: number): boolean {
+  const value = request.headers.get("Content-Length");
+  if (value === null) return false;
+  if (!/^\d+$/.test(value)) return true;
+  const length = Number(value);
+  return !Number.isSafeInteger(length) || length > limit;
+}
+
+async function readMcpBody(request: Request, limit: number, timeoutMs: number): Promise<ArrayBuffer> {
+  if (!request.body) return new ArrayBuffer(0);
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const consume = (async () => {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > limit) {
+        void reader.cancel();
+        throw new McpBodyTooLarge();
+      }
+      chunks.push(value);
+    }
+    const body = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      body.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return body.buffer;
+  })();
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      void reader.cancel();
+      reject(new McpBodyTimedOut());
+    }, timeoutMs);
+  });
+  try {
+    return await Promise.race([consume, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function replayRequest(request: Request, body: ArrayBuffer): Request {
+  return new Request(request.url, {
+    method: request.method,
+    headers: request.headers,
+    body,
+    signal: request.signal
+  });
+}
+
+function mcpBodyFailure(status: 408 | 413, message: string): Response {
+  return new Response(JSON.stringify({ jsonrpc: "2.0", id: null, error: { code: -32000, message } }), {
+    status,
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" }
+  });
+}
 
 function requestId(c: Context): string {
   return c.req.header("X-Request-Id")?.trim() || crypto.randomUUID();
@@ -222,6 +322,9 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
   const mcpAuth = options.mcpAuth ?? {
     verifyRequest: async () => ({ ok: false as const, response: mcpBearerChallenge(true) })
   };
+  const mcpMaxBodyBytes = positiveInteger(options.mcpMaxBodyBytes, DEFAULT_MCP_MAX_BODY_BYTES, "MCP body limit");
+  const mcpBodyTimeoutMs = positiveInteger(options.mcpBodyTimeoutMs, DEFAULT_MCP_BODY_TIMEOUT_MS, "MCP body timeout");
+  const mcpBodyGate = new McpBodyGate(positiveInteger(options.mcpMaxInflightBodies, DEFAULT_MCP_MAX_INFLIGHT_BODIES, "MCP body concurrency"));
   const mcpHandler = createSongbookMcpHandler({ service, tj: options.tj });
   const app = new Hono();
 
@@ -367,20 +470,47 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
 
   app.all("/mcp", async (c) => {
     const request = c.req.raw;
-    const body = request.method === "POST" ? await request.clone().json().catch(() => null) : null;
-    const handlerRequest = bodyDerivedMcpRequest(request, body);
-    if (resolveGatewayIdentity(request) === null) {
-      if (!anonymousMcpRequestAllowed(request.method, body)) return mcpBearerChallenge();
-      return mcpHandler.fetch(handlerRequest, { parsedBody: body ?? undefined });
+    if (request.method !== "POST") {
+      if (resolveGatewayIdentity(request) === null) {
+        if (!anonymousMcpRequestAllowed(request.method, null)) return mcpBearerChallenge();
+        return mcpHandler.fetch(request);
+      }
+      const checked = await mcpAuth.verifyRequest(request, []);
+      if (!checked.ok) return checked.response;
+      if (!roleResolver.resolve(checked.principal.actor)) return mcpBearerChallenge(true);
+      return mcpHandler.fetch(request, {
+        authInfo: authInfoForPrincipal({ ...checked.principal, scopes: checked.token.scopes }, checked.token.accessToken)
+      });
     }
-    const requiredScope = mcpRequiredScopeForBody(body);
-    const checked = await mcpAuth.verifyRequest(request, requiredScope ? [requiredScope] : []);
-    if (!checked.ok) return checked.response;
-    if (!roleResolver.resolve(checked.principal.actor)) return mcpBearerChallenge(true);
-    return mcpHandler.fetch(handlerRequest, {
-      authInfo: authInfoForPrincipal({ ...checked.principal, scopes: checked.token.scopes }, checked.token.accessToken),
-      parsedBody: body ?? undefined
-    });
+    if (rejectDeclaredMcpBody(request, mcpMaxBodyBytes)) return mcpBodyFailure(413, "MCP request body is too large");
+    const release = await mcpBodyGate.acquire();
+    try {
+      let rawBody: ArrayBuffer;
+      try {
+        rawBody = await readMcpBody(request, mcpMaxBodyBytes, mcpBodyTimeoutMs);
+      } catch (error) {
+        if (error instanceof McpBodyTooLarge) return mcpBodyFailure(413, "MCP request body is too large");
+        if (error instanceof McpBodyTimedOut) return mcpBodyFailure(408, "MCP request body timed out");
+        throw error;
+      }
+      let body: unknown = null;
+      try { body = JSON.parse(new TextDecoder().decode(rawBody)) as unknown; } catch { body = null; }
+      const handlerRequest = bodyDerivedMcpRequest(replayRequest(request, rawBody), body);
+      if (resolveGatewayIdentity(request) === null) {
+        if (!anonymousMcpRequestAllowed(request.method, body)) return mcpBearerChallenge();
+        return mcpHandler.fetch(handlerRequest, { parsedBody: body ?? undefined });
+      }
+      const requiredScope = mcpRequiredScopeForBody(body);
+      const checked = await mcpAuth.verifyRequest(request, requiredScope ? [requiredScope] : []);
+      if (!checked.ok) return checked.response;
+      if (!roleResolver.resolve(checked.principal.actor)) return mcpBearerChallenge(true);
+      return mcpHandler.fetch(handlerRequest, {
+        authInfo: authInfoForPrincipal({ ...checked.principal, scopes: checked.token.scopes }, checked.token.accessToken),
+        parsedBody: body ?? undefined
+      });
+    } finally {
+      release();
+    }
   });
 
   app.all("*", (c) => {

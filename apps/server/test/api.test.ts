@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { ReadableStream } from "node:stream/web";
 import { openDatabase, type SongbookDatabase } from "@songbook/server-core";
 import { createServerApp } from "../src/api.js";
 import { createCommonAuthRoleResolver } from "../src/auth.js";
@@ -351,6 +352,95 @@ describe("same-origin server surface", () => {
 });
 
 describe("MCP common-auth gate", () => {
+  it("bounds declared and chunked MCP bodies before anonymous admission", async () => {
+    database = openDatabase();
+    const server = createServerApp({ database, origin, mcpMaxBodyBytes: 256 }).app;
+    const ordinary = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} });
+    expect((await server.request(request("/mcp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
+      body: ordinary
+    }))).status).toBe(200);
+
+    const declared = await server.request(request("/mcp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Content-Length": "257" },
+      body: ordinary
+    }));
+    expect(declared.status).toBe(413);
+
+    const chunked = await server.request(request("/mcp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "initialize", params: { capabilities: { padding: "x".repeat(512) } } })
+    }));
+    expect(chunked.status).toBe(413);
+  });
+
+  it("times out an MCP body that never finishes", async () => {
+    database = openDatabase();
+    const server = createServerApp({ database, origin, mcpBodyTimeoutMs: 10 }).app;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) { controller.enqueue(new TextEncoder().encode("{")); }
+    });
+    const stalled = new Request(`${origin}/mcp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: stream,
+      duplex: "half"
+    } as RequestInit & { duplex: "half" });
+    const response = await server.request(stalled);
+    expect(response.status).toBe(408);
+  });
+
+  it("holds an MCP body permit until request handling finishes", async () => {
+    database = openDatabase();
+    let verified = 0;
+    let firstEntered!: () => void;
+    let releaseFirst!: () => void;
+    const entered = new Promise<void>((resolve) => { firstEntered = resolve; });
+    const blocked = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    const server = createServerApp({
+      database,
+      origin,
+      mcpMaxInflightBodies: 1,
+      mcpAuth: {
+        verifyRequest: async () => {
+          verified += 1;
+          if (verified === 1) {
+            firstEntered();
+            await blocked;
+          }
+          return {
+            ok: true as const,
+            token: { accessToken: "accepted", scopes: ["songbook:read"] },
+            principal: { userId: "allowed@example.com", actor: { email: "allowed@example.com", displayName: "Allowed" } }
+          };
+        }
+      },
+      roleResolver: createCommonAuthRoleResolver()
+    }).app;
+    const headers = {
+      "X-Lost-Plus-Encoding": "percent-utf8",
+      "X-Lost-Plus-Sub": "42",
+      "X-Lost-Plus-Email": "allowed%40example.com",
+      "X-Lost-Plus-Name": "Allowed",
+      "X-Lost-Plus-Role": "user",
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream"
+    };
+    const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} });
+    const first = server.request(request("/mcp", { method: "POST", headers, body }));
+    await entered;
+    const second = server.request(request("/mcp", { method: "POST", headers, body }));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(verified).toBe(1);
+    releaseFirst();
+    expect((await first).status).toBe(200);
+    expect((await second).status).toBe(200);
+    expect(verified).toBe(2);
+  });
+
   it("runs the stateless MCP handler only after bearer verification", async () => {
     database = openDatabase();
     let verifiedScopes: string[] = [];
