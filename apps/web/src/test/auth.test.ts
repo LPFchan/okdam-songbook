@@ -16,6 +16,11 @@ async function resetAuth() {
 }
 
 describe("auth store", () => {
+  const responseFor = (subject: string, displayName = subject) => ({
+    ok: true,
+    json: () => Promise.resolve({ ok: true, data: { subject, email: "user@example.com", displayName, role: "allowed" } })
+  });
+
   beforeEach(async () => {
     vi.stubGlobal("fetch", mockFetch);
     mockFetch.mockReset();
@@ -107,6 +112,79 @@ describe("auth store", () => {
     auth.signOut();
     expect(auth.status).toBe("anonymous");
     expect(window.sessionStorage.getItem("songbook:display-user")).toBeNull();
+  });
+
+  it("does not let an older refresh overwrite a newer account", async () => {
+    let resolveOlder!: (value: ReturnType<typeof responseFor>) => void;
+    mockFetch
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveOlder = resolve; }))
+      .mockResolvedValueOnce(responseFor("auth.lost.plus:b", "B"));
+
+    const older = auth.refreshUser();
+    await expect(auth.refreshUser()).resolves.toMatchObject({ subject: "auth.lost.plus:b" });
+    resolveOlder(responseFor("auth.lost.plus:a", "A"));
+
+    await expect(older).resolves.toBeNull();
+    expect(auth.user?.subject).toBe("auth.lost.plus:b");
+  });
+
+  it("does not restore a session from a refresh started before sign-out", async () => {
+    let resolveRefresh!: (value: ReturnType<typeof responseFor>) => void;
+    mockFetch.mockImplementationOnce(() => new Promise((resolve) => { resolveRefresh = resolve; }));
+
+    const refresh = auth.refreshUser();
+    auth.signOut();
+    resolveRefresh(responseFor("auth.lost.plus:a", "A"));
+
+    await expect(refresh).resolves.toBeNull();
+    expect(auth.user).toBeNull();
+    expect(auth.status).toBe("anonymous");
+  });
+
+  it("ignores an older refresh failure after a newer account succeeds", async () => {
+    let rejectOlder!: (reason: Error) => void;
+    mockFetch
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectOlder = reject; }))
+      .mockResolvedValueOnce(responseFor("auth.lost.plus:b", "B"));
+
+    const older = auth.refreshUser();
+    await auth.refreshUser();
+    rejectOlder(new Error("stale network failure"));
+
+    await expect(older).resolves.toBeNull();
+    expect(auth.user?.subject).toBe("auth.lost.plus:b");
+    expect(auth.status).toBe("authenticated");
+  });
+
+  it("does not validate an action from a superseded subject refresh", async () => {
+    auth.user = { subject: "auth.lost.plus:a", email: "a@example.com", displayName: "A", role: "allowed", expiresAt: null };
+    auth.status = "authenticated";
+    let resolveOlder!: (value: ReturnType<typeof responseFor>) => void;
+    mockFetch
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveOlder = resolve; }))
+      .mockResolvedValueOnce(responseFor("auth.lost.plus:b", "B"));
+
+    const actionCredential = auth.requireValidCredential("auth.lost.plus:a");
+    await auth.refreshUser();
+    resolveOlder(responseFor("auth.lost.plus:a", "A"));
+
+    await expect(actionCredential).rejects.toBeInstanceOf(AuthRequiredError);
+    expect(auth.user?.subject).toBe("auth.lost.plus:b");
+  });
+
+  it("hides the previous account while revalidating an externally changed session", async () => {
+    auth.user = { subject: "auth.lost.plus:a", email: "a@example.com", displayName: "A", role: "allowed", expiresAt: null };
+    auth.status = "authenticated";
+    let resolveRefresh!: (value: ReturnType<typeof responseFor>) => void;
+    mockFetch.mockImplementationOnce(() => new Promise((resolve) => { resolveRefresh = resolve; }));
+
+    const refresh = auth.revalidateUser();
+    expect(auth.user).toBeNull();
+    expect(auth.status).toBe("unknown");
+    resolveRefresh(responseFor("auth.lost.plus:b", "B"));
+
+    await expect(refresh).resolves.toMatchObject({ subject: "auth.lost.plus:b" });
+    expect(auth.user?.subject).toBe("auth.lost.plus:b");
   });
 
   it("isApiAuthError detects UNAUTHORIZED codes", () => {

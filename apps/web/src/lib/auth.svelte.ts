@@ -49,6 +49,7 @@ class AuthStore {
   user = $state<AuthUser | null>(null);
   displayInfo = $state<{ email: string; displayName: string } | null>(readSessionDisplay());
   forceUpdateToken = $state(0);
+  private refreshGeneration = 0;
 
   private adoptServerUser(current: { subject: string; email: string; displayName: string; role: "allowed" }): AuthUser {
     const previous = this.user;
@@ -70,16 +71,30 @@ class AuthStore {
   }
 
   async refreshUser(): Promise<AuthUser | null> {
+    const generation = ++this.refreshGeneration;
     try {
-      return this.adoptServerUser(await fetchCurrentUser());
+      const current = await fetchCurrentUser();
+      if (generation !== this.refreshGeneration) return null;
+      return this.adoptServerUser(current);
     } catch {
+      if (generation !== this.refreshGeneration) return null;
       this.user = null;
       this.status = "anonymous";
       return null;
     }
   }
 
+  /** Hide cached private state while re-checking a session changed outside this tab. */
+  async revalidateUser(): Promise<AuthUser | null> {
+    this.user = null;
+    this.status = "unknown";
+    this.forceUpdateToken += 1;
+    return this.refreshUser();
+  }
+
   async loginWithGoogleButton(): Promise<AuthUser> {
+    this.refreshGeneration += 1;
+    this.user = null;
     if (mockMode()) {
       return this.adoptServerUser({ subject: "auth.lost.plus:mock", email: "allowed@example.com", displayName: "마리", role: "allowed" });
     }
@@ -96,6 +111,7 @@ class AuthStore {
   }
 
   signOut() {
+    this.refreshGeneration += 1;
     if (!mockMode()) void signOutBrowser();
     this.user = null;
     this.displayInfo = null;
@@ -106,7 +122,12 @@ class AuthStore {
 
   async requireValidCredential(expectedSubject?: string): Promise<AuthUser> {
     if (this.user && !expectedSubject) return this.user;
-    const current = await this.refreshUser();
+    const refreshed = await this.refreshUser();
+    if (!refreshed && expectedSubject) {
+      this.status = "reauthRequired";
+      throw new AuthRequiredError("로그인 계정을 다시 확인해주세요.");
+    }
+    const current = refreshed ?? (this.status === "authenticated" ? this.user : null);
     if (current && (!expectedSubject || current.subject === expectedSubject)) return current;
     if (current && expectedSubject) {
       this.status = "reauthRequired";

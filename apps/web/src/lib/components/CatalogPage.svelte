@@ -104,9 +104,13 @@
     void load();
 
     const unsubscribe = subscribeQueue(() => void refreshQueue());
-    const onOnline = () => void drainQueue();
+    const revalidateSessionAndDrain = async () => {
+      await auth.revalidateUser();
+      await drainQueue();
+    };
+    const onOnline = () => void revalidateSessionAndDrain();
     const onVisibility = () => {
-      if (document.visibilityState === "visible") void drainQueue();
+      if (document.visibilityState === "visible") void revalidateSessionAndDrain();
     };
     window.addEventListener("online", onOnline);
     document.addEventListener("visibilitychange", onVisibility);
