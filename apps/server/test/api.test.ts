@@ -201,6 +201,20 @@ describe("same-origin server surface", () => {
     } finally { rmSync(root, { recursive: true, force: true }); }
   });
 
+  it("denies framing for direct and fallback HTML", async () => {
+    const root = mkdtempSync(join(tmpdir(), "songbook-server-assets-"));
+    writeFileSync(join(root, "index.html"), "<html>app</html>");
+    try {
+      const server = app({ assetsRoot: root });
+      for (const path of ["/", "/admin"]) {
+        const response = await server.request(request(path));
+        expect(response.status).toBe(200);
+        expect(response.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+        expect(response.headers.get("x-frame-options")).toBe("DENY");
+      }
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+
   it("requires JSON and exact same-origin for browser mutations", async () => {
     const server = app({ sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }) });
     const noJson = await server.request(request("/api/performances", { method: "POST", headers: { Origin: origin }, body: "{}" }));

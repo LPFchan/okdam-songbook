@@ -116,14 +116,14 @@ describe("SongForm", () => {
     render(SongForm, {
       props: { tab: "add", songs: [], onSongSaved: () => {}, onSongDeleted: () => {}, onRequestTab: () => {}, onClose: () => {} }
     });
-    const title = screen.getByPlaceholderText("곡명") as HTMLInputElement;
+    const title = screen.getByPlaceholderText("곡명");
     await fireEvent.input(title, { target: { value: "A의 초안" } });
-    expect(title.value).toBe("A의 초안");
+    expect(title).toHaveValue("A의 초안");
 
     await act(() => {
       auth.user = { subject: "auth.lost.plus:99", email: "b@example.com", displayName: "마리", role: "allowed", expiresAt: null };
     });
 
-    await waitFor(() => expect(title.value).toBe(""));
+    await waitFor(() => expect(title).toHaveValue(""));
   });
 });

@@ -176,13 +176,23 @@ function contentType(path: string): string {
   } as Record<string, string>)[extname(path).toLowerCase()] ?? "application/octet-stream";
 }
 
+function staticHeaders(path: string): Record<string, string> {
+  const type = contentType(path);
+  if (!type.startsWith("text/html")) return { "Content-Type": type };
+  return {
+    "Content-Type": type,
+    "Content-Security-Policy": "frame-ancestors 'none'; base-uri 'none'",
+    "X-Frame-Options": "DENY"
+  };
+}
+
 function staticResponse(root: string | undefined, pathname: string): Response | null {
   if (!root) return null;
   if (pathname.startsWith("/api/") || pathname === "/api" || pathname.startsWith("/mcp") || pathname.startsWith("/.well-known/")) return null;
   const direct = safeAssetPath(root, pathname);
-  if (direct && existsSync(direct) && statSync(direct).isFile()) return new Response(readFileSync(direct), { headers: { "Content-Type": contentType(direct) } });
+  if (direct && existsSync(direct) && statSync(direct).isFile()) return new Response(readFileSync(direct), { headers: staticHeaders(direct) });
   const fallback = safeAssetPath(root, "/index.html");
-  if (fallback && existsSync(fallback) && statSync(fallback).isFile()) return new Response(readFileSync(fallback), { headers: { "Content-Type": "text/html; charset=utf-8" } });
+  if (fallback && existsSync(fallback) && statSync(fallback).isFile()) return new Response(readFileSync(fallback), { headers: staticHeaders(fallback) });
   return null;
 }
 

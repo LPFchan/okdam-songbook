@@ -123,6 +123,9 @@ history.
   not receive anonymous access.
 - Browser mutations require JSON and the exact configured origin. Public
   catalog reads remain available without login.
+- Every HTML shell and SPA fallback denies framing, so another origin cannot
+  clickjack authenticated controls whose same-origin API calls would otherwise
+  be valid.
 - Every write carries an idempotency key. Offline replay and MCP retries must
   preserve it across process restarts and lost responses.
 - TJ candidates remain editable, attributed input until an authenticated
