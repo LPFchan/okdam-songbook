@@ -125,10 +125,12 @@ Recorded by agent: codex-orchestrator
 
 1. Commit and push to `main` (provenance-gated `LOG-*` commits).
 2. On `oci-ubuntu`: `cd ~/okdam-songbook && git pull --ff-only`.
-3. `docker compose -f compose.yaml -f deploy/container/compose.oci.yaml build
+3. Run `scripts/ops/backup-sqlite.sh` and verify the reported archive with
+   `scripts/ops/check-backup.sh` before replacing the image.
+4. `docker compose -f compose.yaml -f deploy/container/compose.oci.yaml build
    songbook && docker compose -f compose.yaml -f deploy/container/compose.oci.yaml
    up -d songbook`.
-4. Verify `curl http://127.0.0.1:3010/healthz` and
+5. Verify `curl http://127.0.0.1:3010/healthz` and
   `curl https://okdam.lost.plus/healthz` both return `{"ok":true}`.
 
 ## Remaining Verification
@@ -143,8 +145,27 @@ Recorded by agent: codex-orchestrator
 
 ## Rollback
 
-- Re-run the compose deploy with the previous image tag or checkout, then
-  verify `/healthz` before considering the rollback complete.
+- Migration `0107_immutable_account_ownership` changes favorite ownership from
+  `user_email` to `user_subject` and idempotency ownership from `actor_email`
+  to `actor_subject`. Images before commit `fc907a0` cannot use a database that
+  has crossed this boundary; `/healthz` alone does not exercise the affected
+  queries.
+- The pinned pre-0107 pair on `oci-ubuntu` is checkout `54c6830`, local image
+  `songbook:rollback-54c6830` (digest
+  `sha256:9a281fe2004869fe8adbba9e85054b1572ab2c02d3b95809b24d785d92a4b743`),
+  and archive
+  `/var/backups/songbook/releases/songbook-20260914T032208Z-3611991.sqlite.gz`.
+  Its checksum, SQLite integrity, old ownership columns, and image boot against
+  a restored copy were verified on 2026-09-15.
+- A rollback between images that both include migration 0107 may reuse the
+  current database. Verify a favorite or idempotent operation as well as
+  `/healthz` before declaring it complete.
+- To cross back before migration 0107, stop the service first and create a
+  separate quarantine backup of the current post-cutover database. Restore the
+  pinned archive with `scripts/ops/restore-sqlite.sh` and deploy only its paired
+  image/checkout. The snapshot predates migration 0107, so writes accepted
+  after it require explicit reconciliation. If those writes cannot be
+  discarded or migrated, keep the post-0107 schema and roll forward.
 - For data recovery, restore the latest integrity-checked archive from
   `/var/backups/songbook` into a stopped service per
   `deploy/ops/README.md`, verifying no `-wal`/`-shm` sidecars remain.
