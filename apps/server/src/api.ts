@@ -189,7 +189,7 @@ function staticResponse(root: string | undefined, pathname: string): Response | 
 function currentUser(principal: BrowserPrincipal, roleResolver: RoleResolver): CurrentUser | null {
   const resolved = roleResolver.resolve(principal);
   if (!resolved) return null;
-  return currentUserSchema.parse({ email: resolved.email, displayName: resolved.displayName, role: resolved.role });
+  return currentUserSchema.parse({ subject: resolved.subject, email: resolved.email, displayName: resolved.displayName, role: resolved.role });
 }
 
 export function createConfiguredServer(options: Omit<ServerAppOptions, "roleResolver" | "sessionResolver" | "mcpAuth">): ServerApp {
@@ -229,6 +229,10 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     if (!sameOrigin(c, options.origin)) return failure(c, new DomainError("FORBIDDEN", "같은 출처 요청만 허용해."), now);
     const principal = await protectBrowser(c);
     if (principal instanceof Response) return principal;
+    const expectedSubject = c.req.header("X-Songbook-Owner-Subject");
+    if (expectedSubject && principal.subject !== expectedSubject) {
+      return failure(c, new DomainError("FORBIDDEN", "다른 계정에서 만든 요청은 실행할 수 없어."), now);
+    }
     try { return envelope(c, await fn(principal), now); } catch (error) { return failure(c, error, now); }
   };
 

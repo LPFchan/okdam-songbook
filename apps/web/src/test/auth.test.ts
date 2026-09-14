@@ -32,11 +32,36 @@ describe("auth store", () => {
   it("loads the authenticated user from the same-origin session", async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ ok: true, data: { email: "allowed@example.com", displayName: "마리", role: "allowed" } })
+      json: () => Promise.resolve({ ok: true, data: { subject: "auth.lost.plus:42", email: "allowed@example.com", displayName: "마리", role: "allowed" } })
     });
     await auth.requireValidCredential();
     expect(auth.status).toBe("authenticated");
     expect(auth.user?.displayName).toBe("마리");
+  });
+
+  it("revalidates and rejects a queued action after the shared session changes account", async () => {
+    auth.user = { subject: "auth.lost.plus:42", email: "reused@example.com", displayName: "Old", role: "allowed", expiresAt: null };
+    auth.status = "authenticated";
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ ok: true, data: { subject: "auth.lost.plus:99", email: "reused@example.com", displayName: "New", role: "allowed" } })
+    });
+
+    await expect(auth.requireValidCredential("auth.lost.plus:42")).rejects.toBeInstanceOf(AuthRequiredError);
+    expect(auth.user?.subject).toBe("auth.lost.plus:99");
+    expect(auth.status).toBe("reauthRequired");
+  });
+
+  it("keeps a queued owner valid when only that account's email changes", async () => {
+    auth.user = { subject: "auth.lost.plus:42", email: "old@example.com", displayName: "User", role: "allowed", expiresAt: null };
+    auth.status = "authenticated";
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ ok: true, data: { subject: "auth.lost.plus:42", email: "new@example.com", displayName: "User", role: "allowed" } })
+    });
+
+    await expect(auth.requireValidCredential("auth.lost.plus:42")).resolves.toMatchObject({ email: "new@example.com" });
+    expect(auth.status).toBe("authenticated");
   });
 
   it("redirects to common auth when the session is missing", async () => {
@@ -73,7 +98,7 @@ describe("auth store", () => {
   it("signOut clears the credential and display info", async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ ok: true, data: { email: "allowed@example.com", displayName: "마리", role: "allowed" } })
+      json: () => Promise.resolve({ ok: true, data: { subject: "auth.lost.plus:42", email: "allowed@example.com", displayName: "마리", role: "allowed" } })
     });
     await auth.requireValidCredential();
     expect(auth.status).toBe("authenticated");

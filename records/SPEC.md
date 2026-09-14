@@ -61,7 +61,10 @@ history.
   Each tap records the signed-in account as the singer. The latest record shows
   that account's configured public name when it is known, while joint singing
   is represented by one record from each person's account.
-- Offline-first public read cache and queued performance writes.
+- Offline-first public read cache and queued performance writes. Queue rows are
+  owned by the immutable Common Auth subject; replay refreshes the browser
+  session and the server rejects an owner-subject mismatch before writing.
+  Pre-subject queue rows are quarantined instead of assigned by email.
 - Local-first omnibar search, bounded debounced TJ accompaniment search, and
   authenticated one-action candidate add with country inferred from existing
   artist matches and the title/artist writing systems, plus manual fallback.

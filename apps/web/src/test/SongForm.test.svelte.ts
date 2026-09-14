@@ -35,7 +35,7 @@ describe("SongForm", () => {
   });
 
   it("preselects the signed-in person for a new song", () => {
-    auth.user = { email: "allowed@example.com", displayName: "여울", role: "allowed", expiresAt: null };
+    auth.user = { subject: "auth.lost.plus:42", email: "allowed@example.com", displayName: "여울", role: "allowed", expiresAt: null };
     auth.status = "authenticated";
 
     render(SongForm, {

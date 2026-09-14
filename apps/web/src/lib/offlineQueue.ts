@@ -15,24 +15,23 @@ export interface QueueCounts {
 }
 
 export interface QueueAuth {
-  requireValidCredential(): Promise<void>;
+  requireValidCredential(expectedSubject?: string): Promise<unknown>;
 }
 
 export interface QueueReplayOptions {
   auth?: QueueAuth;
-  /** Email of the signed-in user; only their rows (and legacy rows) replay. */
-  ownerEmail?: string;
+  /** Immutable subject of the signed-in user; only their rows replay. */
+  ownerSubject?: string;
   now?: () => Date;
   onChange?: () => void;
 }
 
 /**
- * A drain or read is scoped to the signed-in user. Rows stamped "legacy"
- * predate owner tracking; whoever signs in next flushes them once.
+ * A drain or read is scoped to the signed-in user's immutable Auth subject.
+ * Pre-subject rows are quarantined by the IndexedDB migration and never replay.
  */
-function ownedBy(row: OfflineQueueItem, email?: string): boolean {
-  if (!email) return false;
-  return row.ownerEmail === email || row.ownerEmail === "legacy";
+function ownedBy(row: OfflineQueueItem, subject?: string): boolean {
+  return Boolean(subject && row.ownerSubject === subject);
 }
 
 let drainPromise: Promise<QueueCounts> | null = null;
@@ -53,13 +52,13 @@ export function queueRequestId(): string {
   return crypto.randomUUID();
 }
 
-export async function enqueuePerformanceCreate(songId: string, ownerEmail: string, clientRequestId = queueRequestId(), performedAt = new Date().toISOString()): Promise<OfflineQueueItem> {
+export async function enqueuePerformanceCreate(songId: string, ownerSubject: string, clientRequestId = queueRequestId(), performedAt = new Date().toISOString()): Promise<OfflineQueueItem> {
   const item: OfflineQueueItem = {
     id: clientRequestId,
     clientRequestId,
     action: "performance:create",
     songId,
-    ownerEmail,
+    ownerSubject,
     payload: { performedAt },
     createdAt: new Date().toISOString(),
     status: "pending",
@@ -70,14 +69,14 @@ export async function enqueuePerformanceCreate(songId: string, ownerEmail: strin
   return item;
 }
 
-export async function enqueuePerformanceCancel(songId: string, performanceId: string, ownerEmail: string, clientRequestId = queueRequestId()): Promise<OfflineQueueItem> {
+export async function enqueuePerformanceCancel(songId: string, performanceId: string, ownerSubject: string, clientRequestId = queueRequestId()): Promise<OfflineQueueItem> {
   const item: OfflineQueueItem = {
     id: clientRequestId,
     clientRequestId,
     action: "performance:cancel",
     songId,
     performanceId,
-    ownerEmail,
+    ownerSubject,
     payload: { performanceId },
     createdAt: new Date().toISOString(),
     status: "pending",
@@ -94,12 +93,12 @@ export async function enqueuePerformanceCancel(songId: string, performanceId: st
  * the server's idempotency key can identify a cancellation that actually
  * completed before the network failure.
  */
-export async function cancelPerformanceOrQueue(songId: string, performanceId: string, ownerEmail: string, clientRequestId: string): Promise<{ queued: boolean }> {
+export async function cancelPerformanceOrQueue(songId: string, performanceId: string, ownerSubject: string, clientRequestId: string): Promise<{ queued: boolean }> {
   try {
-    await cancelPerformance(performanceId, clientRequestId);
+    await cancelPerformance(performanceId, clientRequestId, ownerSubject);
     return { queued: false };
   } catch (error) {
-    const queued = await enqueuePerformanceCancel(songId, performanceId, ownerEmail, clientRequestId);
+    const queued = await enqueuePerformanceCancel(songId, performanceId, ownerSubject, clientRequestId);
     await markQueueItemFailed(queued.id, error, classifyQueueError(error));
     return { queued: true };
   }
@@ -144,9 +143,9 @@ function errorMessage(error: unknown, classification: QueueFailureClassification
   }
 }
 
-export async function queueCounts(ownerEmail?: string): Promise<QueueCounts> {
+export async function queueCounts(ownerSubject?: string): Promise<QueueCounts> {
   const all = await db.queue.toArray();
-  const rows = ownerEmail ? all.filter((row) => ownedBy(row, ownerEmail)) : all;
+  const rows = ownerSubject ? all.filter((row) => ownedBy(row, ownerSubject)) : [];
   return {
     pending: rows.filter((row) => row.status === "pending").length,
     inFlight: rows.filter((row) => row.status === "in_flight").length,
@@ -156,8 +155,8 @@ export async function queueCounts(ownerEmail?: string): Promise<QueueCounts> {
   };
 }
 
-export async function queueItems(ownerEmail?: string): Promise<OfflineQueueItem[]> {
-  return (await db.queue.toArray()).filter((row) => ownedBy(row, ownerEmail)).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+export async function queueItems(ownerSubject?: string): Promise<OfflineQueueItem[]> {
+  return (await db.queue.toArray()).filter((row) => ownedBy(row, ownerSubject)).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
 async function normalizeInFlight(): Promise<void> {
@@ -168,9 +167,9 @@ async function replayItem(item: OfflineQueueItem, now: Date): Promise<"done" | "
   await db.queue.update(item.id, { status: "in_flight" });
   try {
     if (item.action === "performance:create") {
-      await createPerformance(item.songId, item.clientRequestId, typeof item.payload.performedAt === "string" ? item.payload.performedAt : undefined);
+      await createPerformance(item.songId, item.clientRequestId, typeof item.payload.performedAt === "string" ? item.payload.performedAt : undefined, item.ownerSubject);
     } else {
-      await cancelPerformance(item.performanceId ?? String(item.payload.performanceId ?? ""), item.clientRequestId);
+      await cancelPerformance(item.performanceId ?? String(item.payload.performanceId ?? ""), item.clientRequestId, item.ownerSubject);
     }
     await db.queue.delete(item.id);
     return "done";
@@ -199,9 +198,9 @@ export function drainOfflineQueue(options: QueueReplayOptions = {}): Promise<Que
     const now = options.now ?? (() => new Date());
     await normalizeInFlight();
     authPaused = false;
-    if (!options.ownerEmail) return { pending: 0, inFlight: 0, failed: 0, deadLetter: 0, authPaused: false };
+    if (!options.ownerSubject) return { pending: 0, inFlight: 0, failed: 0, deadLetter: 0, authPaused: false };
     const current = now();
-    const rows = (await queueItems(options.ownerEmail)).filter((row) => {
+    const rows = (await queueItems(options.ownerSubject)).filter((row) => {
       if (row.status !== "pending" && row.status !== "failed") return false;
       return !row.nextRetryAt || new Date(row.nextRetryAt).getTime() <= current.getTime();
     });
@@ -217,14 +216,14 @@ export function drainOfflineQueue(options: QueueReplayOptions = {}): Promise<Que
           });
         }
       });
-      const result = await queueCounts(options.ownerEmail);
+      const result = await queueCounts(options.ownerSubject);
       notify(options);
       return result;
     }
     for (const item of rows) {
       if (options.auth) {
         try {
-          await options.auth.requireValidCredential();
+          await options.auth.requireValidCredential(item.ownerSubject);
         } catch {
           authPaused = true;
           await db.queue.update(item.id, {
@@ -243,7 +242,7 @@ export function drainOfflineQueue(options: QueueReplayOptions = {}): Promise<Que
       }
       notify(options);
     }
-    const result = await queueCounts(options.ownerEmail);
+    const result = await queueCounts(options.ownerSubject);
     notify(options);
     return result;
   })().finally(() => {

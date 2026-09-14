@@ -33,6 +33,16 @@ describe("same-origin server surface", () => {
     expect(response.status).toBe(401);
   });
 
+  it("returns the immutable Common Auth subject to the browser", async () => {
+    const server = app({
+      sessionResolver: async () => ({ subject: "auth.lost.plus:42", email: "allowed@example.com", displayName: "Allowed" }),
+      roleResolver: createCommonAuthRoleResolver()
+    });
+    const response = await server.request(request("/api/me"));
+    expect(response.status).toBe(200);
+    expect((await response.json()).data.subject).toBe("auth.lost.plus:42");
+  });
+
   it("serves anonymous catalog with an ETag and supports conditional reads", async () => {
     const server = app();
     const first = await server.request(request("/api/catalog"));
@@ -88,6 +98,24 @@ describe("same-origin server surface", () => {
     expect((await (await server.request(request("/api/favorites"))).json()).data.songIds).toEqual([created.id]);
     principal = { subject: "auth.lost.plus:99", email: "old@example.com", displayName: "Other" };
     expect((await (await server.request(request("/api/favorites"))).json()).data.songIds).toEqual([]);
+  });
+
+  it("rejects a replay bound to a different Common Auth subject", async () => {
+    const server = app({
+      sessionResolver: async () => ({ subject: "auth.lost.plus:99", email: "new@example.com", displayName: "New" }),
+      roleResolver: createCommonAuthRoleResolver()
+    });
+    const response = await server.request(request("/api/performances", {
+      method: "POST",
+      headers: {
+        Origin: origin,
+        "Content-Type": "application/json",
+        "X-Songbook-Owner-Subject": "auth.lost.plus:42"
+      },
+      body: JSON.stringify({ songId: "song-1", performedAt: "2026-08-21T10:00:00.000Z", clientRequestId: crypto.randomUUID() })
+    }));
+
+    expect(response.status).toBe(403);
   });
 
   it("publishes the mapped latest singer name without publishing an email", async () => {

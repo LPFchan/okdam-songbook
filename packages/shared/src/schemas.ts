@@ -47,6 +47,7 @@ export const performanceSchema = z.object({
 });
 
 export const currentUserSchema = z.object({
+  subject: z.string().min(1),
   email: z.string().email(),
   displayName: z.string().min(1),
   role: userRoleSchema

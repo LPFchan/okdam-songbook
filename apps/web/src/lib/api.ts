@@ -99,7 +99,7 @@ export async function fetchPublicData(): Promise<PublicData> {
 }
 
 export async function fetchCurrentUser(): Promise<CurrentUser> {
-  if (mockMode()) return currentUserSchema.parse({ email: "allowed@example.com", displayName: "마리", role: "allowed" });
+  if (mockMode()) return currentUserSchema.parse({ subject: "auth.lost.plus:mock", email: "allowed@example.com", displayName: "마리", role: "allowed" });
   return request("/api/me", { method: "GET" }, (data) => currentUserSchema.parse(data));
 }
 
@@ -120,18 +120,20 @@ export async function setSongFavorite(songId: string, favorite: boolean, clientR
   }, (data) => favoriteSetResultSchema.parse(data));
 }
 
-export async function createPerformance(songId: string, clientRequestId: string, performedAt = nowIso()): Promise<{ id: string; duplicate?: boolean }> {
+export async function createPerformance(songId: string, clientRequestId: string, performedAt = nowIso(), ownerSubject?: string): Promise<{ id: string; duplicate?: boolean }> {
   if (mockMode()) return { id: `mock-${clientRequestId}` };
   return request("/api/performances", {
     method: "POST",
+    headers: ownerSubject ? { "X-Songbook-Owner-Subject": ownerSubject } : undefined,
     body: JSON.stringify({ songId, performedAt, clientRequestId })
   }, (data) => data as { id: string; duplicate?: boolean });
 }
 
-export async function cancelPerformance(performanceId: string, clientRequestId: string): Promise<void> {
+export async function cancelPerformance(performanceId: string, clientRequestId: string, ownerSubject?: string): Promise<void> {
   if (mockMode()) return;
   await request(`/api/performances/${encodeURIComponent(performanceId)}`, {
     method: "DELETE",
+    headers: ownerSubject ? { "X-Songbook-Owner-Subject": ownerSubject } : undefined,
     body: JSON.stringify({ performanceId, clientRequestId })
   }, () => null);
 }

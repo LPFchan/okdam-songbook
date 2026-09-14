@@ -4,6 +4,7 @@ import { signInWithCommonAuth, signOutBrowser } from "./auth/client";
 export type AuthStatus = "unknown" | "anonymous" | "authenticating" | "authenticated" | "reauthRequired";
 
 export interface AuthUser {
+  subject: string;
   email: string;
   displayName: string;
   role: "allowed";
@@ -49,7 +50,7 @@ class AuthStore {
   displayInfo = $state<{ email: string; displayName: string } | null>(readSessionDisplay());
   forceUpdateToken = $state(0);
 
-  private adoptServerUser(current: { email: string; displayName: string; role: "allowed" }): AuthUser {
+  private adoptServerUser(current: { subject: string; email: string; displayName: string; role: "allowed" }): AuthUser {
     const next: AuthUser = { ...current, expiresAt: null };
     this.user = next;
     this.displayInfo = { email: next.email, displayName: next.displayName };
@@ -71,7 +72,7 @@ class AuthStore {
 
   async loginWithGoogleButton(): Promise<AuthUser> {
     if (mockMode()) {
-      return this.adoptServerUser({ email: "allowed@example.com", displayName: "마리", role: "allowed" });
+      return this.adoptServerUser({ subject: "auth.lost.plus:mock", email: "allowed@example.com", displayName: "마리", role: "allowed" });
     }
     this.status = "authenticating";
     try {
@@ -94,12 +95,16 @@ class AuthStore {
     this.forceUpdateToken += 1;
   }
 
-  async requireValidCredential(): Promise<void> {
-    if (this.user) return;
+  async requireValidCredential(expectedSubject?: string): Promise<AuthUser> {
+    if (this.user && !expectedSubject) return this.user;
     const current = await this.refreshUser();
-    if (current) return;
+    if (current && (!expectedSubject || current.subject === expectedSubject)) return current;
+    if (current && expectedSubject) {
+      this.status = "reauthRequired";
+      throw new AuthRequiredError("이 작업은 다른 로그인 계정에서 만들었어요.");
+    }
     this.status = "reauthRequired";
-    await this.loginWithGoogleButton();
+    return this.loginWithGoogleButton();
   }
 
   /** Called once on app start to resolve the initial session. */

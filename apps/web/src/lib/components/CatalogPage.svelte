@@ -214,13 +214,13 @@
   });
 
   $effect(() => {
-    const email = auth.user?.email;
+    const subject = auth.user?.subject;
     const refreshToken = auth.forceUpdateToken;
-    if (!email) {
+    if (!subject) {
       favoriteSongIds = [];
       favoriteOnly = false;
     } else {
-      void refreshFavorites(email, refreshToken);
+      void refreshFavorites(subject, refreshToken);
     }
   });
 
@@ -270,23 +270,23 @@
   ];
 
   async function refreshQueue() {
-    const [items, counts] = await Promise.all([queueItems(auth.user?.email), queueCounts(auth.user?.email)]);
+    const [items, counts] = await Promise.all([queueItems(auth.user?.subject), queueCounts(auth.user?.subject)]);
     queueList = items;
     queueCountsState = counts;
   }
 
-  async function refreshFavorites(email: string, _refreshToken: number) {
+  async function refreshFavorites(subject: string, _refreshToken: number) {
     try {
       const songIds = await fetchFavoriteSongIds();
-      if (auth.user?.email === email) favoriteSongIds = songIds;
+      if (auth.user?.subject === subject) favoriteSongIds = songIds;
     } catch (error) {
-      if (auth.user?.email === email) favoriteSongIds = [];
+      if (auth.user?.subject === subject) favoriteSongIds = [];
       if (!(error instanceof AuthRequiredError)) snackbar.show(error instanceof Error ? error.message : "즐겨찾기를 불러오지 못했어요.");
     }
   }
 
   async function drainQueue() {
-    await drainOfflineQueue(auth.user ? { auth, ownerEmail: auth.user.email, onChange: () => void refreshQueue() } : { onChange: () => void refreshQueue() });
+    await drainOfflineQueue(auth.user ? { auth, ownerSubject: auth.user.subject, onChange: () => void refreshQueue() } : { onChange: () => void refreshQueue() });
     await refreshQueue();
   }
 
@@ -313,8 +313,8 @@
     }, 8000);
   }
 
-  async function performSong(song: Song, clientRequestId: string, performedAt: string) {
-    const result = await createPerformance(song.id, clientRequestId, performedAt);
+  async function performSong(song: Song, clientRequestId: string, performedAt: string, ownerSubject: string) {
+    const result = await createPerformance(song.id, clientRequestId, performedAt, ownerSubject);
     const performanceId = result && typeof result === "object" && "id" in result ? String(result.id) : "";
     lastPerformed = performanceId ? { performanceId, clientRequestId, songId: song.id } : null;
     if (performanceId) {
@@ -328,9 +328,14 @@
   }
 
   async function markPerformed(song: Song) {
+    if (!auth.user) {
+      snackbar.show("기록하려면 로그인이 필요해요.");
+      return;
+    }
     selected = null;
     const clientRequestId = crypto.randomUUID();
     const performedAt = new Date().toISOString();
+    const ownerSubject = auth.user.subject;
     songs = songs.map((item) =>
       item.id === song.id
         ? { ...item, performanceCount: item.performanceCount + 1, lastPerformedAt: performedAt, lastPerformedByName: auth.user?.displayName ?? "" }
@@ -338,14 +343,14 @@
     );
 
     if (!onlineStatus.online) {
-      await enqueuePerformanceCreate(song.id, auth.user?.email ?? "unknown", clientRequestId, performedAt);
+      await enqueuePerformanceCreate(song.id, ownerSubject, clientRequestId, performedAt);
       snackbar.show("오프라인이라 큐에 저장했어요. 온라인 복귀 후 자동 동기화돼요.");
       return;
     }
 
     try {
-      await auth.requireValidCredential();
-      await performSong(song, clientRequestId, performedAt);
+      const current = await auth.requireValidCredential(ownerSubject);
+      await performSong(song, clientRequestId, performedAt, current.subject);
     } catch (error) {
       if (error instanceof AuthRequiredError) {
         songs = songs.map((item) =>
@@ -353,11 +358,11 @@
             ? { ...item, performanceCount: Math.max(0, (item.performanceCount ?? 0) - 1) }
             : item
         );
-        await enqueuePerformanceCreate(song.id, auth.user?.email ?? "unknown", clientRequestId, performedAt);
+        await enqueuePerformanceCreate(song.id, ownerSubject, clientRequestId, performedAt);
         snackbar.show("기록하려면 로그인이 필요해요.");
         return;
       }
-      await enqueuePerformanceCreate(song.id, auth.user?.email ?? "unknown", clientRequestId, performedAt);
+      await enqueuePerformanceCreate(song.id, ownerSubject, clientRequestId, performedAt);
       await markQueueItemFailed(clientRequestId, error, classifyQueueError(error));
       snackbar.show("기록에 실패해서 큐에 저장했어요.");
     }
@@ -369,6 +374,10 @@
       snackbar.show("취소할 기록이 없어요.");
       return;
     }
+    if (!auth.user) {
+      snackbar.show("취소하려면 로그인이 필요해요.");
+      return;
+    }
     lastPerformed = null;
     if (undoTimer !== undefined) clearTimeout(undoTimer);
     songs = songs.map((item) =>
@@ -377,18 +386,19 @@
         : item
     );
     const cancellationRequestId = crypto.randomUUID();
+    const ownerSubject = auth.user.subject;
     if (!onlineStatus.online) {
-      await enqueuePerformanceCancel(target.songId, target.performanceId, auth.user?.email ?? "unknown", cancellationRequestId);
+      await enqueuePerformanceCancel(target.songId, target.performanceId, ownerSubject, cancellationRequestId);
       snackbar.show("오프라인이라 취소는 큐에 저장했어요.");
       return;
     }
     try {
-      await auth.requireValidCredential();
-      const result = await cancelPerformanceOrQueue(target.songId, target.performanceId, auth.user?.email ?? "unknown", cancellationRequestId);
+      const current = await auth.requireValidCredential(ownerSubject);
+      const result = await cancelPerformanceOrQueue(target.songId, target.performanceId, current.subject, cancellationRequestId);
       snackbar.show(result.queued ? "취소에 실패해서 큐에 저장했어요." : "방금 기록한 곡을 취소했어요.");
     } catch (error) {
       if (error instanceof AuthRequiredError) {
-        const queued = await enqueuePerformanceCancel(target.songId, target.performanceId, auth.user?.email ?? "unknown", cancellationRequestId);
+        const queued = await enqueuePerformanceCancel(target.songId, target.performanceId, ownerSubject, cancellationRequestId);
         await markQueueItemFailed(queued.id, new Error("로그인 후 다시 시도할 수 있어요."), "auth");
         snackbar.show("취소하려면 로그인이 필요해요.");
         return;
@@ -684,7 +694,7 @@
       {query}
       enabled={Boolean(auth.user && onlineStatus.online)}
       {songs}
-      requireCredential={auth.requireValidCredential.bind(auth)}
+      requireCredential={async () => { await auth.requireValidCredential(); }}
       onManualAdd={() => openManagement("add")}
       onOpenExisting={(song) => (selected = song)}
       {onSongSaved}
