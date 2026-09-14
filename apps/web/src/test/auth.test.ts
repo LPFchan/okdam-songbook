@@ -60,8 +60,10 @@ describe("auth store", () => {
       json: () => Promise.resolve({ ok: true, data: { subject: "auth.lost.plus:42", email: "new@example.com", displayName: "User", role: "allowed" } })
     });
 
+    const updateToken = auth.forceUpdateToken;
     await expect(auth.requireValidCredential("auth.lost.plus:42")).resolves.toMatchObject({ email: "new@example.com" });
     expect(auth.status).toBe("authenticated");
+    expect(auth.forceUpdateToken).toBe(updateToken);
   });
 
   it("redirects to common auth when the session is missing", async () => {

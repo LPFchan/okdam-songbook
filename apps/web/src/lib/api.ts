@@ -11,6 +11,7 @@ import {
   tjLookupResultSchema,
   tjSearchResultSchema,
   type CurrentUser,
+  type FavoriteList,
   type FavoriteSetResult,
   type PublicData,
   type Song,
@@ -103,19 +104,23 @@ export async function fetchCurrentUser(): Promise<CurrentUser> {
   return request("/api/me", { method: "GET" }, (data) => currentUserSchema.parse(data));
 }
 
-export async function fetchFavoriteSongIds(): Promise<string[]> {
-  if (mockMode()) return [...mockFavoriteSongIds];
-  return request("/api/favorites", { method: "GET" }, (data) => favoriteListSchema.parse(data).songIds);
+export async function fetchFavoriteSongIds(ownerSubject: string): Promise<FavoriteList> {
+  if (mockMode()) return favoriteListSchema.parse({ ownerSubject, songIds: [...mockFavoriteSongIds] });
+  return request("/api/favorites", {
+    method: "GET",
+    headers: { "X-Songbook-Owner-Subject": ownerSubject }
+  }, (data) => favoriteListSchema.parse(data));
 }
 
-export async function setSongFavorite(songId: string, favorite: boolean, clientRequestId: string): Promise<FavoriteSetResult> {
+export async function setSongFavorite(songId: string, favorite: boolean, clientRequestId: string, ownerSubject: string): Promise<FavoriteSetResult> {
   if (mockMode()) {
     if (favorite) mockFavoriteSongIds.add(songId);
     else mockFavoriteSongIds.delete(songId);
-    return favoriteSetResultSchema.parse({ songId, favorite });
+    return favoriteSetResultSchema.parse({ ownerSubject, songId, favorite });
   }
   return request(`/api/favorites/${encodeURIComponent(songId)}`, {
     method: "POST",
+    headers: { "X-Songbook-Owner-Subject": ownerSubject },
     body: JSON.stringify({ favorite, clientRequestId })
   }, (data) => favoriteSetResultSchema.parse(data));
 }

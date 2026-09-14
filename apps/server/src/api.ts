@@ -220,6 +220,10 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     const principal = await sessionResolver(c.req.raw);
     const user = principal && currentUser(principal, roleResolver);
     if (!principal || !user) return failure(c, new DomainError("UNAUTHORIZED", "로그인 또는 허용된 계정이 필요해."), now);
+    const expectedSubject = c.req.header("X-Songbook-Owner-Subject");
+    if (expectedSubject && user.subject !== expectedSubject) {
+      return failure(c, new DomainError("FORBIDDEN", "다른 계정에서 만든 요청은 실행할 수 없어."), now);
+    }
     return principal;
   };
 
@@ -229,10 +233,6 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     if (!sameOrigin(c, options.origin)) return failure(c, new DomainError("FORBIDDEN", "같은 출처 요청만 허용해."), now);
     const principal = await protectBrowser(c);
     if (principal instanceof Response) return principal;
-    const expectedSubject = c.req.header("X-Songbook-Owner-Subject");
-    if (expectedSubject && principal.subject !== expectedSubject) {
-      return failure(c, new DomainError("FORBIDDEN", "다른 계정에서 만든 요청은 실행할 수 없어."), now);
-    }
     try { return envelope(c, await fn(principal), now); } catch (error) { return failure(c, error, now); }
   };
 
@@ -280,7 +280,8 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     const principal = await protectBrowser(c);
     if (principal instanceof Response) return principal;
     try {
-      const response = envelope(c, favoriteListSchema.parse({ songIds: service.favoriteSongIds(principal) }), now);
+      const user = currentUser(principal, roleResolver)!;
+      const response = envelope(c, favoriteListSchema.parse({ ownerSubject: user.subject, songIds: service.favoriteSongIds(principal) }), now);
       response.headers.set("Cache-Control", "private, no-store");
       return response;
     } catch (error) {

@@ -66,8 +66,8 @@ describe("songbook domain services", () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
     const created = service.createSong(allowed, songInput());
     const request = { songId: created.id, favorite: true, clientRequestId: crypto.randomUUID() };
-    expect(service.setFavorite(allowed, request)).toEqual({ songId: created.id, favorite: true });
-    expect(service.setFavorite(allowed, request)).toEqual({ songId: created.id, favorite: true });
+    expect(service.setFavorite(allowed, request)).toEqual({ ownerSubject: "legacy-email:allowed@example.com", songId: created.id, favorite: true });
+    expect(service.setFavorite(allowed, request)).toEqual({ ownerSubject: "legacy-email:allowed@example.com", songId: created.id, favorite: true });
     expect(service.favoriteSongIds(allowed)).toEqual([created.id]);
     expect(service.favoriteSongIds(allowedPeer)).toEqual([]);
     expect(JSON.stringify(service.catalog())).not.toContain(allowed.email);

@@ -294,7 +294,7 @@ export function createSongbookService(database: SongbookDatabase, options: Servi
       const before = favorites.has(resolved.subject, input.songId);
       favorites.set(resolved.subject, input.songId, input.favorite, now());
       appendAudit(resolved, "favorite", input.songId, input.favorite ? "add" : "remove", { favorite: before }, { favorite: input.favorite }, input.clientRequestId, null, null);
-      return { songId: input.songId, favorite: input.favorite };
+      return { ownerSubject: resolved.subject, songId: input.songId, favorite: input.favorite };
     }),
     performanceStats: (songId) => {
       const song = songs.get(songId);

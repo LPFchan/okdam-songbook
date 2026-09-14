@@ -54,6 +54,7 @@ export const currentUserSchema = z.object({
 });
 
 export const favoriteListSchema = z.object({
+  ownerSubject: z.string().min(1),
   songIds: z.array(z.string().min(1))
 });
 
@@ -64,6 +65,7 @@ export const favoriteSetRequestSchema = z.object({
 });
 
 export const favoriteSetResultSchema = z.object({
+  ownerSubject: z.string().min(1),
   songId: z.string().min(1),
   favorite: z.boolean()
 });

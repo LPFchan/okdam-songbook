@@ -68,7 +68,7 @@ describe("same-origin server surface", () => {
       method: "POST", headers, body: JSON.stringify({ favorite: true, clientRequestId: crypto.randomUUID() })
     }));
     expect(set.status).toBe(200);
-    expect((await set.json()).data).toEqual({ songId: created.id, favorite: true });
+    expect((await set.json()).data).toEqual({ ownerSubject: "legacy-email:allowed@example.com", songId: created.id, favorite: true });
     expect((await (await server.request(request("/api/favorites"))).json()).data.songIds).toEqual([created.id]);
 
     email = "peer@example.com";
@@ -116,6 +116,22 @@ describe("same-origin server surface", () => {
     }));
 
     expect(response.status).toBe(403);
+  });
+
+  it("rejects favorite reads and writes bound to another Common Auth subject", async () => {
+    const server = app({
+      sessionResolver: async () => ({ subject: "auth.lost.plus:99", email: "reused@example.com", displayName: "New" }),
+      roleResolver: createCommonAuthRoleResolver()
+    });
+    const ownerHeaders = { "X-Songbook-Owner-Subject": "auth.lost.plus:42" };
+
+    expect((await server.request(request("/api/favorites", { headers: ownerHeaders }))).status).toBe(403);
+    const write = await server.request(request("/api/favorites/song-1", {
+      method: "POST",
+      headers: { ...ownerHeaders, Origin: origin, "Content-Type": "application/json" },
+      body: JSON.stringify({ favorite: true, clientRequestId: crypto.randomUUID() })
+    }));
+    expect(write.status).toBe(403);
   });
 
   it("publishes the mapped latest singer name without publishing an email", async () => {

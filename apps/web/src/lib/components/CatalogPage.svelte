@@ -43,6 +43,7 @@
   let sortKey = $state<SortKey>("recentAdded");
   let filters = $state<SongFilters>({});
   let favoriteSongIds = $state<string[]>([]);
+  let favoriteOwnerSubject = $state<string | null>(null);
   let favoriteOnly = $state(false);
   let pendingFavoriteSongIds = $state<string[]>([]);
   let selected = $state<Song | null>(null);
@@ -216,6 +217,12 @@
   $effect(() => {
     const subject = auth.user?.subject;
     const refreshToken = auth.forceUpdateToken;
+    if ((subject ?? null) !== favoriteOwnerSubject) {
+      favoriteOwnerSubject = subject ?? null;
+      favoriteSongIds = [];
+      pendingFavoriteSongIds = [];
+      favoriteOnly = false;
+    }
     if (!subject) {
       favoriteSongIds = [];
       favoriteOnly = false;
@@ -277,8 +284,10 @@
 
   async function refreshFavorites(subject: string, _refreshToken: number) {
     try {
-      const songIds = await fetchFavoriteSongIds();
-      if (auth.user?.subject === subject) favoriteSongIds = songIds;
+      await auth.requireValidCredential(subject);
+      const result = await fetchFavoriteSongIds(subject);
+      if (result.ownerSubject !== subject) throw new Error("즐겨찾기 계정이 일치하지 않아요.");
+      if (auth.user?.subject === subject) favoriteSongIds = result.songIds;
     } catch (error) {
       if (auth.user?.subject === subject) favoriteSongIds = [];
       if (!(error instanceof AuthRequiredError)) snackbar.show(error instanceof Error ? error.message : "즐겨찾기를 불러오지 못했어요.");
@@ -490,7 +499,7 @@
 
   async function toggleFavoriteFilter() {
     try {
-      await auth.requireValidCredential();
+      await auth.requireValidCredential(auth.user?.subject);
       favoriteOnly = !favoriteOnly;
     } catch (error) {
       snackbar.show(error instanceof AuthRequiredError ? "즐겨찾기를 보려면 로그인이 필요해요." : error instanceof Error ? error.message : "즐겨찾기를 열지 못했어요.");
@@ -499,8 +508,9 @@
 
   async function handleFavorite(song: Song) {
     if (pendingFavoriteSongIds.includes(song.id)) return;
+    let ownerSubject: string;
     try {
-      await auth.requireValidCredential();
+      ownerSubject = (await auth.requireValidCredential(auth.user?.subject)).subject;
     } catch (error) {
       snackbar.show(error instanceof AuthRequiredError ? "즐겨찾기를 쓰려면 로그인이 필요해요." : error instanceof Error ? error.message : "로그인이 필요해요.");
       return;
@@ -510,10 +520,15 @@
     favoriteSongIds = favorite ? [...favoriteSongIds, song.id] : favoriteSongIds.filter((id) => id !== song.id);
     pendingFavoriteSongIds = [...pendingFavoriteSongIds, song.id];
     try {
-      await setSongFavorite(song.id, favorite, crypto.randomUUID());
-      snackbar.show(favorite ? "즐겨찾기에 추가했어요." : "즐겨찾기에서 제거했어요.");
+      const result = await setSongFavorite(song.id, favorite, crypto.randomUUID(), ownerSubject);
+      if (result.ownerSubject !== ownerSubject) throw new Error("즐겨찾기 계정이 일치하지 않아요.");
+      if (auth.user?.subject === ownerSubject) {
+        snackbar.show(favorite ? "즐겨찾기에 추가했어요." : "즐겨찾기에서 제거했어요.");
+      }
     } catch (error) {
-      favoriteSongIds = wasFavorite ? [...new Set([...favoriteSongIds, song.id])] : favoriteSongIds.filter((id) => id !== song.id);
+      if (auth.user?.subject === ownerSubject) {
+        favoriteSongIds = wasFavorite ? [...new Set([...favoriteSongIds, song.id])] : favoriteSongIds.filter((id) => id !== song.id);
+      }
       snackbar.show(error instanceof Error ? error.message : "즐겨찾기를 바꾸지 못했어요.");
     } finally {
       pendingFavoriteSongIds = pendingFavoriteSongIds.filter((id) => id !== song.id);

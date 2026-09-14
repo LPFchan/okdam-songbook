@@ -104,6 +104,9 @@ history.
 - Private ownership and idempotency use the immutable Common Auth `sub` with
   an `auth.lost.plus:` namespace. Stored email/name fields are historical
   attribution snapshots only.
+- Browser private-state reads and writes carry their expected immutable subject.
+  The server compares it with the current gateway identity, and the browser
+  discards in-flight results after an account switch.
 - Public catalog rows may expose the configured public name of the account that
   created the latest active performance. They never expose its email address;
   an unmapped historical email falls back to timestamp-only display.

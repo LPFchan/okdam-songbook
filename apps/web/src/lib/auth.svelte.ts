@@ -51,12 +51,21 @@ class AuthStore {
   forceUpdateToken = $state(0);
 
   private adoptServerUser(current: { subject: string; email: string; displayName: string; role: "allowed" }): AuthUser {
+    const previous = this.user;
     const next: AuthUser = { ...current, expiresAt: null };
+    if (previous
+      && previous.subject === next.subject
+      && previous.email === next.email
+      && previous.displayName === next.displayName
+      && previous.role === next.role) {
+      this.status = "authenticated";
+      return previous;
+    }
     this.user = next;
     this.displayInfo = { email: next.email, displayName: next.displayName };
     writeSessionDisplay({ email: next.email, displayName: next.displayName });
     this.status = "authenticated";
-    this.forceUpdateToken += 1;
+    if (previous?.subject !== next.subject) this.forceUpdateToken += 1;
     return next;
   }
 
