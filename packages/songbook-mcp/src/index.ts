@@ -233,12 +233,55 @@ function guarded(authInfo: AuthInfo | undefined, toolName: McpToolName): McpVeri
   return principal;
 }
 
-function registerTools(server: McpServer, options: SongbookMcpHandlerOptions, authInfo: AuthInfo | undefined): void {
+class ToolLifecycle {
+  private active = 0;
+  private sealed = false;
+  private readonly settledPromise: Promise<void>;
+  private settle!: () => void;
+
+  constructor() {
+    this.settledPromise = new Promise<void>((resolve) => { this.settle = resolve; });
+  }
+
+  async run<T>(task: () => Promise<T>): Promise<T> {
+    this.active += 1;
+    try {
+      return await task();
+    } finally {
+      this.active -= 1;
+      this.maybeSettle();
+    }
+  }
+
+  seal(): void {
+    this.sealed = true;
+    this.maybeSettle();
+  }
+
+  settled(): Promise<void> {
+    return this.settledPromise;
+  }
+
+  private maybeSettle(): void {
+    if (this.sealed && this.active === 0) this.settle();
+  }
+}
+
+function runTrackedTool<T>(lifecycle: ToolLifecycle | undefined, task: () => Promise<T>): Promise<T> {
+  return lifecycle ? lifecycle.run(task) : task();
+}
+
+function registerTools(
+  server: McpServer,
+  options: SongbookMcpHandlerOptions,
+  authInfo: AuthInfo | undefined,
+  lifecycle?: ToolLifecycle
+): void {
   server.registerTool("catalog", {
     title: "Songbook catalog",
     description: "List the current public Songbook catalog.",
     inputSchema: catalogInput
-  }, async (input) => {
+  }, (input) => runTrackedTool(lifecycle, async () => {
     try {
       guarded(authInfo, "catalog");
       const songs = options.service.catalog();
@@ -248,13 +291,13 @@ function registerTools(server: McpServer, options: SongbookMcpHandlerOptions, au
     } catch (error) {
       return failure(error);
     }
-  });
+  }));
 
   server.registerTool("search_songs", {
     title: "Search songs",
     description: "Search saved songs and, for eligible authenticated queries, continue through TJ.",
     inputSchema: searchInput
-  }, async (input) => {
+  }, (input) => runTrackedTool(lifecycle, async () => {
     try {
       const principal = guarded(authInfo, "search_songs");
       return result(await combinedSongSearch({
@@ -268,13 +311,13 @@ function registerTools(server: McpServer, options: SongbookMcpHandlerOptions, au
     } catch (error) {
       return failure(error);
     }
-  });
+  }));
 
   server.registerTool("get_song", {
     title: "Get song",
     description: "Get one active public saved song by id.",
     inputSchema: getSongInput
-  }, async (input) => {
+  }, (input) => runTrackedTool(lifecycle, async () => {
     try {
       guarded(authInfo, "get_song");
       const song = options.service.getSong(input.id);
@@ -283,13 +326,13 @@ function registerTools(server: McpServer, options: SongbookMcpHandlerOptions, au
     } catch (error) {
       return failure(error);
     }
-  });
+  }));
 
   server.registerTool("record_performance", {
     title: "Record performance",
     description: "Record that an allowlisted user sang a song.",
     inputSchema: performanceInput
-  }, async (input) => {
+  }, (input) => runTrackedTool(lifecycle, async () => {
     try {
       const principal = guarded(authInfo, "record_performance");
       if (!principal) throw Object.assign(new Error("Bearer authentication is required"), { code: "UNAUTHORIZED" });
@@ -304,13 +347,13 @@ function registerTools(server: McpServer, options: SongbookMcpHandlerOptions, au
     } catch (error) {
       return failure(error);
     }
-  });
+  }));
 
   server.registerTool("cancel_performance", {
     title: "Cancel performance",
     description: "Cancel one performance record.",
     inputSchema: cancelInput
-  }, async (input) => {
+  }, (input) => runTrackedTool(lifecycle, async () => {
     try {
       const principal = guarded(authInfo, "cancel_performance");
       if (!principal) throw Object.assign(new Error("Bearer authentication is required"), { code: "UNAUTHORIZED" });
@@ -323,13 +366,13 @@ function registerTools(server: McpServer, options: SongbookMcpHandlerOptions, au
     } catch (error) {
       return failure(error);
     }
-  });
+  }));
 
   server.registerTool("create_song", {
     title: "Create song",
     description: "Create a manual song or add a TJ candidate with a structured duplicate outcome.",
     inputSchema: createSongInput
-  }, async (input) => {
+  }, (input) => runTrackedTool(lifecycle, async () => {
     try {
       const principal = guarded(authInfo, "create_song");
       if (!principal) throw Object.assign(new Error("Bearer authentication is required"), { code: "UNAUTHORIZED" });
@@ -349,13 +392,13 @@ function registerTools(server: McpServer, options: SongbookMcpHandlerOptions, au
     } catch (error) {
       return failure(error);
     }
-  });
+  }));
 
   server.registerTool("update_song", {
     title: "Update song",
     description: "Update one saved song with optimistic version checking.",
     inputSchema: updateSongInput
-  }, async (input) => {
+  }, (input) => runTrackedTool(lifecycle, async () => {
     try {
       const principal = guarded(authInfo, "update_song");
       if (!principal) throw Object.assign(new Error("Bearer authentication is required"), { code: "UNAUTHORIZED" });
@@ -370,13 +413,13 @@ function registerTools(server: McpServer, options: SongbookMcpHandlerOptions, au
     } catch (error) {
       return failure(error);
     }
-  });
+  }));
 
   server.registerTool("delete_song", {
     title: "Delete song",
     description: "Permanently delete one saved song with optimistic version checking.",
     inputSchema: deleteSongInput
-  }, async (input) => {
+  }, (input) => runTrackedTool(lifecycle, async () => {
     try {
       const principal = guarded(authInfo, "delete_song");
       if (!principal) throw Object.assign(new Error("Bearer authentication is required"), { code: "UNAUTHORIZED" });
@@ -394,7 +437,7 @@ function registerTools(server: McpServer, options: SongbookMcpHandlerOptions, au
     } catch (error) {
       return failure(error);
     }
-  });
+  }));
 }
 
 /**
@@ -403,11 +446,25 @@ function registerTools(server: McpServer, options: SongbookMcpHandlerOptions, au
  * independently reconstructible after a process restart.
  */
 export function createSongbookMcpHandler(options: SongbookMcpHandlerOptions) {
-  return createMcpHandler((context: McpRequestContext) => {
+  const lifecycles = new WeakMap<Request, ToolLifecycle>();
+  const handler = createMcpHandler((context: McpRequestContext) => {
     const server = new McpServer({ name: "songbook", version: "0.1.0" });
-    registerTools(server, options, context.authInfo);
+    registerTools(server, options, context.authInfo, context.requestInfo ? lifecycles.get(context.requestInfo) : undefined);
     return server;
   }, { legacy: "stateless", responseMode: "json" });
+  return Object.assign(handler, {
+    async fetchAndWaitForTools(request: Request, requestOptions?: Parameters<typeof handler.fetch>[1]): Promise<Response> {
+      const lifecycle = new ToolLifecycle();
+      lifecycles.set(request, lifecycle);
+      try {
+        return await handler.fetch(request, requestOptions);
+      } finally {
+        lifecycle.seal();
+        await lifecycle.settled();
+        lifecycles.delete(request);
+      }
+    }
+  });
 }
 
 export function authInfoForPrincipal(principal: McpVerifiedPrincipal, accessToken: string): AuthInfo {

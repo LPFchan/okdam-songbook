@@ -508,13 +508,13 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
       const handlerRequest = bodyDerivedMcpRequest(replayRequest(request, rawBody), body);
       if (resolveGatewayIdentity(request) === null) {
         if (!anonymousMcpRequestAllowed(request.method, body)) return mcpBearerChallenge();
-        return await settledMcpResponse(mcpHandler.fetch(handlerRequest, { parsedBody: body ?? undefined }));
+        return await settledMcpResponse(mcpHandler.fetchAndWaitForTools(handlerRequest, { parsedBody: body ?? undefined }));
       }
       const requiredScope = mcpRequiredScopeForBody(body);
       const checked = await mcpAuth.verifyRequest(request, requiredScope ? [requiredScope] : []);
       if (!checked.ok) return checked.response;
       if (!roleResolver.resolve(checked.principal.actor)) return mcpBearerChallenge(true);
-      return await settledMcpResponse(mcpHandler.fetch(handlerRequest, {
+      return await settledMcpResponse(mcpHandler.fetchAndWaitForTools(handlerRequest, {
         authInfo: authInfoForPrincipal({ ...checked.principal, scopes: checked.token.scopes }, checked.token.accessToken),
         parsedBody: body ?? undefined
       }));

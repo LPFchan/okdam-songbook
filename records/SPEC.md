@@ -122,9 +122,11 @@ history.
   authorization input. Unknown, malformed, ambiguous, and batch requests do
   not receive anonymous access.
 - MCP request bodies have a fixed byte ceiling, an absolute read timeout, and
-  a small shared concurrency gate held through dispatch. Declared and chunked
-  oversized bodies are rejected before JSON admission can retain unbounded
-  memory in the shared browser/API/MCP process.
+  a small shared concurrency gate held until both the response and invoked tool
+  work finish. Client cancellation does not release that gate while backend
+  work continues. Declared and chunked oversized bodies are rejected before
+  JSON admission can retain unbounded memory in the shared browser/API/MCP
+  process.
 - Browser mutations require JSON and the exact configured origin. Public
   catalog reads remain available without login.
 - Every HTML shell and SPA fallback denies framing, so another origin cannot

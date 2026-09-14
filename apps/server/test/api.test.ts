@@ -393,7 +393,7 @@ describe("MCP common-auth gate", () => {
     expect(response.status).toBe(408);
   });
 
-  it("holds an MCP body permit until tool dispatch finishes", async () => {
+  it("holds an MCP body permit until an aborted tool finishes", async () => {
     database = openDatabase();
     let searches = 0;
     let firstEntered!: () => void;
@@ -441,16 +441,33 @@ describe("MCP common-auth gate", () => {
       "X-Lost-Plus-Name": "Allowed",
       "X-Lost-Plus-Role": "user",
       "Content-Type": "application/json",
-      Accept: "application/json, text/event-stream"
+      Accept: "application/json, text/event-stream",
+      "MCP-Protocol-Version": "2026-07-28",
+      "Mcp-Method": "tools/call",
+      "Mcp-Name": "search_songs"
     };
-    const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "search_songs", arguments: { query: "Song" } } });
-    const first = server.request(request("/mcp", { method: "POST", headers, body }));
+    const body = JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: {
+        name: "search_songs",
+        arguments: { query: "Song" },
+        _meta: {
+          "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+          "io.modelcontextprotocol/clientCapabilities": {}
+        }
+      }
+    });
+    const controller = new globalThis.AbortController();
+    const first = server.request(request("/mcp", { method: "POST", headers, body, signal: controller.signal }));
     await entered;
+    controller.abort();
     const second = server.request(request("/mcp", { method: "POST", headers, body }));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(searches).toBe(1);
     releaseFirst();
-    expect((await first).status).toBe(200);
+    expect((await first).status).toBe(499);
     expect((await second).status).toBe(200);
     expect(searches).toBe(2);
   });
