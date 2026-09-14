@@ -30,11 +30,12 @@ Recorded by agent: codex-orchestrator
 - One OCI-hosted Node/Hono process serves the PWA, API, SQLite, TJ integration,
   health checks, and stateless MCP. `auth.lost.plus` owns identity, sessions,
   bearer tokens, service admission, and revocation.
-- Browser and MCP credentials are revalidated through common auth on every
-  protected request. Every admitted account has the same `allowed` role and
-  mutation permissions.
+- The local Common Auth gateway revalidates browser and MCP credentials on
+  every protected request, then supplies verified identity to the private
+  Node server. Every admitted account has the same `allowed` role and mutation
+  permissions.
 - Related ids: DEC-20260813-001, DEC-20260813-005, DEC-20260814-001,
-  DEC-20260914-001.
+  DEC-20260914-001, DEC-20260914-002.
 
 ### Anonymous MCP and common-auth-protected operations
 
@@ -45,9 +46,11 @@ Recorded by agent: codex-orchestrator
 - Body-derived routing rejects malformed credentials and prevents anonymous
   access to protected, unknown, ambiguous, or batch requests. Browser cookies
   never grant MCP identity.
-- Shared bearers are minted and revoked at `auth.lost.plus`; every admitted
-  identity receives Songbook's read/write capabilities.
-- Related ids: DEC-20260820-002, DEC-20260820-003, DEC-20260914-001.
+- Shared bearers are minted and revoked at `auth.lost.plus` under the
+  `okdam-mcp` token scope; every admitted identity receives Songbook's
+  read/write capabilities.
+- Related ids: DEC-20260820-002, DEC-20260820-003, DEC-20260914-001,
+  DEC-20260914-002.
 
 ## Rollout Sequence (Completed 2026-08-13/14)
 

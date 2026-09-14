@@ -260,7 +260,7 @@ describe("MCP common-auth gate", () => {
       mcpAuth: {
         verifyRequest: async (incoming, requiredScopes) => {
           verifiedScopes = requiredScopes;
-          expect(incoming.headers.get("Authorization")).toBe("Bearer accepted");
+          expect(incoming.headers.get("X-Lost-Plus-Sub")).toBe("42");
           return {
             ok: true,
             token: { accessToken: "accepted", scopes: ["songbook:read", "songbook:write"] },
@@ -270,7 +270,16 @@ describe("MCP common-auth gate", () => {
       },
       roleResolver: createCommonAuthRoleResolver()
     }).app;
-    const headers = { Authorization: "Bearer accepted", "Content-Type": "application/json", Accept: "application/json, text/event-stream", "MCP-Protocol-Version": "2026-07-28" };
+    const headers = {
+      "X-Lost-Plus-Encoding": "percent-utf8",
+      "X-Lost-Plus-Sub": "42",
+      "X-Lost-Plus-Email": "allowed%40example.com",
+      "X-Lost-Plus-Name": "Allowed",
+      "X-Lost-Plus-Role": "user",
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+      "MCP-Protocol-Version": "2026-07-28"
+    };
     const listed = await server.request(request("/mcp", { method: "POST", headers, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: { _meta: { "io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {} } } }) }));
     expect(listed.status).toBe(200);
     expect((await listed.json()).result.tools).toEqual(expect.arrayContaining([expect.objectContaining({ name: "catalog" })]));

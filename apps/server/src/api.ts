@@ -32,12 +32,10 @@ import {
 } from "@songbook/server-core";
 import { z } from "zod";
 import {
-  createCommonAuthClient,
   createCommonAuthRoleResolver,
-  type CommonAuthClient,
-  type CommonAuthConfig,
   type McpAuthAdapter,
-  createMcpAuthAdapter,
+  createGatewayMcpAuthAdapter,
+  resolveGatewayIdentity,
   mcpBearerChallenge
 } from "./auth.js";
 import { authInfoForPrincipal, createSongbookMcpHandler, mcpRequiredScopeForBody, mcpToolPolicyFor } from "@songbook/mcp";
@@ -57,7 +55,6 @@ export interface ServerAppOptions {
   service?: SongbookService;
   roleResolver?: RoleResolver;
   sessionResolver?: BrowserSessionResolver;
-  auth?: CommonAuthClient;
   tj?: TjAdapter;
   readingGenerator?: ReadingGenerator;
   mcpAuth?: McpAuthAdapter;
@@ -68,7 +65,6 @@ export interface ServerApp {
   app: Hono;
   database: SongbookDatabase;
   service: SongbookService;
-  auth?: CommonAuthClient;
   mcpAuth: McpAuthAdapter;
 }
 
@@ -196,23 +192,26 @@ function currentUser(principal: BrowserPrincipal, roleResolver: RoleResolver): C
   return currentUserSchema.parse({ email: resolved.email, displayName: resolved.displayName, role: resolved.role });
 }
 
-export function createConfiguredServer(options: Omit<ServerAppOptions, "auth" | "roleResolver"> & { auth: CommonAuthConfig }): ServerApp {
-  const auth = createCommonAuthClient(options.auth);
-  return createServerApp({ ...options, auth, roleResolver: createCommonAuthRoleResolver() });
+export function createConfiguredServer(options: Omit<ServerAppOptions, "roleResolver" | "sessionResolver" | "mcpAuth">): ServerApp {
+  return createServerApp({
+    ...options,
+    roleResolver: createCommonAuthRoleResolver(),
+    sessionResolver: async (request) => {
+      const identity = resolveGatewayIdentity(request);
+      return identity ? { id: identity.sub, email: identity.email, displayName: identity.name } : null;
+    },
+    mcpAuth: createGatewayMcpAuthAdapter()
+  });
 }
 
 export function createServerApp(options: ServerAppOptions): ServerApp {
   const now = options.now ?? (() => new Date().toISOString());
   const roleResolver = options.roleResolver ?? { resolve: () => null };
   const service = options.service ?? createSongbookService(options.database, { roleResolver, now });
-  const auth = options.auth;
-  const sessionResolver: BrowserSessionResolver = options.sessionResolver ?? (auth ? async (request: Request) => {
-    const identity = await auth.resolve(request);
-    return identity ? { id: identity.email, email: identity.email, displayName: identity.name } : null;
-  } : async () => null);
-  const mcpAuth = options.mcpAuth ?? (auth ? createMcpAuthAdapter(auth) : {
+  const sessionResolver: BrowserSessionResolver = options.sessionResolver ?? (async () => null);
+  const mcpAuth = options.mcpAuth ?? {
     verifyRequest: async () => ({ ok: false as const, response: mcpBearerChallenge(true) })
-  });
+  };
   const mcpHandler = createSongbookMcpHandler({ service, tj: options.tj });
   const app = new Hono();
 
@@ -344,16 +343,11 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     return service.createTjSong(actor, candidate.data, parsed.data.clientRequestId);
   }));
 
-  app.post("/api/logout", async (c) => {
-    if (!auth) return c.notFound();
-    return auth.logout(c.req.raw);
-  });
-
   app.all("/mcp", async (c) => {
     const request = c.req.raw;
     const body = request.method === "POST" ? await request.clone().json().catch(() => null) : null;
     const handlerRequest = bodyDerivedMcpRequest(request, body);
-    if (request.headers.get("Authorization") === null) {
+    if (resolveGatewayIdentity(request) === null) {
       if (!anonymousMcpRequestAllowed(request.method, body)) return mcpBearerChallenge();
       return mcpHandler.fetch(handlerRequest, { parsedBody: body ?? undefined });
     }
@@ -371,7 +365,7 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     const staticFile = staticResponse(options.assetsRoot, new URL(c.req.url).pathname);
     return staticFile ?? c.notFound();
   });
-  return { app, database: options.database, service, auth, mcpAuth };
+  return { app, database: options.database, service, mcpAuth };
 }
 
 export { safeAssetPath };

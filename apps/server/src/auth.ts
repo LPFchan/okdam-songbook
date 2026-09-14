@@ -2,76 +2,43 @@ import type { RequestActor, ResolvedActor, RoleResolver } from "@songbook/server
 import { normalizeEmail, type McpScope } from "@songbook/shared";
 import { z } from "zod";
 
-const commonAuthIdentitySchema = z.object({
+const gatewayIdentitySchema = z.object({
+  sub: z.string().trim().min(1),
   email: z.string().trim().email(),
   name: z.string().trim().min(1).max(80),
-  role: z.enum(["administrator", "user"]),
-  services: z.array(z.string())
+  role: z.enum(["administrator", "user"])
 });
 
-export interface CommonAuthIdentity {
+export interface GatewayIdentity {
+  sub: string;
   email: string;
   name: string;
   role: "administrator" | "user";
-  services: string[];
 }
 
-export interface CommonAuthConfig {
-  origin: string;
-  serviceKey: string;
-  fetch?: typeof globalThis.fetch;
+function decodedHeader(request: Request, name: string): string | null {
+  const value = request.headers.get(name);
+  if (value === null) return null;
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return null;
+  }
 }
 
-export interface CommonAuthClient {
-  origin: string;
-  resolve(request: Request): Promise<CommonAuthIdentity | null>;
-  logout(request: Request): Promise<Response>;
+export function resolveGatewayIdentity(request: Request): GatewayIdentity | null {
+  if (request.headers.get("X-Lost-Plus-Encoding") !== "percent-utf8") return null;
+  const parsed = gatewayIdentitySchema.safeParse({
+    sub: decodedHeader(request, "X-Lost-Plus-Sub"),
+    email: decodedHeader(request, "X-Lost-Plus-Email"),
+    name: decodedHeader(request, "X-Lost-Plus-Name"),
+    role: decodedHeader(request, "X-Lost-Plus-Role")
+  });
+  if (!parsed.success) return null;
+  return { ...parsed.data, email: normalizeEmail(parsed.data.email) };
 }
 
-function forwardedCredentials(request: Request): Headers {
-  const headers = new Headers();
-  const cookie = request.headers.get("Cookie");
-  const authorization = request.headers.get("Authorization");
-  if (cookie !== null) headers.set("Cookie", cookie);
-  if (authorization !== null) headers.set("Authorization", authorization);
-  return headers;
-}
-
-export function createCommonAuthClient(config: CommonAuthConfig): CommonAuthClient {
-  const origin = config.origin.trim().replace(/\/$/u, "");
-  const serviceKey = config.serviceKey.trim();
-  if (!origin) throw new Error("AUTH_ORIGIN is required");
-  if (!serviceKey) throw new Error("common auth serviceKey is required");
-  const request = config.fetch ?? globalThis.fetch;
-
-  return {
-    origin,
-    async resolve(incoming) {
-      let response: Response;
-      try {
-        response = await request(`${origin}/api/whoami`, {
-          method: "GET",
-          headers: forwardedCredentials(incoming)
-        });
-      } catch {
-        return null;
-      }
-      if (!response.ok) return null;
-      const parsed = commonAuthIdentitySchema.safeParse(await response.json().catch(() => null));
-      if (!parsed.success) return null;
-      if (parsed.data.services.length > 0 && !parsed.data.services.includes(serviceKey)) return null;
-      return { ...parsed.data, email: normalizeEmail(parsed.data.email) };
-    },
-    logout(incoming) {
-      return request(`${origin}/api/logout`, {
-        method: "POST",
-        headers: forwardedCredentials(incoming)
-      });
-    }
-  };
-}
-
-/** Every identity reaching this resolver has already been admitted by common auth. */
+/** Every identity reaching this resolver has already been admitted by Common Auth. */
 export function createCommonAuthRoleResolver(): RoleResolver {
   return {
     resolve: (actor: RequestActor): ResolvedActor | null => {
@@ -114,23 +81,20 @@ export function mcpBearerChallenge(invalidToken = false): Response {
   return unauthorized(invalidToken ? "Invalid bearer authentication" : "Bearer authentication is required", invalidToken);
 }
 
-export function createMcpAuthAdapter(auth: CommonAuthClient): McpAuthAdapter {
+export function createGatewayMcpAuthAdapter(): McpAuthAdapter {
   const scopes: McpScope[] = ["songbook:read", "songbook:write"];
   return {
     async verifyRequest(request, requiredScopes) {
-      const authorization = request.headers.get("Authorization");
-      if (authorization === null) return { ok: false, response: unauthorized("Bearer authentication is required") };
-      const identity = await auth.resolve(request);
-      if (!identity) return { ok: false, response: unauthorized("Invalid bearer authentication", true) };
+      const identity = resolveGatewayIdentity(request);
+      if (!identity) return { ok: false, response: unauthorized("Invalid gateway identity", true) };
       if (requiredScopes.some((scope) => !scopes.includes(scope))) {
         return { ok: false, response: new Response(JSON.stringify({ ok: false, error: "The credential does not grant the requested permission" }), { status: 403, headers: { "Content-Type": "application/json" } }) };
       }
-      const accessToken = authorization.replace(/^Bearer\s+/iu, "");
       return {
         ok: true,
-        token: { accessToken, scopes },
+        token: { accessToken: "gateway-verified", scopes },
         principal: {
-          userId: identity.email,
+          userId: identity.sub,
           actor: { email: identity.email, displayName: identity.name }
         }
       };

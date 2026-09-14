@@ -13,7 +13,6 @@ const child = spawn(process.execPath, ["dist/main.js"], {
     HOST: "127.0.0.1",
     PORT: "0",
     ORIGIN: "http://127.0.0.1",
-    AUTH_ORIGIN: "https://auth.lost.plus",
     DATABASE_PATH: databasePath,
     ASSETS_ROOT: directory
   },

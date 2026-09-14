@@ -6,7 +6,7 @@
 
 통합 소스에는 카탈로그 중심의 통합 화면, 문맥형 곡 추가·관리·공연 기록, TJ 반주번호 보조 입력, OCI Node/Hono 서버, 공통 `auth.lost.plus` 인증이 반영되어 있습니다. 서버는 PWA, SQLite, TJ 미러, API, stateless MCP를 한 origin에서 제공합니다.
 
-MCP는 공개 카탈로그·통합 검색·곡 조회를 로그아웃 상태에서 제공하고, 공연 기록과 곡 변경은 `auth.lost.plus`에서 발급한 bearer token으로 보호합니다. 브라우저는 `.lost.plus` 범위의 `lp_auth` 쿠키를 사용하고, MCP 쿠키는 identity로 사용하지 않습니다.
+MCP는 공개 카탈로그·통합 검색·곡 조회를 로그아웃 상태에서 제공하고, 공연 기록과 곡 변경은 `auth.lost.plus`에서 `okdam-mcp` 용도로 발급한 bearer token으로 보호합니다. OCI의 Common Auth gateway가 브라우저 쿠키와 MCP token을 검증한 뒤 private Node 서버에 확인된 identity만 전달합니다.
 
 ## 주요 기능
 

@@ -10,7 +10,8 @@ Recorded by agent: codex-orchestrator
 - Last updated: 2026-09-14
 - Related decisions: DEC-20260701-001 through DEC-20260701-008,
   DEC-20260813-001 through DEC-20260813-005, DEC-20260820-001 through
-  DEC-20260820-003, DEC-20260821-001, DEC-20260914-001
+  DEC-20260820-003, DEC-20260821-001, DEC-20260914-001,
+  DEC-20260914-002
 
 ## Project Thesis
 
@@ -22,8 +23,8 @@ history.
 ## Runtime Shape
 
 - One Node 22/Hono application runs on OCI and serves the PWA, same-origin API,
-  TJ integration, health endpoint, and MCP endpoint. Identity validation is
-  delegated to `auth.lost.plus`.
+  TJ integration, health endpoint, and MCP endpoint. The local Common Auth
+  gateway validates identity before forwarding to the private server.
 - Cloudflare Tunnel may provide ingress to the OCI service, but no application
   logic runs in a Cloudflare Worker.
 - SQLite is the operational database for songs, private per-account favorites,
@@ -66,9 +67,8 @@ history.
 - Server-authoritative duplicate checks, replay-safe writes, TJ provenance, and
   hard deletion by allowed users.
 - Browser sessions use the shared HTTP-only `lp_auth` cookie scoped to
-  `.lost.plus`. The server forwards credentials to `auth.lost.plus` on every
-  protected request and admits identities whose service list is empty or
-  contains `okdam`.
+  `.lost.plus`. The gateway admits identities whose service list is empty or
+  contains `okdam`, removes the cookie, and supplies verified identity headers.
 - Every centrally admitted account has the same `allowed` role and permissions,
   including song deletion. Common-auth rejection, malformed identity, or
   unavailability fails closed.
@@ -94,16 +94,16 @@ history.
   are migration inputs or recovery exports, not live production stores.
 - Secrets, allowed emails, OAuth credentials, database files, and backup
   archives are never bundled in the frontend or committed to the repository.
-- Browser- or MCP-supplied identity values are never authority. The server
-  forwards the incoming credential to `auth.lost.plus` and uses only its
-  validated email and public name.
+- Browser- or MCP-supplied identity values are never authority. The gateway
+  removes them and the server uses only gateway-injected account ID, email,
+  public name, and role.
 - Public catalog rows may expose the configured public name of the account that
   created the latest active performance. They never expose its email address;
   an unmapped historical email falls back to timestamp-only display.
-- Shared browser sessions use HTTP-only cookies. MCP treats requests without an
-  Authorization header as anonymous, never grants MCP identity from cookies,
-  and rejects malformed, expired, revoked, or otherwise invalid bearers.
-  Common auth gives a bearer precedence when both bearer and cookie arrive.
+- Shared browser sessions use HTTP-only cookies. The MCP gateway treats
+  requests without a machine credential as anonymous, never grants identity
+  from browser cookies, and rejects malformed, expired, revoked, or incorrectly
+  scoped credentials before the request reaches Songbook.
 - Anonymous MCP requests may initialize, discover, list tools/resources/prompts,
   ping, send notifications, and call public tools. Transport admission is
   derived from the JSON body; client-supplied method/name headers are not

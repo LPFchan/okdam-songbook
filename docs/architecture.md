@@ -2,17 +2,19 @@
 
 Songbook is a mobile-first PWA served by one Node/Hono application on OCI. The
 catalog remains public; protected browser writes use shared `auth.lost.plus`
-sessions and SQLite owns application state.
+sessions through the local Common Auth gateway, and SQLite owns application
+state.
 
 ```mermaid
 flowchart LR
   Browser[PWA] --> IndexedDB[(Public snapshot + offline queue)]
-  Browser --> Node[Node/Hono server]
-  MCP[Stateless MCP clients] --> Node
+  Browser --> Gateway[OCI Common Auth gateway]
+  MCP[Stateless MCP clients] --> Gateway
+  Gateway --> Node[Private Node/Hono server]
   Node --> SQLite[(SQLite operational DB)]
   Node --> TJ[TJ public HTML, fixed host, bounded fetch]
   Node --> Mirror[(TJ SQLite mirror)]
-  Node --> Auth[auth.lost.plus identity validation]
+  Gateway --> Auth[auth.lost.plus identity validation]
 ```
 
 ## Frontend
@@ -42,18 +44,17 @@ flowchart LR
 
 - `/mcp` is an optional-bearer mount serving modern and legacy stateless MCP
   exchanges without long-lived MCP session state.
-- Requests without an Authorization header are anonymous. Anonymous transport
+- Requests without gateway identity are anonymous. Anonymous transport
   admission is derived from the JSON body and allows discovery, listings,
   notifications, ping, and public catalog/search/lookup calls. Unknown,
   malformed, ambiguous, and batch requests fail closed.
-- A present Authorization header is always evaluated by `auth.lost.plus`;
-  malformed, expired, revoked, and unsupported credentials are rejected.
-  Cookies never provide MCP identity. Common auth gives the bearer precedence
-  when both credential shapes arrive.
+- The gateway evaluates every explicit machine credential at `auth.lost.plus`;
+  malformed, expired, revoked, and incorrectly scoped credentials are rejected
+  before Node. Cookies never provide MCP identity.
 - The single tool-policy table defines public access and `songbook:write`
   requirements for both transport gating and tool guards.
-  Every authenticated request resolves the common-auth identity and `okdam`
-  service admission before reaching a shared service.
+  Every authenticated request reaches the shared service with verified
+  percent-encoded identity headers.
 - `search_songs` always returns saved matches and a TJ section. Anonymous
   searches never invoke TJ; authenticated read-scoped eligible searches use
   the existing mirror-backed adapter and preserve local matches when TJ fails.

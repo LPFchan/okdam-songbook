@@ -17,10 +17,6 @@ function port(): number {
   return value;
 }
 
-export function commonAuthOriginFromEnvironment(environment: NodeJS.ProcessEnv): string {
-  return environment.AUTH_ORIGIN?.trim().replace(/\/$/u, "") || "https://auth.lost.plus";
-}
-
 export function readingGeneratorFromEnvironment(environment: NodeJS.ProcessEnv): ReadingGenerator | undefined {
   const endpoint = environment.AI_ENDPOINT?.trim();
   const apiKey = environment.CLOUDFLARE_AI_API_TOKEN?.trim();
@@ -43,11 +39,7 @@ export async function startFromEnvironment() {
       onWarn: (warning) => console.warn(JSON.stringify({ event: "tj_adapter_warning", ...warning }))
     }),
     readingGenerator: readingGeneratorFromEnvironment(process.env),
-    assetsRoot: process.env.ASSETS_ROOT?.trim() || resolve(process.cwd(), "apps/web/dist"),
-    auth: {
-      origin: commonAuthOriginFromEnvironment(process.env),
-      serviceKey: "okdam"
-    }
+    assetsRoot: process.env.ASSETS_ROOT?.trim() || resolve(process.cwd(), "apps/web/dist")
   });
   const listener = serve({ fetch: server.app.fetch, hostname: process.env.HOST?.trim() || "0.0.0.0", port: port() }, (info) => {
     console.log(`songbook listening on http://${info.address}:${info.port}`);

@@ -7,8 +7,5 @@ export function signInWithCommonAuth(): void {
 }
 
 export async function signOutBrowser(): Promise<void> {
-  await fetch("/api/logout", {
-    method: "POST",
-    credentials: "include"
-  });
+  window.location.assign("/_auth/logout");
 }

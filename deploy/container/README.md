@@ -23,9 +23,9 @@ install -m 0600 deploy/container/songbook.env.example deploy/container/songbook.
 
 Edit `songbook.env` only on the host. It is intentionally not a secret store;
 protect the file and use the operator's normal credential-management process.
-The server reads `DATABASE_PATH`, `ORIGIN`, `AUTH_ORIGIN`, and `ASSETS_ROOT`;
-Compose fixes the two path values for the container. `AUTH_ORIGIN` defaults to
-`https://auth.lost.plus`, whose `okdam` service membership controls admission.
+The server reads `DATABASE_PATH`, `ORIGIN`, and `ASSETS_ROOT`; Compose fixes the
+two path values for the container. The local Common Auth gateway controls
+`okdam` service admission before requests reach this private port.
 Korean
 reading generation optionally uses `AI_ENDPOINT`, `AI_MODEL`, and
 `CLOUDFLARE_AI_API_TOKEN`;

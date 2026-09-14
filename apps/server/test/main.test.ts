@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { commonAuthOriginFromEnvironment, readingGeneratorFromEnvironment } from "../src/main.js";
-
-describe("common auth environment", () => {
-  it("defaults to auth.lost.plus and accepts an override for local tests", () => {
-    expect(commonAuthOriginFromEnvironment({})).toBe("https://auth.lost.plus");
-    expect(commonAuthOriginFromEnvironment({ AUTH_ORIGIN: "http://auth.test:3001/" })).toBe("http://auth.test:3001");
-  });
-});
+import { readingGeneratorFromEnvironment } from "../src/main.js";
 
 describe("reading AI environment", () => {
   it("stays optional when no reading settings are present", () => {

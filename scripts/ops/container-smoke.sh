@@ -44,7 +44,6 @@ mkdir -p "$data_dir/backups"
 chmod 700 "$data_dir"
 cat >"$env_file" <<'EOF'
 ORIGIN=http://127.0.0.1:3000
-AUTH_ORIGIN=https://auth.lost.plus
 EOF
 chmod 600 "$env_file"
 

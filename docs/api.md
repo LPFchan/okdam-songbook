@@ -49,8 +49,7 @@ The live browser path uses the `.lost.plus` shared session:
 - `GET /api/session` — returns the active HTTP-only-cookie session and the
   current common-auth user with role `allowed`.
 - `GET /api/me` — returns the current common-auth user.
-- `POST /api/logout` — ends the shared browser session through
-  `auth.lost.plus`.
+- `GET /_auth/logout` — gateway-owned shared browser logout.
 - `POST /api/songs`, `PATCH /api/songs/:id`, and
   `DELETE /api/songs/:id/delete` — protected song mutations.
 - `POST /api/performances` and `DELETE /api/performances/:id` — protected
@@ -61,7 +60,7 @@ The live browser path uses the `.lost.plus` shared session:
 Browser calls use `credentials: include`, exact same-origin mutation checks,
 and JSON request bodies. There is no browser-readable bearer token in this
 transport. Every protected route requires an authenticated session whose
-common-auth service list is empty or includes `okdam`; all admitted users share
+Common Auth service list is empty or includes `okdam`; all admitted users share
 the same mutation permissions, including song deletion.
 
 ## MCP
@@ -70,7 +69,7 @@ The stateless MCP mount at `/mcp` uses optional shared bearer authentication. Pu
 available without a bearer: `catalog`, `search_songs`, and `get_song`.
 `record_performance`,
 `cancel_performance`, `create_song`, `update_song`, and `delete_song` require
-a bearer minted at `auth.lost.plus`. Every admitted bearer receives the
+a bearer minted at `auth.lost.plus` for `okdam-mcp`. Every admitted bearer receives the
 internal `songbook:read` and `songbook:write` capabilities.
 
 `search_songs` always returns `{ query, saved, tj }`. It uses the website’s
@@ -86,10 +85,10 @@ and safe error metadata.
 outcome. `update_song` and `delete_song` accept `id` or their corresponding
 `songId` alias, plus `expectedVersion` and `clientRequestId`.
 
-MCP cookies are not identity. A missing Authorization header is anonymous;
-any present malformed or invalid bearer is rejected. When cookie and bearer
-both arrive, common auth gives the bearer precedence. Transport authorization
-is derived from the JSON body, not client-supplied method/name headers.
+MCP cookies are not identity. Missing gateway identity is anonymous; any
+present malformed or invalid machine credential is rejected before the
+backend. Transport authorization is derived from the JSON body, not
+client-supplied method/name headers.
 
 ## TJ contracts
 
