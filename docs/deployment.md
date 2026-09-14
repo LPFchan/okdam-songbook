@@ -59,11 +59,13 @@ to production.
 
 ## Rollback
 
-Redeploy the previous checkout or image with the same compose commands, then
-verify `/healthz` before considering the rollback complete. For data
-recovery, restore the latest integrity-checked archive from
-`/var/backups/songbook` into a stopped service per `deploy/ops/README.md`,
-verifying no `-wal`/`-shm` sidecars remain.
+Follow the release-specific, schema-aware procedure in
+`records/STATUS.md#rollback`. It identifies which image and database snapshot
+form a compatible pair, when the current database may be reused, and when
+post-cutover writes must be quarantined and reconciled. Use
+`deploy/ops/README.md` for the guarded restore mechanics. Verify an affected
+favorite or idempotent operation as well as `/healthz` before declaring the
+rollback complete.
 
 ## Retired legacy path (reference only)
 
