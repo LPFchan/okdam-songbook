@@ -24,7 +24,7 @@ function renderOmnibar(props: Partial<Parameters<typeof render>[1]> = {}) {
       query: "Pretender",
       enabled: true,
       songs: [],
-      requireCredential: vi.fn().mockResolvedValue(undefined),
+      requireCredential: vi.fn().mockResolvedValue("auth.lost.plus:42"),
       onManualAdd: vi.fn(),
       onOpenExisting: vi.fn(),
       onSongSaved: vi.fn(),
@@ -97,7 +97,7 @@ describe("TjOmnibar", () => {
         query: "Pretender",
         enabled: true,
         songs: [],
-        requireCredential: vi.fn().mockResolvedValue(undefined),
+        requireCredential: vi.fn().mockResolvedValue("auth.lost.plus:42"),
         onManualAdd: vi.fn(),
         onOpenExisting: vi.fn(),
         onSongSaved
@@ -106,6 +106,7 @@ describe("TjOmnibar", () => {
     const button = await screen.findByRole("button", { name: "바로 추가" });
     await button.click();
     await waitFor(() => expect(addTjSong).toHaveBeenCalledTimes(1));
+    expect(addTjSong).toHaveBeenCalledWith(candidate, expect.any(String), "auth.lost.plus:42");
     expect(onSongSaved).toHaveBeenCalledWith(expect.objectContaining({ id: "song-1" }));
   });
 });

@@ -1,7 +1,8 @@
-import { cleanup, render, screen } from "@testing-library/svelte";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SongForm from "../lib/components/SongForm.svelte";
 import { auth } from "../lib/auth.svelte";
+import * as api from "../lib/api";
 
 describe("SongForm", () => {
   beforeEach(() => {
@@ -12,6 +13,7 @@ describe("SongForm", () => {
 
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
     vi.unstubAllEnvs();
   });
 
@@ -87,5 +89,41 @@ describe("SongForm", () => {
     expect(screen.getByRole("button", { name: "여" })).toHaveAttribute("aria-pressed", "false");
     // offset is kept, so the song stores 원키 +2
     expect(offset()?.textContent).toBe("+2");
+  });
+
+  it("binds a save to the subject that opened the draft", async () => {
+    auth.user = { subject: "auth.lost.plus:42", email: "allowed@example.com", displayName: "여울", role: "allowed", expiresAt: null };
+    auth.status = "authenticated";
+    vi.spyOn(auth, "requireValidCredential").mockResolvedValue(auth.user);
+    const saved = { id: "song-1", title: "노래", artist: "가수", version: 1 };
+    const upsert = vi.spyOn(api, "upsertSong").mockResolvedValue(saved as never);
+
+    render(SongForm, {
+      props: { tab: "add", songs: [], onSongSaved: () => {}, onSongDeleted: () => {}, onRequestTab: () => {}, onClose: () => {} }
+    });
+    await fireEvent.input(screen.getByPlaceholderText("곡명"), { target: { value: "노래" } });
+    await fireEvent.input(screen.getByPlaceholderText("아티스트"), { target: { value: "가수" } });
+    await screen.getByRole("button", { name: "저장" }).click();
+
+    await waitFor(() => expect(upsert).toHaveBeenCalledTimes(1));
+    expect(auth.requireValidCredential).toHaveBeenCalledWith("auth.lost.plus:42");
+    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ title: "노래" }), expect.any(String), "auth.lost.plus:42");
+  });
+
+  it("clears a draft when the active subject changes", async () => {
+    auth.user = { subject: "auth.lost.plus:42", email: "a@example.com", displayName: "여울", role: "allowed", expiresAt: null };
+    auth.status = "authenticated";
+    render(SongForm, {
+      props: { tab: "add", songs: [], onSongSaved: () => {}, onSongDeleted: () => {}, onRequestTab: () => {}, onClose: () => {} }
+    });
+    const title = screen.getByPlaceholderText("곡명") as HTMLInputElement;
+    await fireEvent.input(title, { target: { value: "A의 초안" } });
+    expect(title.value).toBe("A의 초안");
+
+    await act(() => {
+      auth.user = { subject: "auth.lost.plus:99", email: "b@example.com", displayName: "마리", role: "allowed", expiresAt: null };
+    });
+
+    await waitFor(() => expect(title.value).toBe(""));
   });
 });

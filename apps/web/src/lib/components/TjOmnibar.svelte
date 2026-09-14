@@ -8,7 +8,7 @@
     query: string;
     enabled: boolean;
     songs: Song[];
-    requireCredential(): Promise<void>;
+    requireCredential(): Promise<string>;
     onManualAdd(): void;
     onOpenExisting(song: Song): void;
     onSongSaved(song: Song): void;
@@ -101,8 +101,8 @@
     }
     pending = { ...pending, [key]: true };
     try {
-      await requireCredential();
-      const response = await addTjSong(candidate, requestId);
+      const ownerSubject = await requireCredential();
+      const response = await addTjSong(candidate, requestId, ownerSubject);
       const song = response.song ?? response.existing;
       if (song) {
         added = { ...added, [key]: song };

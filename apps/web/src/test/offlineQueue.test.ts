@@ -48,7 +48,7 @@ describe("offline performance queue", () => {
     ]);
 
     expect(createPerformance).toHaveBeenCalledTimes(1);
-    expect(createPerformance).toHaveBeenCalledWith(item.songId, item.clientRequestId, "2026-08-13T10:00:00.000Z", accountA);
+    expect(createPerformance).toHaveBeenCalledWith(item.songId, item.clientRequestId, accountA, "2026-08-13T10:00:00.000Z");
     expect(await queueItems()).toEqual([]);
   });
 
@@ -78,7 +78,7 @@ describe("offline performance queue", () => {
 
     await retryQueueItem(item.id, accountA);
     await drainOfflineQueue({ auth: { requireValidCredential: requireCredential }, ownerSubject: accountA });
-    expect(createPerformance).toHaveBeenCalledWith(item.songId, item.clientRequestId, expect.any(String), accountA);
+    expect(createPerformance).toHaveBeenCalledWith(item.songId, item.clientRequestId, accountA, expect.any(String));
     expect(await queueItems("a@example.com")).toEqual([]);
   });
 

@@ -227,10 +227,17 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     return principal;
   };
 
-  const mutate = async (c: Context, fn: (actor: BrowserPrincipal) => Promise<unknown> | unknown): Promise<Response> => {
+  const mutate = async (
+    c: Context,
+    fn: (actor: BrowserPrincipal) => Promise<unknown> | unknown,
+    requireOwnerSubject = false
+  ): Promise<Response> => {
     const bodyError = jsonBodyRequired(c);
     if (bodyError) return bodyError;
     if (!sameOrigin(c, options.origin)) return failure(c, new DomainError("FORBIDDEN", "같은 출처 요청만 허용해."), now);
+    if (requireOwnerSubject && !c.req.header("X-Songbook-Owner-Subject")) {
+      return failure(c, new DomainError("FORBIDDEN", "요청을 만든 계정을 확인할 수 없어."), now);
+    }
     const principal = await protectBrowser(c);
     if (principal instanceof Response) return principal;
     try { return envelope(c, await fn(principal), now); } catch (error) { return failure(c, error, now); }
@@ -292,40 +299,40 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     const parsed = favoriteSetRequestSchema.safeParse({ ...(await c.req.json()), songId: c.req.param("songId") });
     if (!parsed.success) throw parsed.error;
     return favoriteSetResultSchema.parse(service.setFavorite(actor, parsed.data));
-  }));
+  }, true));
 
   app.post("/api/performances", (c) => mutate(c, async (actor) => {
     const parsed = performanceCreateRequestSchema.safeParse(await c.req.json());
     if (!parsed.success) throw parsed.error;
     return service.createPerformance(actor, parsed.data);
-  }));
+  }, true));
   app.delete("/api/performances/:id", (c) => mutate(c, async (actor) => {
     const parsed = performanceCancelRequestSchema.safeParse({ ...(await c.req.json()), performanceId: c.req.param("id") });
     if (!parsed.success) throw parsed.error;
     return service.cancelPerformance(actor, { ...parsed.data, expectedVersion: parsed.data.expectedVersion ?? 1 });
-  }));
+  }, true));
   app.post("/api/songs", (c) => mutate(c, async (actor) => {
     const parsed = songCreateRequestSchema.safeParse(await c.req.json());
     if (!parsed.success) throw parsed.error;
     return service.createSong(actor, parsed.data);
-  }));
+  }, true));
   app.patch("/api/songs/:id", (c) => mutate(c, async (actor) => {
     const parsed = songUpdateRequestSchema.safeParse({ ...(await c.req.json()), id: c.req.param("id") });
     if (!parsed.success) throw parsed.error;
     return service.updateSong(actor, parsed.data);
-  }));
+  }, true));
   app.delete("/api/songs/:id/delete", (c) => mutate(c, async (actor) => {
     const parsed = songDeleteRequestSchema.safeParse({ ...(await c.req.json()), songId: c.req.param("id") });
     if (!parsed.success) throw parsed.error;
     return service.deleteSong(actor, { id: parsed.data.songId, expectedVersion: parsed.data.expectedVersion, clientRequestId: parsed.data.clientRequestId });
-  }));
+  }, true));
 
   app.post("/api/readings/generate", (c) => mutate(c, async () => {
     if (!options.readingGenerator) throw new DomainError("AI_NOT_CONFIGURED", "독음 자동 생성이 설정되지 않았어. 수동으로 입력해줘.");
     const parsed = readingGenerateInputSchema.safeParse(await c.req.json());
     if (!parsed.success) throw parsed.error;
     return options.readingGenerator.generate(parsed.data);
-  }));
+  }, true));
 
   app.post("/api/tj/search", (c) => mutate(c, async () => {
     if (!options.tj) throw new DomainError("TJ_UPSTREAM_ERROR", "TJ 연결이 설정되지 않았어.");
@@ -346,7 +353,7 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     const candidate = tjSongCandidateSchema.safeParse(parsed.data.candidate);
     if (!candidate.success) throw candidate.error;
     return service.createTjSong(actor, candidate.data, parsed.data.clientRequestId);
-  }));
+  }, true));
 
   app.all("/mcp", async (c) => {
     const request = c.req.raw;

@@ -354,7 +354,7 @@
 
   async function performSong(song: Song, clientRequestId: string, performedAt: string, ownerSubject: string) {
     const result = await whileSubjectCurrent(ownerSubject, () => auth.user?.subject, () =>
-      createPerformance(song.id, clientRequestId, performedAt, ownerSubject)
+      createPerformance(song.id, clientRequestId, ownerSubject, performedAt)
     );
     if (!result) return;
     const performanceId = result && typeof result === "object" && "id" in result ? String(result.id) : "";
@@ -744,7 +744,11 @@
       {query}
       enabled={Boolean(auth.user && onlineStatus.online)}
       {songs}
-      requireCredential={async () => { await auth.requireValidCredential(); }}
+      requireCredential={async () => {
+        const expectedSubject = auth.user?.subject;
+        if (!expectedSubject) throw new Error("로그인이 필요해요.");
+        return (await auth.requireValidCredential(expectedSubject)).subject;
+      }}
       onManualAdd={() => openManagement("add")}
       onOpenExisting={(song) => (selected = song)}
       {onSongSaved}

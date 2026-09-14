@@ -59,7 +59,7 @@ describe("same-origin server surface", () => {
       sessionResolver: async () => email ? { email, displayName: email } : null,
       roleResolver: createCommonAuthRoleResolver()
     });
-    const headers = { Origin: origin, "Content-Type": "application/json" };
+    const headers = { Origin: origin, "Content-Type": "application/json", "X-Songbook-Owner-Subject": "legacy-email:allowed@example.com" };
     const createdResponse = await server.request(request("/api/songs", {
       method: "POST", headers, body: JSON.stringify({ title: "Private favorite", artist: "Artist", clientRequestId: crypto.randomUUID() })
     }));
@@ -86,7 +86,7 @@ describe("same-origin server surface", () => {
       sessionResolver: async () => principal,
       roleResolver: createCommonAuthRoleResolver()
     });
-    const headers = { Origin: origin, "Content-Type": "application/json" };
+    const headers = { Origin: origin, "Content-Type": "application/json", "X-Songbook-Owner-Subject": "auth.lost.plus:42" };
     const created = (await (await server.request(request("/api/songs", {
       method: "POST", headers, body: JSON.stringify({ title: "Stable favorite", artist: "Artist", clientRequestId: crypto.randomUUID() })
     }))).json()).data;
@@ -118,6 +118,28 @@ describe("same-origin server surface", () => {
     expect(response.status).toBe(403);
   });
 
+  it("requires an originating subject on durable and draft-derived browser operations", async () => {
+    const server = app({
+      sessionResolver: async () => ({ subject: "auth.lost.plus:42", email: "allowed@example.com", displayName: "Allowed" }),
+      roleResolver: createCommonAuthRoleResolver()
+    });
+    const headers = { Origin: origin, "Content-Type": "application/json" };
+    for (const [method, path] of [
+      ["POST", "/api/favorites/song-1"],
+      ["POST", "/api/performances"],
+      ["DELETE", "/api/performances/performance-1"],
+      ["POST", "/api/songs"],
+      ["PATCH", "/api/songs/song-1"],
+      ["DELETE", "/api/songs/song-1/delete"],
+      ["POST", "/api/readings/generate"],
+      ["POST", "/api/tj/add"]
+    ] as const) {
+      const response = await server.request(request(path, { method, headers, body: "{}" }));
+      expect(response.status, `${method} ${path}`).toBe(403);
+      expect((await response.json()).error.code).toBe("FORBIDDEN");
+    }
+  });
+
   it("rejects favorite reads and writes bound to another Common Auth subject", async () => {
     const server = app({
       sessionResolver: async () => ({ subject: "auth.lost.plus:99", email: "reused@example.com", displayName: "New" }),
@@ -139,7 +161,7 @@ describe("same-origin server surface", () => {
       sessionResolver: async () => ({ email: "allowed@example.com", displayName: "마리" }),
       roleResolver: createCommonAuthRoleResolver()
     });
-    const headers = { Origin: origin, "Content-Type": "application/json" };
+    const headers = { Origin: origin, "Content-Type": "application/json", "X-Songbook-Owner-Subject": "legacy-email:allowed@example.com" };
     const created = await server.request(request("/api/songs", {
       method: "POST",
       headers,
@@ -192,7 +214,7 @@ describe("same-origin server surface", () => {
       sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }),
       roleResolver: createCommonAuthRoleResolver()
     });
-    const headers = { Origin: origin, "Content-Type": "application/json" };
+    const headers = { Origin: origin, "Content-Type": "application/json", "X-Songbook-Owner-Subject": "legacy-email:allowed@example.com" };
     const malformed = await server.request(request("/api/songs", { method: "POST", headers, body: "{" }));
     expect(malformed.status).toBe(400);
     expect((await malformed.json()).error.code).toBe("VALIDATION_ERROR");
@@ -215,7 +237,7 @@ describe("same-origin server surface", () => {
     });
     const response = await server.request(request("/api/readings/generate", {
       method: "POST",
-      headers: { Origin: origin, "Content-Type": "application/json" },
+      headers: { Origin: origin, "Content-Type": "application/json", "X-Songbook-Owner-Subject": "legacy-email:allowed@example.com" },
       body: JSON.stringify({ title: "  アイドル  ", artist: "YOASOBI" })
     }));
     expect(response.status).toBe(200);
@@ -228,7 +250,7 @@ describe("same-origin server surface", () => {
       sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }),
       roleResolver: createCommonAuthRoleResolver()
     });
-    const headers = { Origin: origin, "Content-Type": "application/json" };
+    const headers = { Origin: origin, "Content-Type": "application/json", "X-Songbook-Owner-Subject": "legacy-email:allowed@example.com" };
     const unconfigured = await server.request(request("/api/readings/generate", {
       method: "POST", headers, body: JSON.stringify({ title: "曲", artist: "歌手" })
     }));
@@ -248,7 +270,7 @@ describe("same-origin server surface", () => {
   });
 
   it("allows every common-auth user to delete", async () => {
-    const headers = { Origin: origin, "Content-Type": "application/json" };
+    const headers = { Origin: origin, "Content-Type": "application/json", "X-Songbook-Owner-Subject": "legacy-email:allowed@example.com" };
     const allowedServer = app({
       sessionResolver: async () => ({ email: "allowed@example.com", displayName: "Allowed" }),
       roleResolver: createCommonAuthRoleResolver()

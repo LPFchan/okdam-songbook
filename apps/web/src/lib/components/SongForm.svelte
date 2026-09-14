@@ -39,6 +39,7 @@
   type KeyMode = "none" | "female" | "male";
 
   let draft = $state<Partial<Song>>(emptyDraft());
+  let draftOwnerSubject = $state<string | null>(auth.user?.subject ?? null);
   let editingId = $state<string | null>(null);
   let deleteConfirm = $state(false);
   let deletePending = $state(false);
@@ -87,8 +88,21 @@
   $effect(() => {
     if (editSong) {
       draft = { ...editSong };
+      draftOwnerSubject = auth.user?.subject ?? null;
       editingId = editSong.id;
       loadKeyFromSong(editSong);
+    }
+  });
+
+  // Drafts belong to the account that opened them. If another tab changes the
+  // shared cookie, the next credential refresh updates auth.user and this
+  // clears content that must not be submitted or shown under the new account.
+  $effect(() => {
+    const currentSubject = auth.user?.subject ?? null;
+    if (draftOwnerSubject && ((currentSubject && currentSubject !== draftOwnerSubject) || auth.status === "anonymous")) {
+      resetDraft(currentSubject);
+    } else if (!draftOwnerSubject && currentSubject) {
+      draftOwnerSubject = currentSubject;
     }
   });
 
@@ -96,21 +110,25 @@
     return handleAuthErrorMessage(error) ?? (error instanceof Error ? error.message : fallback);
   }
 
-  async function requireWriteCredential(): Promise<boolean> {
+  async function requireWriteCredential(): Promise<string | null> {
     try {
-      await auth.requireValidCredential();
-      return true;
+      const expectedSubject = draftOwnerSubject ?? auth.user?.subject;
+      if (!expectedSubject) throw new Error("로그인이 필요해요.");
+      const current = await auth.requireValidCredential(expectedSubject);
+      draftOwnerSubject = current.subject;
+      return current.subject;
     } catch (error) {
       snackbar.show(handleAuthErrorMessage(error) ?? "로그인이 필요해요.");
-      return false;
+      return null;
     }
   }
 
   async function saveSong() {
     if (!auth.user || !can(auth.user.role, editingId ? "song:update" : "song:create")) return;
-    if (!(await requireWriteCredential())) return;
+    const ownerSubject = await requireWriteCredential();
+    if (!ownerSubject) return;
     try {
-      const saved = await upsertSong(draft, crypto.randomUUID());
+      const saved = await upsertSong(draft, crypto.randomUUID(), ownerSubject);
       onSongSaved(saved);
       resetDraft();
       onClose();
@@ -131,10 +149,11 @@
     }
     if (deletePending) return;
     deleteConfirm = false;
-    if (!(await requireWriteCredential())) return;
+    const ownerSubject = await requireWriteCredential();
+    if (!ownerSubject) return;
     deletePending = true;
     try {
-      await deleteSong({ id: editingId, version: draft.version ?? 0 }, crypto.randomUUID());
+      await deleteSong({ id: editingId, version: draft.version ?? 0 }, crypto.randomUUID(), ownerSubject);
       const title = draft.title || "곡";
       onSongDeleted(editingId);
       resetDraft();
@@ -149,10 +168,13 @@
 
   async function fillReading() {
     if (!auth.user || readingPending) return;
-    if (!(await requireWriteCredential())) return;
+    const ownerSubject = await requireWriteCredential();
+    if (!ownerSubject) return;
     readingPending = true;
     try {
-      const reading = await generateReading({ title: draft.title ?? "", artist: draft.artist ?? "" });
+      const reading = await generateReading({ title: draft.title ?? "", artist: draft.artist ?? "" }, ownerSubject);
+      await auth.requireValidCredential(ownerSubject);
+      if (draftOwnerSubject !== ownerSubject) return;
       draft = { ...draft, ...reading };
       snackbar.show("독음 후보를 채웠어요. 저장 전에 수정할 수 있어요.");
     } catch (error) {
@@ -175,8 +197,9 @@
     return draft.country === country;
   }
 
-  function resetDraft() {
+  function resetDraft(ownerSubject: string | null = auth.user?.subject ?? null) {
     draft = emptyDraft();
+    draftOwnerSubject = ownerSubject;
     editingId = null;
     deleteConfirm = false;
     keyMode = "none";
@@ -185,6 +208,7 @@
 
   function startEdit(song: Song) {
     draft = { ...song };
+    draftOwnerSubject = auth.user?.subject ?? null;
     editingId = song.id;
     loadKeyFromSong(song);
     onRequestTab("add");

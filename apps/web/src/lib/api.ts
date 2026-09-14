@@ -125,25 +125,25 @@ export async function setSongFavorite(songId: string, favorite: boolean, clientR
   }, (data) => favoriteSetResultSchema.parse(data));
 }
 
-export async function createPerformance(songId: string, clientRequestId: string, performedAt = nowIso(), ownerSubject?: string): Promise<{ id: string; duplicate?: boolean }> {
+export async function createPerformance(songId: string, clientRequestId: string, ownerSubject: string, performedAt = nowIso()): Promise<{ id: string; duplicate?: boolean }> {
   if (mockMode()) return { id: `mock-${clientRequestId}` };
   return request("/api/performances", {
     method: "POST",
-    headers: ownerSubject ? { "X-Songbook-Owner-Subject": ownerSubject } : undefined,
+    headers: { "X-Songbook-Owner-Subject": ownerSubject },
     body: JSON.stringify({ songId, performedAt, clientRequestId })
   }, (data) => data as { id: string; duplicate?: boolean });
 }
 
-export async function cancelPerformance(performanceId: string, clientRequestId: string, ownerSubject?: string): Promise<void> {
+export async function cancelPerformance(performanceId: string, clientRequestId: string, ownerSubject: string): Promise<void> {
   if (mockMode()) return;
   await request(`/api/performances/${encodeURIComponent(performanceId)}`, {
     method: "DELETE",
-    headers: ownerSubject ? { "X-Songbook-Owner-Subject": ownerSubject } : undefined,
+    headers: { "X-Songbook-Owner-Subject": ownerSubject },
     body: JSON.stringify({ performanceId, clientRequestId })
   }, () => null);
 }
 
-export async function upsertSong(song: Partial<Song>, clientRequestId: string): Promise<Song> {
+export async function upsertSong(song: Partial<Song>, clientRequestId: string, ownerSubject: string): Promise<Song> {
   if (mockMode()) {
     return songSchema.parse({
       ...sampleSongs[0],
@@ -156,12 +156,14 @@ export async function upsertSong(song: Partial<Song>, clientRequestId: string): 
   if (song.id) {
     return request(`/api/songs/${encodeURIComponent(song.id)}`, {
       method: "PATCH",
+      headers: { "X-Songbook-Owner-Subject": ownerSubject },
       body: JSON.stringify({ ...song, id: song.id, expectedVersion: song.version ?? 0, clientRequestId })
     }, (data) => songSchema.parse(data));
   }
 
   return request("/api/songs", {
     method: "POST",
+    headers: { "X-Songbook-Owner-Subject": ownerSubject },
     body: JSON.stringify({ ...song, clientRequestId })
   }, (data) => songSchema.parse(data));
 }
@@ -226,7 +228,7 @@ export async function searchTjSongs(input: TjSearchRequest): Promise<TjSearchRes
   }, (data) => tjSearchResultSchema.parse(data));
 }
 
-export async function addTjSong(candidate: TjSongCandidate, clientRequestId: string): Promise<TjAddResult> {
+export async function addTjSong(candidate: TjSongCandidate, clientRequestId: string, ownerSubject: string): Promise<TjAddResult> {
   if (mockMode()) {
     const replay = mockTjAdds.get(clientRequestId);
     if (replay) return replay;
@@ -254,18 +256,19 @@ export async function addTjSong(candidate: TjSongCandidate, clientRequestId: str
       performerIds: [],
       sourceType: "tjmedia",
       sourceReference: candidate.sourceUrl
-    }, clientRequestId);
+    }, clientRequestId, ownerSubject);
     const result = tjAddResultSchema.parse({ outcome: "created", song, existing: null, duplicateKind: null, canRestore: false, canOpen: true });
     mockTjAdds.set(clientRequestId, result);
     return result;
   }
   return request("/api/tj/add", {
     method: "POST",
+    headers: { "X-Songbook-Owner-Subject": ownerSubject },
     body: JSON.stringify({ candidate, clientRequestId })
   }, (data) => tjAddResultSchema.parse(data));
 }
 
-export async function deleteSong(song: Pick<Song, "id" | "version">, clientRequestId: string): Promise<Song> {
+export async function deleteSong(song: Pick<Song, "id" | "version">, clientRequestId: string, ownerSubject: string): Promise<Song> {
   if (mockMode()) {
     const index = sampleSongs.findIndex((item) => item.id === song.id);
     if (index < 0) throw new Error("삭제할 곡을 찾지 못했어요.");
@@ -274,14 +277,16 @@ export async function deleteSong(song: Pick<Song, "id" | "version">, clientReque
   }
   return request(`/api/songs/${encodeURIComponent(song.id)}/delete`, {
     method: "DELETE",
+    headers: { "X-Songbook-Owner-Subject": ownerSubject },
     body: JSON.stringify({ songId: song.id, expectedVersion: song.version, clientRequestId })
   }, (data) => songSchema.parse(data));
 }
 
-export async function generateReading(input: { title: string; artist: string }): Promise<{ titleReadingKo: string; artistReadingKo: string }> {
+export async function generateReading(input: { title: string; artist: string }, ownerSubject: string): Promise<{ titleReadingKo: string; artistReadingKo: string }> {
   if (mockMode()) return { titleReadingKo: input.title, artistReadingKo: input.artist };
   return request("/api/readings/generate", {
     method: "POST",
+    headers: { "X-Songbook-Owner-Subject": ownerSubject },
     body: JSON.stringify(input)
   }, (data) => readingGenerateResultSchema.parse(data));
 }

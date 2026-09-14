@@ -167,7 +167,7 @@ async function replayItem(item: OfflineQueueItem, now: Date): Promise<"done" | "
   await db.queue.update(item.id, { status: "in_flight" });
   try {
     if (item.action === "performance:create") {
-      await createPerformance(item.songId, item.clientRequestId, typeof item.payload.performedAt === "string" ? item.payload.performedAt : undefined, item.ownerSubject);
+      await createPerformance(item.songId, item.clientRequestId, item.ownerSubject, typeof item.payload.performedAt === "string" ? item.payload.performedAt : undefined);
     } else {
       await cancelPerformance(item.performanceId ?? String(item.payload.performanceId ?? ""), item.clientRequestId, item.ownerSubject);
     }
