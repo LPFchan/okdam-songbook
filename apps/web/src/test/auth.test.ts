@@ -121,7 +121,7 @@ describe("auth store", () => {
       .mockResolvedValueOnce(responseFor("auth.lost.plus:b", "B"));
 
     const older = auth.refreshUser();
-    await expect(auth.refreshUser()).resolves.toMatchObject({ subject: "auth.lost.plus:b" });
+    await expect(auth.revalidateUser()).resolves.toMatchObject({ subject: "auth.lost.plus:b" });
     resolveOlder(responseFor("auth.lost.plus:a", "A"));
 
     await expect(older).resolves.toBeNull();
@@ -148,7 +148,7 @@ describe("auth store", () => {
       .mockResolvedValueOnce(responseFor("auth.lost.plus:b", "B"));
 
     const older = auth.refreshUser();
-    await auth.refreshUser();
+    await auth.revalidateUser();
     rejectOlder(new Error("stale network failure"));
 
     await expect(older).resolves.toBeNull();
@@ -165,11 +165,27 @@ describe("auth store", () => {
       .mockResolvedValueOnce(responseFor("auth.lost.plus:b", "B"));
 
     const actionCredential = auth.requireValidCredential("auth.lost.plus:a");
-    await auth.refreshUser();
+    await auth.revalidateUser();
     resolveOlder(responseFor("auth.lost.plus:a", "A"));
 
     await expect(actionCredential).rejects.toBeInstanceOf(AuthRequiredError);
     expect(auth.user?.subject).toBe("auth.lost.plus:b");
+  });
+
+  it("joins concurrent validations for the same account", async () => {
+    auth.user = { subject: "auth.lost.plus:a", email: "a@example.com", displayName: "A", role: "allowed", expiresAt: null };
+    auth.status = "authenticated";
+    let resolveRefresh!: (value: ReturnType<typeof responseFor>) => void;
+    mockFetch.mockImplementationOnce(() => new Promise((resolve) => { resolveRefresh = resolve; }));
+
+    const favoriteCredential = auth.requireValidCredential("auth.lost.plus:a");
+    const queueCredential = auth.requireValidCredential("auth.lost.plus:a");
+    resolveRefresh(responseFor("auth.lost.plus:a", "A"));
+
+    await expect(favoriteCredential).resolves.toMatchObject({ subject: "auth.lost.plus:a" });
+    await expect(queueCredential).resolves.toMatchObject({ subject: "auth.lost.plus:a" });
+    expect(mockFetch).toHaveBeenCalledOnce();
+    expect(auth.status).toBe("authenticated");
   });
 
   it("hides the previous account while revalidating an externally changed session", async () => {

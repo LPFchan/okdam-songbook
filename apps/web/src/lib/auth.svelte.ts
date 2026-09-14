@@ -49,7 +49,8 @@ class AuthStore {
   user = $state<AuthUser | null>(null);
   displayInfo = $state<{ email: string; displayName: string } | null>(readSessionDisplay());
   forceUpdateToken = $state(0);
-  private refreshGeneration = 0;
+  private sessionGeneration = 0;
+  private refreshInFlight: { generation: number; request: Promise<AuthUser | null> } | null = null;
 
   private adoptServerUser(current: { subject: string; email: string; displayName: string; role: "allowed" }): AuthUser {
     const previous = this.user;
@@ -70,22 +71,37 @@ class AuthStore {
     return next;
   }
 
-  async refreshUser(): Promise<AuthUser | null> {
-    const generation = ++this.refreshGeneration;
-    try {
-      const current = await fetchCurrentUser();
-      if (generation !== this.refreshGeneration) return null;
-      return this.adoptServerUser(current);
-    } catch {
-      if (generation !== this.refreshGeneration) return null;
-      this.user = null;
-      this.status = "anonymous";
-      return null;
-    }
+  private invalidateRefreshes() {
+    this.sessionGeneration += 1;
+    this.refreshInFlight = null;
+  }
+
+  refreshUser(): Promise<AuthUser | null> {
+    const generation = this.sessionGeneration;
+    if (this.refreshInFlight?.generation === generation) return this.refreshInFlight.request;
+
+    const request = (async () => {
+      try {
+        const current = await fetchCurrentUser();
+        if (generation !== this.sessionGeneration) return null;
+        return this.adoptServerUser(current);
+      } catch {
+        if (generation !== this.sessionGeneration) return null;
+        this.user = null;
+        this.status = "anonymous";
+        return null;
+      }
+    })();
+    this.refreshInFlight = { generation, request };
+    void request.finally(() => {
+      if (this.refreshInFlight?.request === request) this.refreshInFlight = null;
+    });
+    return request;
   }
 
   /** Hide cached private state while re-checking a session changed outside this tab. */
   async revalidateUser(): Promise<AuthUser | null> {
+    this.invalidateRefreshes();
     this.user = null;
     this.status = "unknown";
     this.forceUpdateToken += 1;
@@ -93,7 +109,7 @@ class AuthStore {
   }
 
   async loginWithGoogleButton(): Promise<AuthUser> {
-    this.refreshGeneration += 1;
+    this.invalidateRefreshes();
     this.user = null;
     if (mockMode()) {
       return this.adoptServerUser({ subject: "auth.lost.plus:mock", email: "allowed@example.com", displayName: "마리", role: "allowed" });
@@ -111,7 +127,7 @@ class AuthStore {
   }
 
   signOut() {
-    this.refreshGeneration += 1;
+    this.invalidateRefreshes();
     if (!mockMode()) void signOutBrowser();
     this.user = null;
     this.displayInfo = null;
