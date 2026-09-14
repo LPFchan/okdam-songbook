@@ -5,7 +5,9 @@ import { z } from "zod";
 const gatewayIdentitySchema = z.object({
   sub: z.string().trim().min(1),
   email: z.string().trim().email(),
-  name: z.string().trim().min(1).max(80),
+  name: z.string().trim().min(1).refine((name) => Array.from(name).length <= 80, {
+    message: "Display name must be at most 80 Unicode characters"
+  }),
   role: z.enum(["administrator", "user"])
 });
 

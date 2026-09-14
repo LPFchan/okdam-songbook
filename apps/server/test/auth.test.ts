@@ -35,6 +35,17 @@ describe("Common Auth gateway identity", () => {
       headers: gatewayHeaders({ "X-Lost-Plus-Name": "%ZZ" })
     }))).toBeNull();
   });
+
+  it("uses Common Auth's 80-Unicode-character display-name contract", () => {
+    const accepted = encodeURIComponent("🦊".repeat(80));
+    const rejected = encodeURIComponent("🦊".repeat(81));
+    expect(resolveGatewayIdentity(new Request("http://127.0.0.1:3000/api/me", {
+      headers: gatewayHeaders({ "X-Lost-Plus-Name": accepted })
+    }))?.name).toBe("🦊".repeat(80));
+    expect(resolveGatewayIdentity(new Request("http://127.0.0.1:3000/api/me", {
+      headers: gatewayHeaders({ "X-Lost-Plus-Name": rejected })
+    }))).toBeNull();
+  });
 });
 
 describe("MCP gateway identity", () => {
