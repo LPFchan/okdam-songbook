@@ -180,7 +180,11 @@ function principalFromContext(authInfo: AuthInfo | undefined): McpVerifiedPrinci
   if (typeof candidate.userId !== "string" || !candidate.userId) return null;
   if (!Array.isArray(candidate.scopes) || !candidate.scopes.every((scope) => typeof scope === "string")) return null;
   return {
-    actor: { email: actor.email, displayName: typeof actor.displayName === "string" ? actor.displayName : actor.email },
+    actor: {
+      subject: typeof actor.subject === "string" && actor.subject ? actor.subject : undefined,
+      email: actor.email,
+      displayName: typeof actor.displayName === "string" ? actor.displayName : actor.email
+    },
     userId: candidate.userId,
     scopes: candidate.scopes as McpScope[]
   };

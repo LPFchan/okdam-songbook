@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { authInfoForPrincipal, createSongbookMcpHandler, mcpContract, mcpPackage, mcpRequiredScopeForBody, mcpToolPolicy } from "../src/index.js";
 import type { SongbookService, TjAdapter } from "@songbook/server-core";
 
-const actor = { email: "allowed@example.com", displayName: "Allowed" };
+const actor = { subject: "auth.lost.plus:1", email: "allowed@example.com", displayName: "Allowed" };
 const authInfo = authInfoForPrincipal({ actor, userId: "user-1", scopes: ["songbook:read", "songbook:write"] }, "token-1");
 
 const song = {
