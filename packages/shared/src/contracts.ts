@@ -260,15 +260,15 @@ export const mcpNegotiationSchema = z.object({
   stateless: z.literal(true)
 });
 
-export const optionalBearerMcpMountOptionsSchema = z.object({
-  authentication: z.literal("optional-bearer"),
+export const requiredBearerMcpMountOptionsSchema = z.object({
+  authentication: z.literal("required-bearer"),
   path: z.literal("/mcp"),
   audience: mcpAudienceSchema,
   stateless: z.literal(true)
 });
 
-export interface OptionalBearerMcpMountOptions {
-  authentication: "optional-bearer";
+export interface RequiredBearerMcpMountOptions {
+  authentication: "required-bearer";
   path: "/mcp";
   audience: "songbook-mcp";
   stateless: true;

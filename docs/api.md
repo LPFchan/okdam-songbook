@@ -65,8 +65,9 @@ the same mutation permissions, including song deletion.
 
 ## MCP
 
-The stateless MCP mount at `/mcp` uses optional shared bearer authentication. Public tools are
-available without a bearer: `catalog`, `search_songs`, and `get_song`.
+The stateless MCP mount at `/mcp` requires OAuth or a valid shared machine
+bearer on every request. `catalog`, `search_songs`, and `get_song` require the
+internal `songbook:read` capability.
 `record_performance`,
 `cancel_performance`, `create_song`, `update_song`, and `delete_song` require
 a bearer minted at `auth.lost.plus` for `okdam-mcp`. Every admitted bearer receives the
@@ -74,9 +75,8 @@ internal `songbook:read` and `songbook:write` capabilities.
 
 `search_songs` always returns `{ query, saved, tj }`. It uses the website’s
 trimmed query gate: TJ is eligible for queries with at least two characters or
-all-digit queries, and all-digit queries use number search. Anonymous calls
-return local matches and `tj.state=skipped_anonymous`; `includeTj=false` reports
-`disabled_by_input`. A bearer call needs `songbook:read` before it can continue
+all-digit queries, and all-digit queries use number search. `includeTj=false`
+reports `disabled_by_input`. A bearer call needs `songbook:read` before it can continue
 to TJ. TJ failures return a successful tool result with local matches intact
 and safe error metadata.
 
@@ -85,10 +85,9 @@ and safe error metadata.
 outcome. `update_song` and `delete_song` accept `id` or their corresponding
 `songId` alias, plus `expectedVersion` and `clientRequestId`.
 
-MCP cookies are not identity. Missing gateway identity is anonymous; any
-present malformed or invalid machine credential is rejected before the
-backend. Transport authorization is derived from the JSON body, not
-client-supplied method/name headers.
+MCP cookies are not identity. Missing gateway identity and malformed or invalid
+credentials are rejected before backend dispatch. Client-supplied method/name
+headers are never authorization input.
 
 ## TJ contracts
 

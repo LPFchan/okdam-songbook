@@ -38,7 +38,7 @@ import {
   resolveGatewayIdentity,
   mcpBearerChallenge
 } from "./auth.js";
-import { authInfoForPrincipal, createSongbookMcpHandler, mcpRequiredScopeForBody, mcpToolPolicyFor } from "@songbook/mcp";
+import { authInfoForPrincipal, createSongbookMcpHandler, mcpRequiredScopeForBody } from "@songbook/mcp";
 import type { ReadingGenerator } from "./reading.js";
 
 export interface BrowserPrincipal extends RequestActor {
@@ -72,25 +72,6 @@ export interface ServerApp {
 }
 
 const JSON_MEDIA_TYPE = /^application\/json(?:\s*;|$)/i;
-const ANONYMOUS_MCP_METHODS = new Set([
-  "initialize",
-  "server/discover",
-  "ping",
-  "tools/list",
-  "resources/list",
-  "prompts/list",
-  "notifications/initialized",
-  "notifications/cancelled",
-  "notifications/progress",
-  "notifications/message",
-  "notifications/resources/list_changed",
-  "notifications/resources/updated",
-  "notifications/tools/list_changed",
-  "notifications/prompts/list_changed",
-  "notifications/roots/list_changed",
-  "notifications/tasks/status",
-  "notifications/elicitation/complete"
-]);
 const DEFAULT_MCP_MAX_BODY_BYTES = 1024 * 1024;
 const DEFAULT_MCP_MAX_INFLIGHT_BODIES = 4;
 const DEFAULT_MCP_BODY_TIMEOUT_MS = 30_000;
@@ -242,15 +223,6 @@ function validJsonRpcMessage(body: unknown): body is { jsonrpc: "2.0"; method: s
   return Boolean(body && typeof body === "object" && !Array.isArray(body)
     && (body as { jsonrpc?: unknown }).jsonrpc === "2.0"
     && typeof (body as { method?: unknown }).method === "string");
-}
-
-function anonymousMcpRequestAllowed(method: string, body: unknown): boolean {
-  if (method === "GET" || method === "DELETE") return true;
-  if (method !== "POST" || !validJsonRpcMessage(body)) return false;
-  if (ANONYMOUS_MCP_METHODS.has(body.method)) return true;
-  if (body.method !== "tools/call" || !body.params || typeof body.params !== "object" || Array.isArray(body.params)) return false;
-  const name = (body.params as { name?: unknown }).name;
-  return typeof name === "string" && mcpToolPolicyFor(name)?.access === "public";
 }
 
 function bodyDerivedMcpRequest(request: Request, body: unknown): Request {
@@ -480,11 +452,8 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
 
   app.all("/mcp", async (c) => {
     const request = c.req.raw;
+    if (resolveGatewayIdentity(request) === null) return mcpBearerChallenge();
     if (request.method !== "POST") {
-      if (resolveGatewayIdentity(request) === null) {
-        if (!anonymousMcpRequestAllowed(request.method, null)) return mcpBearerChallenge();
-        return mcpHandler.fetch(request);
-      }
       const checked = await mcpAuth.verifyRequest(request, []);
       if (!checked.ok) return checked.response;
       if (!roleResolver.resolve(checked.principal.actor)) return mcpBearerChallenge(true);
@@ -506,10 +475,6 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
       let body: unknown = null;
       try { body = JSON.parse(new TextDecoder().decode(rawBody)) as unknown; } catch { body = null; }
       const handlerRequest = bodyDerivedMcpRequest(replayRequest(request, rawBody), body);
-      if (resolveGatewayIdentity(request) === null) {
-        if (!anonymousMcpRequestAllowed(request.method, body)) return mcpBearerChallenge();
-        return await settledMcpResponse(mcpHandler.fetchAndWaitForTools(handlerRequest, { parsedBody: body ?? undefined }));
-      }
       const requiredScope = mcpRequiredScopeForBody(body);
       const checked = await mcpAuth.verifyRequest(request, requiredScope ? [requiredScope] : []);
       if (!checked.ok) return checked.response;

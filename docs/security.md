@@ -31,19 +31,17 @@
 
 ## MCP bearer authentication
 
-- MCP public catalog/search/lookup calls may be anonymous. Protected MCP tools
-  require a bearer token minted at `auth.lost.plus`; browser cookies alone never
-  grant MCP identity.
-- A request without gateway identity is anonymous. Any explicit machine
-  credential is authenticated input and cannot downgrade to anonymous when
+- Every MCP request requires OAuth or a machine bearer accepted by
+  `auth.lost.plus`; browser cookies alone never grant MCP identity.
+- A request without gateway identity is rejected before MCP dispatch. Any
+  explicit credential fails closed and cannot downgrade to anonymous when
   Common Auth rejects it.
 - Every admitted shared token receives Songbook's `songbook:read` and
   `songbook:write` capabilities because Songbook has one equal-permission role.
   Token minting, lifetime, scope, and revocation remain owned by
   `auth.lost.plus`; Songbook MCP uses the `okdam-mcp` token scope.
-- Anonymous MCP routing is derived from the JSON-RPC body. It explicitly admits
-  discovery, listings, notifications, ping, and public tool calls while
-  rejecting unknown methods, malformed bodies, ambiguous calls, and batches.
+- The private Node server also requires gateway identity before reading or
+  dispatching an MCP body.
 
 ## Stored identity data
 

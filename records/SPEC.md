@@ -76,14 +76,14 @@ history.
 - Every centrally admitted account has the same `allowed` role and permissions,
   including song deletion. Common-auth rejection, malformed identity, or
   unavailability fails closed.
-- Stateless MCP Streamable HTTP is an optional-bearer mount at `/mcp`, with
-  modern and legacy stateless compatibility, common-auth bearer validation,
-  body-derived anonymous routing, per-tool capabilities, and no long-lived MCP
-  session state.
-- MCP exposes public `catalog`, combined `search_songs`, and `get_song` tools;
-  every mutation tool requires the internal `songbook:write` capability. An
-  authenticated `search_songs` call requires `songbook:read` before TJ
-  continuation. Every admitted common-auth token receives both capabilities,
+- Stateless MCP Streamable HTTP is a required-bearer mount at `/mcp`, with
+  modern and legacy stateless compatibility, centralized Common Auth OAuth or
+  machine-token validation, per-tool capabilities, and no long-lived MCP
+  session state. Every request without verified gateway identity fails before
+  MCP dispatch.
+- MCP requires `songbook:read` for `catalog`, combined `search_songs`, and
+  `get_song`; every mutation tool requires `songbook:write`. Every admitted
+  Common Auth credential receives both internal capabilities,
   and protected operations use the same domain services and validation as the
   browser API.
 - Songs store structured `performerIds` for who will sing the song. Built-in
@@ -112,15 +112,12 @@ history.
 - Public catalog rows may expose the configured public name of the account that
   created the latest active performance. They never expose its email address;
   an unmapped historical email falls back to timestamp-only display.
-- Shared browser sessions use HTTP-only cookies. The MCP gateway treats
-  requests without a machine credential as anonymous, never grants identity
-  from browser cookies, and rejects malformed, expired, revoked, or incorrectly
-  scoped credentials before the request reaches Songbook.
-- Anonymous MCP requests may initialize, discover, list tools/resources/prompts,
-  ping, send notifications, and call public tools. Transport admission is
-  derived from the JSON body; client-supplied method/name headers are not
-  authorization input. Unknown, malformed, ambiguous, and batch requests do
-  not receive anonymous access.
+- Shared browser sessions use HTTP-only cookies, but cookies never grant MCP
+  identity. The MCP gateway requires either a resource-bound OAuth access token
+  or a valid `okdam-mcp` machine credential on every request and rejects
+  malformed, expired, revoked, or incorrectly scoped credentials before the
+  request reaches Songbook. The private Songbook server independently rejects
+  every MCP request without gateway-injected identity.
 - MCP request bodies have a fixed byte ceiling, an absolute read timeout, and
   a small shared concurrency gate held until both the response and invoked tool
   work finish. Client cancellation does not release that gate while backend

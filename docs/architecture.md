@@ -42,17 +42,15 @@ flowchart LR
 
 ## MCP transport and authorization
 
-- `/mcp` is an optional-bearer mount serving modern and legacy stateless MCP
+- `/mcp` is a required-bearer mount serving modern and legacy stateless MCP
   exchanges without long-lived MCP session state.
-- Requests without gateway identity are anonymous. Anonymous transport
-  admission is derived from the JSON body and allows discovery, listings,
-  notifications, ping, and public catalog/search/lookup calls. Unknown,
-  malformed, ambiguous, and batch requests fail closed.
-- The gateway evaluates every explicit machine credential at `auth.lost.plus`;
+- Requests without gateway identity fail with `401` before MCP dispatch,
+  including initialization, discovery, listing, and read-only tool calls.
+- The gateway evaluates every OAuth access token or explicit machine credential at `auth.lost.plus`;
   malformed, expired, revoked, and incorrectly scoped credentials are rejected
   before Node. Cookies never provide MCP identity.
-- The single tool-policy table defines public access and `songbook:write`
-  requirements for both transport gating and tool guards.
+- The single tool-policy table requires `songbook:read` for read tools and
+  `songbook:write` for mutation tools after transport admission.
   Every authenticated request reaches the shared service with verified
   percent-encoded identity headers.
 - `search_songs` always returns saved matches and a TJ section. Anonymous

@@ -8,7 +8,7 @@ import {
   tjSongCandidateSchema,
   type McpScope,
   type McpProtocolRevision,
-  type OptionalBearerMcpMountOptions
+  type RequiredBearerMcpMountOptions
 } from "@songbook/shared";
 import type { RequestActor, SongbookService, TjAdapter } from "@songbook/server-core";
 import { combinedSongSearch } from "@songbook/server-core";
@@ -17,7 +17,7 @@ import { z } from "zod/v4";
 export interface StatelessMcpContract {
   revision: McpProtocolRevision;
   scopes: McpScope[];
-  mount: OptionalBearerMcpMountOptions;
+  mount: RequiredBearerMcpMountOptions;
 }
 
 export interface McpVerifiedPrincipal {
@@ -31,7 +31,7 @@ export interface SongbookMcpHandlerOptions {
   tj?: TjAdapter;
 }
 
-export type McpToolAccess = "public" | "write";
+export type McpToolAccess = "read" | "write";
 
 export interface McpToolPolicyEntry {
   readonly access: McpToolAccess;
@@ -39,9 +39,9 @@ export interface McpToolPolicyEntry {
 }
 
 export const mcpToolPolicy = {
-  catalog: { access: "public", requiredScope: null },
-  search_songs: { access: "public", requiredScope: "songbook:read" },
-  get_song: { access: "public", requiredScope: null },
+  catalog: { access: "read", requiredScope: "songbook:read" },
+  search_songs: { access: "read", requiredScope: "songbook:read" },
+  get_song: { access: "read", requiredScope: "songbook:read" },
   record_performance: { access: "write", requiredScope: "songbook:write" },
   cancel_performance: { access: "write", requiredScope: "songbook:write" },
   create_song: { access: "write", requiredScope: "songbook:write" },
@@ -57,7 +57,7 @@ export const mcpContract: StatelessMcpContract = {
   revision: "2026-07-28",
   scopes: ["songbook:read", "songbook:write"],
   mount: {
-    authentication: "optional-bearer",
+    authentication: "required-bearer",
     path: "/mcp",
     audience: "songbook-mcp",
     stateless: true
@@ -220,11 +220,10 @@ function sharedParse<T>(schema: { safeParse(value: unknown): { success: true; da
   return parsed.data;
 }
 
-function guarded(authInfo: AuthInfo | undefined, toolName: McpToolName): McpVerifiedPrincipal | null {
+function guarded(authInfo: AuthInfo | undefined, toolName: McpToolName): McpVerifiedPrincipal {
   const policy = mcpToolPolicy[toolName];
   const principal = principalFromContext(authInfo);
   if (!principal) {
-    if (policy.access === "public") return null;
     throw Object.assign(new Error("Bearer authentication is required"), { code: "UNAUTHORIZED" });
   }
   if (policy.requiredScope && !principal.scopes.includes(policy.requiredScope)) {
@@ -299,14 +298,14 @@ function registerTools(
     inputSchema: searchInput
   }, (input) => runTrackedTool(lifecycle, async () => {
     try {
-      const principal = guarded(authInfo, "search_songs");
+      guarded(authInfo, "search_songs");
       return result(await combinedSongSearch({
         service: options.service,
         tj: options.tj,
         query: input.query,
         limit: input.limit,
         includeTj: input.includeTj,
-        authenticated: Boolean(principal)
+        authenticated: true
       }));
     } catch (error) {
       return failure(error);
@@ -335,7 +334,6 @@ function registerTools(
   }, (input) => runTrackedTool(lifecycle, async () => {
     try {
       const principal = guarded(authInfo, "record_performance");
-      if (!principal) throw Object.assign(new Error("Bearer authentication is required"), { code: "UNAUTHORIZED" });
       const parsed = sharedParse(performanceCreateRequestSchema, { ...input, keySelection: input.keySelection });
       return result(options.service.createPerformance(principal.actor, {
         songId: parsed.songId,
@@ -356,7 +354,6 @@ function registerTools(
   }, (input) => runTrackedTool(lifecycle, async () => {
     try {
       const principal = guarded(authInfo, "cancel_performance");
-      if (!principal) throw Object.assign(new Error("Bearer authentication is required"), { code: "UNAUTHORIZED" });
       const parsed = sharedParse(performanceCancelRequestSchema, input);
       return result(options.service.cancelPerformance(principal.actor, {
         performanceId: parsed.performanceId,
@@ -375,7 +372,6 @@ function registerTools(
   }, (input) => runTrackedTool(lifecycle, async () => {
     try {
       const principal = guarded(authInfo, "create_song");
-      if (!principal) throw Object.assign(new Error("Bearer authentication is required"), { code: "UNAUTHORIZED" });
       if (input.tjCandidate) {
         const candidate = sharedParse(tjSongCandidateSchema, input.tjCandidate);
         return result(options.service.createTjSong(principal.actor, candidate, input.clientRequestId));
@@ -401,7 +397,6 @@ function registerTools(
   }, (input) => runTrackedTool(lifecycle, async () => {
     try {
       const principal = guarded(authInfo, "update_song");
-      if (!principal) throw Object.assign(new Error("Bearer authentication is required"), { code: "UNAUTHORIZED" });
       const id = input.id ?? input.songId;
       const parsed = sharedParse(songUpdateRequestSchema, {
         ...input,
@@ -422,7 +417,6 @@ function registerTools(
   }, (input) => runTrackedTool(lifecycle, async () => {
     try {
       const principal = guarded(authInfo, "delete_song");
-      if (!principal) throw Object.assign(new Error("Bearer authentication is required"), { code: "UNAUTHORIZED" });
       const inputParsed = sharedParse(deleteSongInput, input);
       const parsed = sharedParse(songDeleteRequestSchema, {
         songId: inputParsed.id ?? inputParsed.songId ?? "",

@@ -50,23 +50,24 @@ describe("stateless Songbook MCP", () => {
     expect(Object.keys(mcpToolPolicy).sort()).toEqual([
       "cancel_performance", "catalog", "create_song", "delete_song", "get_song", "record_performance", "search_songs", "update_song"
     ]);
-    expect(mcpToolPolicy.search_songs).toEqual({ access: "public", requiredScope: "songbook:read" });
+    expect(mcpToolPolicy.catalog).toEqual({ access: "read", requiredScope: "songbook:read" });
+    expect(mcpToolPolicy.search_songs).toEqual({ access: "read", requiredScope: "songbook:read" });
     expect(mcpToolPolicy.delete_song).toEqual({ access: "write", requiredScope: "songbook:write" });
-    expect(mcpContract.mount).toEqual({ authentication: "optional-bearer", path: "/mcp", audience: "songbook-mcp", stateless: true });
+    expect(mcpContract.mount).toEqual({ authentication: "required-bearer", path: "/mcp", audience: "songbook-mcp", stateless: true });
     expect(mcpRequiredScopeForBody({ method: "tools/call", params: { name: "record_performance" } })).toBe("songbook:write");
     expect(mcpRequiredScopeForBody({ method: "tools/call", params: { name: "search_songs" } })).toBe("songbook:read");
     expect(mcpRequiredScopeForBody({ method: "tools/call", params: { name: "delete_song" } })).toBe("songbook:write");
-    expect(mcpRequiredScopeForBody({ method: "tools/call", params: { name: "catalog" } })).toBeNull();
+    expect(mcpRequiredScopeForBody({ method: "tools/call", params: { name: "catalog" } })).toBe("songbook:read");
     expect(mcpRequiredScopeForBody({ method: "tools/call", params: { name: "unknown" } })).toBeUndefined();
   });
 
-  it("answers anonymous initialize, list, and public calls", async () => {
+  it("answers protocol discovery and rejects tool calls without an authenticated principal", async () => {
     const handler = createSongbookMcpHandler({ service: service() });
     expect((await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2026-07-28", capabilities: {}, clientInfo: { name: "test", version: "1" } } }, false))).status).toBe(200);
     const listed = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }));
     expect((await listed.json()).result.tools.map((tool: { name: string }) => tool.name).sort()).toEqual(Object.keys(mcpToolPolicy).sort());
-    const publicCall = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "catalog", arguments: {} } }));
-    expect((await publicCall.json()).result.structuredContent.ok).toBe(true);
+    const unauthenticatedCall = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "catalog", arguments: {} } }));
+    expect((await unauthenticatedCall.json()).result.isError).toBe(true);
   });
 
   it("keeps protected tool guards separate from public tools", async () => {
@@ -94,12 +95,12 @@ describe("stateless Songbook MCP", () => {
     expect((await failed.json()).result.structuredContent.data).toMatchObject({ saved: [song], tj: { state: "failed", candidates: [], error: { code: "TJ_UPSTREAM_ERROR" } } });
   });
 
-  it("keeps anonymous search local and blocks TJ for authenticated principals without read scope", async () => {
+  it("rejects anonymous search and blocks TJ without read scope", async () => {
     const serviceDouble = service();
     const search = vi.fn(async () => ({ query: "Song", searchType: "all" as const, nation: "" as const, page: 1, pageSize: 15, hasMore: false, candidates: [], sourceUrl: "https://tj.example/search" }));
     const handler = createSongbookMcpHandler({ service: serviceDouble, tj: { search, lookup: vi.fn() } });
     const anonymous = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 61, method: "tools/call", params: { name: "search_songs", arguments: { query: "Song" } } }));
-    expect((await anonymous.json()).result.structuredContent.data.tj.state).toBe("skipped_anonymous");
+    expect((await anonymous.json()).result.structuredContent).toMatchObject({ ok: false, error: { code: "UNAUTHORIZED" } });
     expect(search).not.toHaveBeenCalled();
 
     const noRead = authInfoForPrincipal({ actor, userId: "user-1", scopes: ["songbook:write"] }, "write-only");

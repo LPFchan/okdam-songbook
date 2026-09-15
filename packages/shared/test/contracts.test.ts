@@ -6,7 +6,7 @@ import {
   conflictDetailsSchema,
   mcpNegotiationSchema,
   mcpScopeSetSchema,
-  optionalBearerMcpMountOptionsSchema,
+  requiredBearerMcpMountOptionsSchema,
   performanceCreateRequestSchema,
   readingGenerateInputSchema,
   songCreateRequestSchema,
@@ -57,16 +57,16 @@ describe("single-server contracts", () => {
     expect(conflictDetailsSchema.parse({ reason: "version-mismatch", currentVersion: 3, requestVersion: 2 }).reason).toBe("version-mismatch");
   });
 
-  it("models stateless MCP negotiation with optional bearer authentication", () => {
+  it("models stateless MCP negotiation with required bearer authentication", () => {
     expect(mcpScopeSetSchema.parse(["songbook:read", "songbook:read"])).toEqual(["songbook:read"]);
     expect(mcpScopeSetSchema.safeParse(["songbook:admin"]).success).toBe(false);
     expect(mcpNegotiationSchema.parse({ requestedRevision: "2026-07-28", negotiatedRevision: "2026-07-28", stateless: true }).stateless).toBe(true);
-    const options = optionalBearerMcpMountOptionsSchema.parse({
-      authentication: "optional-bearer",
+    const options = requiredBearerMcpMountOptionsSchema.parse({
+      authentication: "required-bearer",
       path: "/mcp",
       audience: "songbook-mcp",
       stateless: true
     });
-    expect(options.authentication).toBe("optional-bearer");
+    expect(options.authentication).toBe("required-bearer");
   });
 });

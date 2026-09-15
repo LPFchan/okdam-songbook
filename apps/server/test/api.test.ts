@@ -352,26 +352,41 @@ describe("same-origin server surface", () => {
 });
 
 describe("MCP common-auth gate", () => {
-  it("bounds declared and chunked MCP bodies before anonymous admission", async () => {
+  const gatewayHeaders = {
+    "X-Lost-Plus-Encoding": "percent-utf8",
+    "X-Lost-Plus-Sub": "42",
+    "X-Lost-Plus-Email": "allowed%40example.com",
+    "X-Lost-Plus-Name": "Allowed",
+    "X-Lost-Plus-Role": "user"
+  };
+  const mcpAuth = {
+    verifyRequest: async () => ({
+      ok: true as const,
+      token: { accessToken: "accepted", scopes: ["songbook:read" as const, "songbook:write" as const] },
+      principal: { userId: "allowed@example.com", actor: { email: "allowed@example.com", displayName: "Allowed" } }
+    })
+  };
+
+  it("bounds declared and chunked MCP bodies after gateway admission", async () => {
     database = openDatabase();
-    const server = createServerApp({ database, origin, mcpMaxBodyBytes: 256 }).app;
+    const server = createServerApp({ database, origin, mcpMaxBodyBytes: 256, mcpAuth, roleResolver: createCommonAuthRoleResolver() }).app;
     const ordinary = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} });
     expect((await server.request(request("/mcp", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
+      headers: { ...gatewayHeaders, "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
       body: ordinary
     }))).status).toBe(200);
 
     const declared = await server.request(request("/mcp", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Content-Length": "257" },
+      headers: { ...gatewayHeaders, "Content-Type": "application/json", "Content-Length": "257" },
       body: ordinary
     }));
     expect(declared.status).toBe(413);
 
     const chunked = await server.request(request("/mcp", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...gatewayHeaders, "Content-Type": "application/json" },
       body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "initialize", params: { capabilities: { padding: "x".repeat(512) } } })
     }));
     expect(chunked.status).toBe(413);
@@ -379,13 +394,13 @@ describe("MCP common-auth gate", () => {
 
   it("times out an MCP body that never finishes", async () => {
     database = openDatabase();
-    const server = createServerApp({ database, origin, mcpBodyTimeoutMs: 10 }).app;
+    const server = createServerApp({ database, origin, mcpBodyTimeoutMs: 10, mcpAuth, roleResolver: createCommonAuthRoleResolver() }).app;
     const stream = new ReadableStream<Uint8Array>({
       start(controller) { controller.enqueue(new TextEncoder().encode("{")); }
     });
     const stalled = new Request(`${origin}/mcp`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...gatewayHeaders, "Content-Type": "application/json" },
       body: stream,
       duplex: "half"
     } as RequestInit & { duplex: "half" });
@@ -509,21 +524,21 @@ describe("MCP common-auth gate", () => {
     expect(verifiedScopes).toEqual(["songbook:read"]);
   });
 
-  it("keeps public MCP calls anonymous and challenges protected calls for a shared bearer token", async () => {
+  it("challenges every MCP request without a gateway identity", async () => {
     database = openDatabase();
     const server = createServerApp({ database, origin }).app;
     const listed = await server.request(request("/mcp", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }) }));
-    expect(listed.status).toBe(200);
+    expect(listed.status).toBe(401);
     const protectedCall = await server.request(request("/mcp", { method: "POST", headers: { Cookie: "lp_auth=browser-only", "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "record_performance", arguments: {} } }) }));
     expect(protectedCall.status).toBe(401);
     expect(protectedCall.headers.get("WWW-Authenticate")).toBe('Bearer realm="auth.lost.plus"');
   });
 
-  it("routes anonymous MCP from the body and fails closed for malformed or protected input", async () => {
+  it("rejects all anonymous MCP bodies before dispatch", async () => {
     database = openDatabase();
     const server = createServerApp({ database, origin }).app;
     const publicWithProtectedHeader = await server.request(request("/mcp", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", "Mcp-Name": "delete_song" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "catalog", arguments: {} } }) }));
-    expect(publicWithProtectedHeader.status).toBe(200);
+    expect(publicWithProtectedHeader.status).toBe(401);
     const protectedWithPublicHeader = await server.request(request("/mcp", { method: "POST", headers: { "Content-Type": "application/json", "Mcp-Name": "catalog" }, body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "delete_song", arguments: {} } }) }));
     expect(protectedWithPublicHeader.status).toBe(401);
     const batch = await server.request(request("/mcp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify([{ jsonrpc: "2.0", id: 3, method: "tools/list", params: {} }]) }));

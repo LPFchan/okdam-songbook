@@ -4,8 +4,8 @@ Production is the OCI single server at https://okdam.lost.plus. The legacy
 GitHub Pages / Apps Script / Cloudflare Worker stack is retired: the Pages
 workflow is a manual-dispatch redirect stub and nothing deploys automatically.
 
-Public MCP operations remain anonymous. Protected browser and MCP requests use
-`auth.lost.plus`; the shared bearer revocation and modern/legacy MCP client
+Every MCP operation requires Common Auth OAuth or a valid machine token.
+Protected browser and MCP requests use `auth.lost.plus`; OAuth refresh/revocation and the modern/legacy MCP client
 matrix must be verified after auth-related releases.
 
 ## Current production components
@@ -49,7 +49,7 @@ matrix must be verified after auth-related releases.
    `curl https://okdam.lost.plus/healthz` both return healthy responses, and
    that `docker ps` reports the container healthy.
 5. For an auth or MCP release, verify shared-cookie identity, path-preserving
-   login, anonymous public calls, a protected tool with a shared bearer, an
+   login, anonymous MCP rejection, OAuth discovery and authorization, a protected tool with a shared bearer, an
    invalid-token challenge, a visibility-restricted bearer rejection, token
    revocation, and the external client matrix
    before calling the release complete.
