@@ -5,10 +5,10 @@ Recorded by agent: codex-orchestrator
 
 ## Snapshot
 
-- Last updated: 2026-09-14 (browser and MCP credentials are now validated by
+- Last updated: 2026-09-15 (browser and MCP credentials are now validated by
   the local Common Auth gateway; the private server consumes verified identity).
 - Overall posture: `live in production on OCI single-server`.
-- Production baseline: `0943067` with gateway identity and single-role
+- Production baseline: `0c037e8` with gateway identity and single-role
   Songbook authorization, running as `songbook:local` (ARM64) on oci-ubuntu.
 - Public URL: https://okdam.lost.plus via the Cloudflare Tunnel
   (`obsidian-sync` tunnel, hostname `okdam.lost.plus` → the OCI Common Auth
@@ -91,9 +91,9 @@ Recorded by agent: codex-orchestrator
 - One executable Hono server serves the built PWA, anonymous catalog API,
   protected browser API, health checks, and `/mcp`.
 - SQLite owns domain, private favorites, audit, idempotency, and TJ mirror
-  state. Migration `0106_drop_mcp_token_resources` is applied in production;
-  migration `0107_immutable_account_ownership` is ready for the next release
-  and moves favorites/idempotency from mutable email to Common Auth subject.
+  state. Migrations `0106_drop_mcp_token_resources` and
+  `0107_immutable_account_ownership` are applied in production; favorites and
+  idempotency ownership use the immutable Common Auth subject.
   The retired local token table is absent. Import/reconciliation, CSV recovery,
   backup, integrity-check, and guarded restore tools are checked in.
 - Browser access uses the shared `lp_auth` cookie. The local gateway validates
