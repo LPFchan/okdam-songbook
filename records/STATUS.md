@@ -8,8 +8,9 @@ Recorded by agent: codex-orchestrator
 - Last updated: 2026-09-15 (browser and MCP credentials are now validated by
   the local Common Auth gateway; the private server consumes verified identity).
 - Overall posture: `live in production on OCI single-server`.
-- Production baseline: `0c037e8` with gateway identity and single-role
-  Songbook authorization, running as `songbook:local` (ARM64) on oci-ubuntu.
+- Production baseline: `34b230d` with fully gated MCP transport, gateway
+  identity, and single-role Songbook authorization, running as
+  `songbook:local` (ARM64) on oci-ubuntu.
 - Public URL: https://okdam.lost.plus via the Cloudflare Tunnel
   (`obsidian-sync` tunnel, hostname `okdam.lost.plus` → the OCI Common Auth
   gateway on `localhost:8740` → private Songbook on `localhost:3010`).
@@ -39,7 +40,8 @@ Recorded by agent: codex-orchestrator
   hostname; the container healthcheck passes.
 - Shared auth: `https://auth.lost.plus/api/ready` is healthy. The Node server
   has no Auth origin or credential validator; the gateway admits `okdam`
-  browser sessions and `okdam-mcp` machine tokens.
+  browser sessions plus `okdam-mcp` machine and OAuth tokens, and the backend
+  rejects every MCP request without verified gateway identity.
 - Korean-reading generation uses Cloudflare Workers AI with
   `@cf/google/gemma-4-26b-a4b-it`; its server-only credential is not bundled
   into the web application.
@@ -108,15 +110,14 @@ Recorded by agent: codex-orchestrator
   authentication recovery, with bounded retry, dead letters, and preserved
   write identities.
 - MCP uses the gateway's `okdam-mcp` token scope and stateless SDK v2 transport
-  with legacy stateless fallback. Public
-  catalog/search/lookup operations work anonymously; every mutation requires
-  `songbook:write`. Authoritative common-auth identity is resolved before any
-  authenticated request reaches the shared domain service, and anonymous
-  search never invokes TJ. Browser cookies alone never grant MCP identity.
+  with legacy stateless fallback. Every MCP request requires verified gateway
+  identity; read tools require `songbook:read` and mutations require
+  `songbook:write`. The separate HTTP catalog remains public. Browser cookies
+  alone never grant MCP identity.
 - Common-auth production smoke verified the public shell and catalog, API
-  `401` versus navigation redirect behavior, gateway logout, anonymous MCP
-  listing, protected anonymous rejection, invalid-token rejection, a valid
-  protected MCP call, auth readiness, and local/public health.
+  `401` versus navigation redirect behavior, OAuth protected-resource metadata,
+  anonymous MCP rejection at both gateway and backend, auth readiness, and
+  local/public health.
 - The Docker image runs non-root with a read-only root filesystem, persistent
   SQLite bind mount, localhost-only published port, bounded logs/resources,
   and an application-owned `/healthz` check.
