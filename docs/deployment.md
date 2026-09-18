@@ -180,17 +180,52 @@ table covers every policy any current consumer needs. Read bodies, not status
 codes — `*.lost.plus` is a DNS-only wildcard to the NAS, so a hostname that
 does not exist answers 200 with a login page.
 
-| probe | expected |
+Record evidence of what *arrived*, not what the gateway decided. A status code
+alone cannot distinguish "the behaviour is correct" from "the request was never
+what I thought it was". Two concrete cases, both found the hard way:
+
+- A WebSocket probe with default `curl` reports failure whichever way the route
+  behaves, because curl negotiates HTTP/2 where `Upgrade` is not a valid header.
+- A GET-with-body probe returning no 502 could mean the bug is absent, or that
+  no body was transmitted. `upload=0B` with a clean 200 proves nothing while
+  looking like a pass.
+
+So run each probe on both protocols, report `%{size_upload}` beside the status,
+and have the staging backend echo what it received:
+
+```
+curl -s --http1.1 -o /dev/null \
+  -w "%{http_version} %{http_code} upload=%{size_upload}B\n" \
+  --request GET --data 'probe' https://<staging-host>/
+```
+
+| probe | evidence to capture |
 | --- | --- |
 | `GET /api/catalog` anonymous | 200, song JSON |
 | `GET /` anonymous | 200, the app shell |
 | `GET /api/...` signed out, browser navigation | 302 to `/login?to=…` |
-| `GET /api/...` signed in | 200, identity injected |
-| `POST /api/catalog` | falls through to the `oauth` route, not 405 |
-| `PUT` on a method-scoped `oauth` route, no session | **401, and no `Location` header** |
-| `PUT` on the same route, with a session | through, with `x-lost-plus-*` present |
-| `GET` with a body on a `public` route | 502 until the gateway bug is fixed |
-| identity round trip with a non-ASCII display name | decoded correctly in the app |
+| `GET /api/...` signed in | echo: the `x-lost-plus-*` set received |
+| `POST /api/catalog` | which policy answered, from the echo |
+| `PUT` on a method-scoped `oauth` route, no session | **401, absence of `Location`, and the body** |
+| `PUT` on the same route, with a session | echo: the `x-lost-plus-*` set received |
+| `GET` with a body on a `public` route | echo: was `body` non-null at the Worker, plus `upload=` |
+| identity round trip, non-ASCII display name | echo: the decoded name as a header value |
+
+Baseline for the last two, measured on production through the Rust gateway,
+both protocols, with the upload control:
+
+```
+--http1.1  /             -> 1.1 200 upload=5B download=2034B
+--http1.1  /api/catalog  -> 1.1 200 upload=5B download=71682B
+--http1.1  /healthz      -> 1.1 200 upload=5B download=11B
+--http2    /             -> 2   200 upload=5B download=2034B
+--http2    /api/catalog  -> 2   200 upload=5B download=71682B
+--http2    /healthz      -> 2   200 upload=5B download=11B
+```
+
+Five bytes on the wire either way, 200 either way. The body is genuinely being
+sent and genuinely being served today, so a 502 after the cutover would be a
+real regression rather than a protocol artefact.
 
 Two of those are not obvious:
 
