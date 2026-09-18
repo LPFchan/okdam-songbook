@@ -5,30 +5,35 @@ Recorded by agent: codex-orchestrator
 
 ## Snapshot
 
-- Last updated: 2026-09-18 (persistence moved behind an async executor
-  interface so the same service layer runs on Node and on Cloudflare D1).
-- Overall posture: `live in production on OCI single-server`.
-- Production baseline: `53f7ab1` with fully gated MCP transport, gateway
-  identity, and single-role Songbook authorization, running as
-  `songbook:local` (ARM64) on oci-ubuntu.
-- The Cloudflare Workers runtime (`apps/worker`) is deployed with no public
-  route: `wrangler deploy` reports `No targets deployed` and the workers.dev
-  hostname answers 404, so it is reachable only by a service binding that does
-  not exist yet. Its D1 database holds a dated snapshot of production imported
-  2026-09-18, which must be re-imported at cutover. The cutover waits for a
-  gateway Worker to be deployed on Cloudflare; see DEC-20260918-001 for why the
-  Worker must carry no public route.
-- The gateway itself is no longer missing: `LPFchan/auth` carries a complete
-  TypeScript rewrite under `gateway/` that runs on workerd. No gateway Worker
-  is deployed yet, so there is still nothing for Songbook to sit behind.
-  Songbook does not adopt the interim pattern the other Workers-hosted services
-  use, where each one implements Common Auth itself. Auth code was deliberately
-  removed from this repo by DEC-20260914-002 and DEC-20260918-002 rejects
-  putting it back, so the cutover waits rather than growing a copy that would
-  have to be deleted again.
-- Public URL: https://okdam.lost.plus via the Cloudflare Tunnel
-  (`obsidian-sync` tunnel, hostname `okdam.lost.plus` → the OCI Common Auth
-  gateway on `localhost:8740` → private Songbook on `localhost:3010`).
+- Last updated: 2026-09-18 (Songbook cut over from the OCI container to
+  Cloudflare Workers).
+- Overall posture: `live in production on Cloudflare Workers`.
+- Production baseline: `436c1b4`, running as the route-less `okdam-songbook`
+  Worker over D1 `okdam-songbook` (APAC), reached only through the
+  `SONGBOOK_BACKEND` service binding from the `auth-gateway` Worker.
+- Ingress: Cloudflare Worker route `okdam.lost.plus/*` -> `auth-gateway`, which
+  validates the credential against the hub and injects the `x-lost-plus-*`
+  identity headers Songbook reads. Worker routes take precedence over the zone
+  origin, so the `obsidian-sync` tunnel entry for this hostname is inert rather
+  than removed.
+- **Rollback is deleting one zone route.** `okdam.lost.plus/*`, route id
+  `be06a33cca774bceb9000b9ef60e7290`. Traffic falls straight back through the
+  tunnel to the OCI Common Auth gateway and the container, which is still
+  running, still healthy, and still holds the authoritative SQLite file.
+- Verified at cutover, through the gateway: `/healthz` 200 `{"ok":true}`,
+  `/api/catalog` 200 with 126 songs from D1, `/` serving the app shell, `/api`
+  and `/mcp` 401 unauthenticated, forged `x-lost-plus-*` headers 401, a `GET`
+  carrying a body 400 with a plain `GET` unaffected.
+- The first attempt was rolled back. Six of seven checks passed; `/healthz`
+  answered 503 because it proved writability with a savepoint and a temp table,
+  which D1Executor.exec() refuses. Fixed in `436c1b4` by making `writeProbe()`
+  optional on the executor. Nothing caught it beforehand because the staging
+  gateway was bound to an echo backend that answers every request 200, so the
+  staging pass proved the gateway and not the application.
+- Public URL: https://okdam.lost.plus via the Cloudflare Worker route
+  (`okdam.lost.plus/*` → `auth-gateway` → `SONGBOOK_BACKEND` binding →
+  `okdam-songbook`). The `obsidian-sync` tunnel entry still exists and is what
+  the hostname falls back to if that route is deleted.
 - Current product shape: one catalog-first main surface whose search input
   returns saved songs first and debounced TJ candidates second. Manage/history
   remain contextual utilities; `/admin` is a compatibility alias.
@@ -37,10 +42,32 @@ Recorded by agent: codex-orchestrator
   writing checksummed SQLite archives to `/var/backups/songbook` with a
   completed restore drill on 2026-08-13.
 - The legacy GitHub Pages/Apps Script/Worker stack remains retired: the Pages
-  workflow is a manual-dispatch redirect stub and the OCI server is the only
-  production path.
+  workflow is a manual-dispatch redirect stub. It is unrelated to the current
+  Workers runtime, which is `apps/worker` on D1 behind the Common Auth gateway.
 
 ## Production Deployment
+
+Songbook serves from Cloudflare Workers. The OCI container below is kept
+running as the rollback target and still holds the authoritative SQLite file;
+deleting the `okdam.lost.plus/*` zone route returns traffic to it within
+seconds. Writes made on Workers after the cutover live only in D1, so a
+rollback taken later than the cutover loses them — re-export from D1 first if
+that ever matters.
+
+### Cloudflare Workers (serving)
+
+- Worker: `okdam-songbook`, route-less (`workers_dev = false`, no `[[routes]]`),
+  reachable only through the gateway's `SONGBOOK_BACKEND` service binding.
+- Database: D1 `okdam-songbook` (APAC, `9b353a3b`), schema from
+  `apps/worker/migrations/0001_init.sql`, seeded from the OCI SQLite at cutover.
+- Assets: Workers Assets serves the built PWA; the Worker falls back to
+  `index.html` for SPA routes.
+- Ingress: zone route `okdam.lost.plus/*` → `auth-gateway`.
+- AI readings: `AI_ENDPOINT` and `AI_MODEL` in `[vars]`,
+  `CLOUDFLARE_AI_API_TOKEN` as a Worker secret, same names the Node runtime
+  uses so `songbook.env` transfers without translation.
+
+### OCI (rollback target, idle)
 
 - Host: `oci-ubuntu` (Oracle Cloud always-free ARM64).
 - Compose: `compose.yaml` plus the host-local override
