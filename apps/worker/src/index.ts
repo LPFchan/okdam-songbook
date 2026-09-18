@@ -11,7 +11,6 @@ export interface Env {
   SONGBOOK_DB: D1Database;
   ASSETS: Fetcher;
   ORIGIN: string;
-  AUTH_ORIGIN?: string;
   AI_ENDPOINT?: string;
   AI_API_TOKEN?: string;
   AI_MODEL?: string;

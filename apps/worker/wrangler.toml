@@ -20,7 +20,6 @@ database_id = "9b353a3b-6526-4d14-8b10-5f618275b4cf"
 
 [vars]
 ORIGIN = "https://okdam.lost.plus"
-AUTH_ORIGIN = "https://auth.lost.plus"
 
 # Secrets set with `wrangler secret put`:
 #   AI_API_TOKEN   — bearer token for the AI reading endpoint
