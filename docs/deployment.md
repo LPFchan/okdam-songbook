@@ -168,82 +168,66 @@ cd apps/worker
 npx wrangler deploy
 ```
 
-### Staging probes to run before the cutover
+### Staging pass: what was measured
 
-`gateway/wrangler.toml` in `LPFchan/auth` calls proving the chain on a scratch
-hostname a gate rather than a suggestion, and it applies here: no `public` and
-no `oauth` route has ever run on the Cloudflare gateway. Its only production
-route is `tweet.lost.plus`, which is `mcp`.
+Run 2026-09-18 against `okdamnext.lost.plus`, a temporary proxied record in the
+`lost.plus` zone, with the gateway's `SONGBOOK_BACKEND` bound to
+`deploy/gateway-echo` rather than to Songbook. The echo reports what the
+gateway *forwarded*; Songbook would have served pages and revealed nothing
+about headers. Hostname and both Workers were torn down afterwards.
 
-Songbook's five routes span all three policies, so one staging pass with this
-table covers every policy any current consumer needs. Read bodies, not status
-codes — `*.lost.plus` is a DNS-only wildcard to the NAS, so a hostname that
-does not exist answers 200 with a login page.
+`gateway/wrangler.toml` in `LPFchan/auth` calls this a gate rather than a
+suggestion, and it earned that: before this pass, no `public` and no `oauth`
+route had ever run on the Cloudflare gateway. Its only production route was
+`tweet.lost.plus`, which is `mcp`.
 
-Record evidence of what *arrived*, not what the gateway decided. A status code
-alone cannot distinguish "the behaviour is correct" from "the request was never
-what I thought it was". Two concrete cases, both found the hard way:
+**Measured.** Every line observed through the real gateway on Cloudflare.
 
-- A WebSocket probe with default `curl` reports failure whichever way the route
-  behaves, because curl negotiates HTTP/2 where `Upgrade` is not a valid header.
-- A GET-with-body probe returning no 502 could mean the bug is absent, or that
-  no body was transmitted. `upload=0B` with a clean 200 proves nothing while
-  looking like a pass.
-
-So run each probe on both protocols, report `%{size_upload}` beside the status,
-and have the staging backend echo what it received:
-
-```
-curl -s --http1.1 -o /dev/null \
-  -w "%{http_version} %{http_code} upload=%{size_upload}B\n" \
-  --request GET --data 'probe' https://<staging-host>/
-```
-
-| probe | evidence to capture |
+| probe | result |
 | --- | --- |
-| `GET /api/catalog` anonymous | 200, song JSON |
-| `GET /` anonymous | 200, the app shell |
-| `GET /api/...` signed out, browser navigation | 302 to `/login?to=…` |
-| `GET /api/...` signed in | echo: the `x-lost-plus-*` set received |
-| `POST /api/catalog` | which policy answered, from the echo |
-| `PUT` on a method-scoped `oauth` route, no session | **401, absence of `Location`, and the body** |
-| `PUT` on the same route, with a session | echo: the `x-lost-plus-*` set received |
-| `GET` with a body on a `public` route | echo: was `body` non-null at the Worker, plus `upload=` |
-| identity round trip, non-ASCII display name | echo: the decoded name as a header value |
+| `GET /` + body, http/1.1 and http/2 | `400 body not allowed on GET or HEAD`, `up=5B` both |
+| `GET /` no body (control) | 200, `bodyPresent=false` — the fix changes nothing else |
+| `GET /` and `/api/catalog` anonymous | 200, `identity={}` |
+| `POST /api/catalog` | 401 at `oauth` — falls through, does not 405 |
+| `PUT` cross-origin | 403, CSRF refuses |
+| `PUT` same-origin, no session | **401, no `Location`** |
+| `GET /api` browser navigation, no session | 302 to `auth.lost.plus/login?to=…`, return address intact |
+| `GET /api` signed in | identity injected, `%40` decoded to `@` |
+| `GET /mcp` with an `okdam-mcp` machine token | 200, identity injected |
+| cookie stripping, signed-in browser request | `cookie` absent at the backend |
+| bearer stripping, machine token request | `authorization` absent at the backend |
 
-Baseline for the last two, measured on production through the Rust gateway,
-both protocols, with the upload control:
+**Inferred, and labelled as such.**
 
-```
---http1.1  /             -> 1.1 200 upload=5B download=2034B
---http1.1  /api/catalog  -> 1.1 200 upload=5B download=71682B
---http1.1  /healthz      -> 1.1 200 upload=5B download=11B
---http2    /             -> 2   200 upload=5B download=2034B
---http2    /api/catalog  -> 2   200 upload=5B download=71682B
---http2    /healthz      -> 2   200 upload=5B download=11B
-```
+- **Multi-byte UTF-8 in a display name.** The operator's is ASCII, so `raw` and
+  `decoded` matched and the probe could not prove what it was written for. The
+  decoder is exercised by the email; a Korean name is not.
+- **`x-api-key` stripping**, by shared code path with the two that were measured.
 
-Five bytes on the wire either way, 200 either way. The body is genuinely being
-sent and genuinely being served today, so a 502 after the cutover would be a
-real regression rather than a protocol artefact.
+**Two traps this pass walked into, both worth keeping.**
 
-Two of those are not obvious:
+- **A write probe sent with `curl` measures CSRF, not auth.** `needsCsrfCheck`
+  runs before the policy branch and curl sends no `Origin`, so the first
+  attempt returned `403 cross-origin request denied` — which reads as "not a
+  302, pass" while proving nothing about the redirect behaviour it was written
+  to test. Send the `Origin` a browser would.
+- **`request.cf.httpProtocol` is `null` behind a service binding.** The `cf`
+  object does not carry the original protocol across the hop, so the echo
+  cannot observe protocol from the far side. Protocol questions fall back to
+  `%{http_version}`, which is the client reporting on itself.
 
-- **`PUT` with no session must be 401 rather than 302.** `isBrowserNavigation`
-  checks for `GET`/`HEAD` before it looks at `sec-fetch-mode`, so a write
-  cannot take the redirect branch. If one ever did, `fetch()` follows redirects
-  by default: the write would land on the sign-in page, receive 200 with HTML,
-  fail JSON parsing, and be dead-lettered as an `INTERNAL_ERROR` carrying
-  status 200 — a silently lost edit from a request the server answered
-  correctly.
-- **`GET` with a body currently returns 502.** The gateway passes
-  `request.body` into a `RequestInit` unconditionally, and the Fetch API
-  forbids a body on a GET, so construction throws and surfaces as
-  `upstreamUnavailable` — naming a backend that was never contacted. Today the
-  Rust gateway proxies these fine: `GET /`, `GET /api/catalog`, and
-  `GET /healthz` with a body all return 200. Songbook's `/` is `public`, so
-  after the cutover this is reachable with no credential at all, which is not
-  true of `tweet.lost.plus` where the only proxying route needs one.
+**Subject continuity**, checked because the cutover turns on it: the gateway
+sends `x-lost-plus-sub: 1`, so Songbook computes `auth.lost.plus:1`, which is
+what it already computes today. Nothing is keyed on a subject that changes.
+`idempotency_keys` still holds `legacy-email:` subjects from before gateway
+identity, and those expire within a day.
+
+That fallback is also why `song_favorites` is empty: favorites were keyed on
+`legacy-email:<email>`, the Common Auth cutover moved subjects to
+`auth.lost.plus:<sub>`, and DEC-20260914-002's remap did not carry them. It
+does not repeat here — same hub, same account, same `sub` — but it is the
+failure this class of migration produces, it already happened once silently,
+and it was found by diffing a backup rather than by anything noticing.
 
 ### Cutover from OCI
 
