@@ -91,9 +91,26 @@ percent-utf8` that `apps/server/src/auth.ts` already reads.
 
 What changes is how the gateway reaches the backend. Each route names a
 `binding` instead of a loopback `upstream`, so on Cloudflare these five entries
-replace the `okdam.lost.plus` block in `deploy/oci/gateway.json`. Order is
-significant — the gateway takes the first matching prefix, so `/api/catalog`
-has to precede `/api` or the public catalog becomes login-gated.
+replace the `okdam.lost.plus` block in `deploy/oci/gateway.json`.
+
+Their order in the file does not matter. `parseConfig` sorts each host's routes
+by `pathPrefix` length in UTF-8 bytes descending, then puts method-scoped
+routes ahead of unscoped ones, so `/api/catalog` is tried before `/api`
+whichever way round they are written. They are listed longest-first below
+anyway, because that is the order they are evaluated in and reading them in
+evaluation order is how you check them.
+
+Two consequences of that sort are worth knowing before editing this table:
+
+- A **method mismatch falls through to the next route rather than returning
+  405**: the method test sits inside `routeFor`'s `find` predicate. So
+  `GET /api/catalog` is public, while `POST /api/catalog` skips that route and
+  lands on `/api`, which is `oauth`. A method-scoped public route above an
+  unscoped protected one is how a path gets anonymous reads and authenticated
+  writes.
+- Adding a longer prefix silently takes precedence over a shorter one no
+  matter where it is written, so a new `/api/...` route can capture traffic
+  from `/api` without touching the `/api` line.
 
 ```json
 { "host": "okdam.lost.plus", "path_prefix": "/mcp", "policy": "mcp", "visibility": "okdam", "token_scope": "okdam-mcp", "binding": "SONGBOOK_BACKEND" },
