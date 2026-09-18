@@ -20,7 +20,10 @@ database_id = "9b353a3b-6526-4d14-8b10-5f618275b4cf"
 
 [vars]
 ORIGIN = "https://okdam.lost.plus"
+AI_ENDPOINT = "https://api.cloudflare.com/client/v4/accounts/f6f0cfde81175292c71fa85240e910dc/ai/v1/chat/completions"
+AI_MODEL = "@cf/google/gemma-4-26b-a4b-it"
 
-# Secrets set with `wrangler secret put`:
-#   AI_API_TOKEN   — bearer token for the AI reading endpoint
-#   (AI_ENDPOINT and AI_MODEL can stay in [vars] when configured)
+# Secret, set with `wrangler secret put CLOUDFLARE_AI_API_TOKEN`.
+# All three must be set together or the Worker refuses to start; set none and
+# AI reading generation is simply off. The name matches the Node runtime's so
+# deploy/container/songbook.env can be copied across without translation.
