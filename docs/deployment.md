@@ -107,6 +107,32 @@ has to precede `/api` or the public catalog becomes login-gated.
 `okdam-songbook` script in the gateway Worker's own `wrangler.toml`, and the
 gateway takes the `okdam.lost.plus` route that the Tunnel holds today.
 
+Songbook needs no code change to move behind the gateway. It never
+reimplemented Common Auth the way the other Workers-hosted services did, so
+there is no auth client to delete: `createGatewayMcpAuthAdapter` reads identity
+headers and validates nothing, and the app serves no `/.well-known/`, no CORS,
+and no credential of its own.
+
+Two surfaces look like exceptions to that and are not:
+
+- **`/healthz` stays.** The gateway answers the public one, but the OCI
+  container healthcheck in `compose.yaml` probes the app's own on loopback.
+  Deleting it would fail the container, not tidy anything.
+- **`WWW-Authenticate` on `/mcp` stays for now.** It fires only when a request
+  reaches `/mcp` with no identity headers. Under the `mcp` policy the gateway
+  should answer that case first, so the app's challenge should become
+  unreachable rather than wrong — but this is the one interaction that cannot
+  be confirmed until Songbook is actually behind the gateway. Check it there
+  before removing anything.
+
+Note that Songbook cannot fail closed the way an all-authenticated service can.
+The gateway strips every inbound `x-lost-plus-*` and injects its own only when
+there is an identity, so a `public` route arrives with no identity headers and
+is indistinguishable from a direct call. `/api/catalog` and the app shell are
+public by policy, so absent headers are a valid state. Route-lessness is what
+keeps direct calls out, which is why `workers_dev = false` matters more here
+than a header assertion would.
+
 ```
 cd apps/worker
 npx wrangler secret put AI_API_TOKEN   # optional, for AI readings
