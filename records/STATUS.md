@@ -12,9 +12,17 @@ Recorded by agent: codex-orchestrator
   identity, and single-role Songbook authorization, running as
   `songbook:local` (ARM64) on oci-ubuntu.
 - A Cloudflare Workers runtime (`apps/worker`) is built and verified but not
-  deployed. Its D1 database is provisioned and empty. The cutover is blocked on
-  the forthcoming cloud Common Auth gateway; see DEC-20260918-001 for why the
+  deployed. Its D1 database is provisioned and empty. The cutover waits for a
+  gateway Worker to be deployed on Cloudflare; see DEC-20260918-001 for why the
   Worker must carry no public route.
+- The gateway itself is no longer missing: `LPFchan/auth` carries a complete
+  TypeScript rewrite under `gateway/` that runs on workerd. No gateway Worker
+  is deployed yet, so there is still nothing for Songbook to sit behind.
+  Songbook does not adopt the interim pattern the other Workers-hosted services
+  use, where each one implements Common Auth itself. Auth code was deliberately
+  removed from this repo by DEC-20260914-002 and DEC-20260918-002 rejects
+  putting it back, so the cutover waits rather than growing a copy that would
+  have to be deleted again.
 - Public URL: https://okdam.lost.plus via the Cloudflare Tunnel
   (`obsidian-sync` tunnel, hostname `okdam.lost.plus` → the OCI Common Auth
   gateway on `localhost:8740` → private Songbook on `localhost:3010`).

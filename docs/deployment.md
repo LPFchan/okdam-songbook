@@ -38,8 +38,15 @@ leaves a service binding from the gateway Worker as the only way in.
 
 **Adding a route or a workers.dev subdomain without the gateway in front is an
 authentication bypass** — anyone setting four headers becomes any user. The
-cutover is blocked until the cloud Common Auth gateway exists and its service
-binding to this Worker is configured (DEC-20260918-001).
+cutover is blocked until a gateway Worker is deployed and its service binding
+to this Worker is configured (DEC-20260918-001).
+
+The gateway rewrite exists in `LPFchan/auth` under `gateway/` and runs on
+workerd, but no gateway Worker is deployed on Cloudflare yet. The other
+Workers-hosted services each implement Common Auth themselves in the meantime.
+Songbook does not copy that: DEC-20260914-002 removed its auth client on
+purpose and DEC-20260918-002 rejects per-service validation, so this runtime
+waits for the gateway instead.
 
 ### State so far
 
