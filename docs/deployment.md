@@ -132,9 +132,14 @@ and no credential of its own.
 
 Two surfaces look like exceptions to that and are not:
 
-- **`/healthz` stays.** The gateway answers the public one, but the OCI
-  container healthcheck in `compose.yaml` probes the app's own on loopback.
-  Deleting it would fail the container, not tidy anything.
+- **`/healthz` stays, and it stays Songbook's.** The gateway only answers
+  `/healthz` itself when the matched route's policy is `mcp`. Songbook's
+  `/healthz` matches its `/` route, which is `public`, so the gateway forwards
+  it and the application answers. That means it keeps returning
+  `{"ok":true}` as JSON rather than becoming the gateway's plain-text `ok`, as
+  happened on `tweet.lost.plus` where the only route is `mcp`. Anything
+  checking the body keeps working. The OCI container healthcheck probes the
+  app's own on loopback regardless.
 - **`WWW-Authenticate` on `/mcp` stays for now.** It fires only when a request
   reaches `/mcp` with no identity headers. Under the `mcp` policy the gateway
   should answer that case first, so the app's challenge should become
