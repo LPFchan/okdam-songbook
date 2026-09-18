@@ -338,11 +338,14 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     try { return envelope(c, await fn(principal), now); } catch (error) { return failure(c, error, now); }
   };
 
+  // Reachability is checked everywhere; writability only where the executor
+  // can prove it without leaving a write behind. The probe used to be inlined
+  // here as a savepoint around a temp table, which is Node-only — on D1 it
+  // threw, and this handler reported a healthy service as unhealthy.
   app.get("/healthz", async (c) => {
     try {
       await options.database.sqlite.prepare("SELECT 1 AS ok").get();
-      const name = `songbook_health_${crypto.randomUUID().replaceAll("-", "")}`;
-      options.database.sqlite.exec(`SAVEPOINT ${name}; CREATE TEMP TABLE ${name}(ok INTEGER); INSERT INTO ${name}(ok) VALUES (1); ROLLBACK TO ${name}; RELEASE ${name};`);
+      await options.database.sqlite.writeProbe?.();
       return c.json({ ok: true });
     } catch { return c.json({ ok: false }, 503); }
   });

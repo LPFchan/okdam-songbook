@@ -3,7 +3,10 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { ReadableStream } from "node:stream/web";
-import { openDatabase, type SongbookDatabase, type TjAdapter } from "@songbook/server-core";
+import BetterSqlite3 from "better-sqlite3";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { openDatabase, openD1Database, type D1DatabaseLike, type D1PreparedStatementLike, type SongbookDatabase, type SqlExecutor, type TjAdapter } from "@songbook/server-core";
 import { createServerApp } from "../src/api.js";
 import { createCommonAuthRoleResolver } from "../src/auth.js";
 
@@ -187,6 +190,47 @@ describe("same-origin server surface", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
     expect(database!.sqlite.prepare("SELECT name FROM sqlite_temp_master WHERE type='table'").all()).toEqual([]);
+  });
+
+  /**
+   * The same handler, on the executor that cannot do the write probe.
+   *
+   * /healthz used to run a savepoint around a temp table inline, which is
+   * Node-only. On D1 it threw and the handler answered 503 for a database that
+   * was serving reads and writes perfectly well. Nothing caught it: every
+   * server test built its app on better-sqlite3, and the gateway staging pass
+   * bound to an echo backend rather than to this application.
+   */
+  it("reports healthy on an executor with no write probe", async () => {
+    const schemaSql = readFileSync(
+      fileURLToPath(new URL("../../worker/migrations/0001_init.sql", import.meta.url)),
+      "utf8"
+    );
+    const raw = new BetterSqlite3(":memory:");
+    raw.exec(schemaSql);
+    const binding: D1DatabaseLike = {
+      prepare(sql: string): D1PreparedStatementLike {
+        let bound: unknown[] = [];
+        const self: D1PreparedStatementLike = {
+          bind(...values: unknown[]) { bound = values; return self; },
+          async first<T>() { return (raw.prepare(sql).get(...(bound as never[])) ?? null) as T | null; },
+          async all<T>() { return { results: raw.prepare(sql).all(...(bound as never[])) as T[] }; },
+          async run() { const r = raw.prepare(sql).run(...(bound as never[])); return { meta: { changes: Number(r.changes) } }; }
+        };
+        return self;
+      }
+    };
+    const d1 = openD1Database(binding);
+    // Read through the interface: the concrete D1Executor does not declare the
+    // member at all, which is the point being asserted.
+    const executor: SqlExecutor = d1.sqlite;
+    expect(executor.writeProbe).toBeUndefined();
+
+    const server = createServerApp({ database: d1, origin } as Parameters<typeof createServerApp>[0]).app;
+    const response = await server.request(request("/healthz"));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true });
+    raw.close();
   });
 
   it("keeps API/auth/MCP paths out of SPA fallback", async () => {

@@ -40,6 +40,20 @@ class BetterSqliteExecutor implements SqlExecutor {
   }
 
   /**
+   * A savepoint around a temp table: it exercises the write path and the
+   * transaction machinery, then rolls back so nothing is left behind. This
+   * used to live inline in the `/healthz` handler, where it ran against
+   * whichever executor the runtime supplied and threw on the one that cannot
+   * express it.
+   */
+  writeProbe(): void {
+    const name = `songbook_health_${crypto.randomUUID().replaceAll("-", "")}`;
+    this.raw.exec(
+      `SAVEPOINT ${name}; CREATE TEMP TABLE ${name}(ok INTEGER); INSERT INTO ${name}(ok) VALUES (1); ROLLBACK TO ${name}; RELEASE ${name};`
+    );
+  }
+
+  /**
    * better-sqlite3 cannot await inside its transaction() helper, so the
    * operation runs inside a manual BEGIN/COMMIT with ROLLBACK on error.
    * Nested transactions use savepoints. The operation is expected to only
