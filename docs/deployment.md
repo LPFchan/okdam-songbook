@@ -51,8 +51,61 @@ waits for the gateway instead.
 ### State so far
 
 D1 database `okdam-songbook` is provisioned in APAC, its id is in
-`wrangler.toml`, and `migrations/0001_init.sql` has been applied. It holds no
-data. No Worker is deployed.
+`wrangler.toml`, and `migrations/0001_init.sql` has been applied.
+
+The Worker is deployed and carries no public route: `wrangler deploy` reports
+`No targets deployed`, and `okdam-songbook.yeowool.workers.dev` answers 404
+rather than reaching the application. It exists so a gateway Worker has a
+service to bind to; nothing can call it until one does.
+
+D1 holds a **dated snapshot** taken 2026-09-18 18:32 KST: 127 songs, 19
+performances, 107 audit events, and the three `tj_mirror_*` tables, each
+matching the OCI counts at that moment. It was imported to prove the path
+works, not to serve traffic.
+
+> **Re-import at cutover.** Every song added or edited on OCI after that
+> timestamp is missing here, and nothing detects it — the Worker would come up
+> looking healthy and quietly serving stale data. Clear the tables and import
+> again as part of the cutover, not before it.
+
+`idempotency_keys` is deliberately not imported: the rows expire after 24
+hours and exist to deduplicate in-flight retries, so a stale copy has no value.
+`schema_migrations` is also skipped because the D1 migration wrote its own.
+
+Regenerate the dump with:
+
+```
+for t in songs performances song_favorites audit_events \
+         tj_mirror_songs tj_mirror_queries tj_mirror_query_results; do
+  sudo sqlite3 /var/lib/songbook/songbook.sqlite \
+    ".mode insert \"$t\"" "SELECT * FROM \"$t\";" >> okdam-data.sql
+done
+npx wrangler d1 execute okdam-songbook --remote --file=okdam-data.sql
+```
+
+### Gateway routes for the cutover
+
+The identity contract needs no change: the V8 gateway injects the same
+`x-lost-plus-sub`, `-email`, `-name`, `-role`, and `x-lost-plus-encoding:
+percent-utf8` that `apps/server/src/auth.ts` already reads.
+
+What changes is how the gateway reaches the backend. Each route names a
+`binding` instead of a loopback `upstream`, so on Cloudflare these five entries
+replace the `okdam.lost.plus` block in `deploy/oci/gateway.json`. Order is
+significant — the gateway takes the first matching prefix, so `/api/catalog`
+has to precede `/api` or the public catalog becomes login-gated.
+
+```json
+{ "host": "okdam.lost.plus", "path_prefix": "/mcp", "policy": "mcp", "visibility": "okdam", "token_scope": "okdam-mcp", "binding": "SONGBOOK_BACKEND" },
+{ "host": "okdam.lost.plus", "path_prefix": "/api/catalog", "methods": ["GET", "HEAD"], "policy": "public", "binding": "SONGBOOK_BACKEND" },
+{ "host": "okdam.lost.plus", "path_prefix": "/api", "policy": "oauth", "visibility": "okdam", "binding": "SONGBOOK_BACKEND" },
+{ "host": "okdam.lost.plus", "path_prefix": "/_auth/logout", "policy": "oauth", "visibility": "okdam", "binding": "SONGBOOK_BACKEND" },
+{ "host": "okdam.lost.plus", "path_prefix": "/", "policy": "public", "binding": "SONGBOOK_BACKEND" }
+```
+
+`SONGBOOK_BACKEND` must also be declared as a service binding to the
+`okdam-songbook` script in the gateway Worker's own `wrangler.toml`, and the
+gateway takes the `okdam.lost.plus` route that the Tunnel holds today.
 
 ```
 cd apps/worker

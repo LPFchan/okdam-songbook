@@ -11,8 +11,11 @@ Recorded by agent: codex-orchestrator
 - Production baseline: `53f7ab1` with fully gated MCP transport, gateway
   identity, and single-role Songbook authorization, running as
   `songbook:local` (ARM64) on oci-ubuntu.
-- A Cloudflare Workers runtime (`apps/worker`) is built and verified but not
-  deployed. Its D1 database is provisioned and empty. The cutover waits for a
+- The Cloudflare Workers runtime (`apps/worker`) is deployed with no public
+  route: `wrangler deploy` reports `No targets deployed` and the workers.dev
+  hostname answers 404, so it is reachable only by a service binding that does
+  not exist yet. Its D1 database holds a dated snapshot of production imported
+  2026-09-18, which must be re-imported at cutover. The cutover waits for a
   gateway Worker to be deployed on Cloudflare; see DEC-20260918-001 for why the
   Worker must carry no public route.
 - The gateway itself is no longer missing: `LPFchan/auth` carries a complete
