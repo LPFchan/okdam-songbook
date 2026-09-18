@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readingGeneratorFromEnvironment } from "../src/main.js";
+import { readingGeneratorFromEnvironment } from "../src/reading.js";
 
 describe("reading AI environment", () => {
   it("stays optional when no reading settings are present", () => {

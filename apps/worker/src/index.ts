@@ -4,7 +4,7 @@ import {
   createTjSearchMirror,
   openD1Database
 } from "@songbook/server-core";
-import { createConfiguredServer, createAiReadingGenerator, isServerPath, type ReadingGenerator } from "@songbook/server";
+import { createConfiguredServer, isServerPath, readingGeneratorFromEnvironment } from "@songbook/server";
 
 export interface Env {
   SONGBOOK_DB: D1Database;
@@ -13,15 +13,6 @@ export interface Env {
   AI_ENDPOINT?: string;
   CLOUDFLARE_AI_API_TOKEN?: string;
   AI_MODEL?: string;
-}
-
-function readingGenerator(env: Env): ReadingGenerator | undefined {
-  const endpoint = env.AI_ENDPOINT?.trim();
-  const apiKey = env.CLOUDFLARE_AI_API_TOKEN?.trim();
-  const model = env.AI_MODEL?.trim();
-  if (!endpoint && !apiKey && !model) return undefined;
-  if (!endpoint || !apiKey || !model) throw new Error("AI_ENDPOINT, CLOUDFLARE_AI_API_TOKEN, and AI_MODEL must be set together");
-  return createAiReadingGenerator({ endpoint, apiKey, model });
 }
 
 function assetHeaders(pathname: string): Record<string, string> {
@@ -72,7 +63,7 @@ export function createWorkerApp(env: Env): Hono {
       mirror: createTjSearchMirror(database.sqlite),
       onWarn: (warning) => console.warn(JSON.stringify({ event: "tj_adapter_warning", ...warning }))
     }),
-    readingGenerator: readingGenerator(env)
+    readingGenerator: readingGeneratorFromEnvironment({ AI_ENDPOINT: env.AI_ENDPOINT, CLOUDFLARE_AI_API_TOKEN: env.CLOUDFLARE_AI_API_TOKEN, AI_MODEL: env.AI_MODEL })
     // assetsRoot intentionally omitted: the Worker serves statics itself.
   });
 

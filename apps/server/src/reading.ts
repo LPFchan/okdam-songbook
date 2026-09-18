@@ -94,3 +94,17 @@ export function createAiReadingGenerator(options: AiReadingGeneratorOptions): Re
     }
   };
 }
+
+/**
+ * The reading generator as configured by the runtime's environment: the
+ * Worker's `env` or Node's `process.env`, the same three names in both. All
+ * three or none; a partial set is a misconfiguration, not "off".
+ */
+export function readingGeneratorFromEnvironment(environment: Record<string, string | undefined>): ReadingGenerator | undefined {
+  const endpoint = environment.AI_ENDPOINT?.trim();
+  const apiKey = environment.CLOUDFLARE_AI_API_TOKEN?.trim();
+  const model = environment.AI_MODEL?.trim();
+  if (!endpoint && !apiKey && !model) return undefined;
+  if (!endpoint || !apiKey || !model) throw new Error("AI_ENDPOINT, CLOUDFLARE_AI_API_TOKEN, and AI_MODEL must be set together");
+  return createAiReadingGenerator({ endpoint, apiKey, model });
+}
