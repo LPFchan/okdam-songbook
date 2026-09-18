@@ -17,21 +17,20 @@
   const { tjNumber, title, titleReadingKo, artist, artistReadingKo, query = "", onOpen, actions, meta }: Props = $props();
 
   function handleKeydown(event: KeyboardEvent) {
-    if (!onOpen) return;
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      onOpen();
+      onOpen?.();
     }
   }
 </script>
 
-<div
-  class="song-card"
-  role={onOpen ? "button" : undefined}
-  tabindex={onOpen ? 0 : undefined}
-  onclick={onOpen}
-  onkeydown={handleKeydown}
->
+<!--
+  Two branches rather than conditional attributes: a card is either a button or
+  plain content, and writing role and tabindex as literals is what lets the
+  compiler check them. The row cannot itself be a <button> because the actions
+  snippet renders buttons, and interactive elements do not nest.
+-->
+{#snippet body()}
   <span class="tj-number">{tjNumber || "—"}</span>
   <span class="song-content">
     <span class="song-title-line">
@@ -45,4 +44,14 @@
   </span>
   {#if actions}<span class="song-card-actions">{@render actions()}</span>{/if}
   {#if meta}<span class="song-meta">{@render meta()}</span>{/if}
-</div>
+{/snippet}
+
+{#if onOpen}
+  <div class="song-card" role="button" tabindex="0" onclick={onOpen} onkeydown={handleKeydown}>
+    {@render body()}
+  </div>
+{:else}
+  <div class="song-card">
+    {@render body()}
+  </div>
+{/if}
