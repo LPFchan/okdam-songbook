@@ -16,10 +16,16 @@ Recorded by agent: codex-orchestrator
   identity headers Songbook reads. Worker routes take precedence over the zone
   origin, so the `obsidian-sync` tunnel entry for this hostname is inert rather
   than removed.
-- **Rollback is deleting one zone route.** `okdam.lost.plus/*`, route id
-  `be06a33cca774bceb9000b9ef60e7290`. Traffic falls straight back through the
-  tunnel to the OCI Common Auth gateway and the container, which is still
-  running, still healthy, and still holds the authoritative SQLite file.
+- **Rollback is no longer instant.** The OCI container was torn down after the
+  cutover, so deleting the `okdam.lost.plus/*` zone route
+  (`be06a33cca774bceb9000b9ef60e7290`) now returns traffic to a tunnel with
+  nothing listening on `127.0.0.1:3010`. Recovering means rebuilding and
+  starting the container first, then deleting the route.
+- The data to rebuild from is intact: `/var/lib/songbook/songbook.sqlite` on
+  oci-ubuntu (127 songs at teardown) and a verified backup at
+  `/var/backups/songbook/songbook-20260918T124740Z-2306227.sqlite.gz`. Both
+  predate any write made on Workers, so a rebuild restores the catalogue as it
+  stood at cutover and loses anything added since — export from D1 first.
 - Verified at cutover, through the gateway: `/healthz` 200 `{"ok":true}`,
   `/api/catalog` 200 with 126 songs from D1, `/` serving the app shell, `/api`
   and `/mcp` 401 unauthenticated, forged `x-lost-plus-*` headers 401, a `GET`
@@ -47,12 +53,8 @@ Recorded by agent: codex-orchestrator
 
 ## Production Deployment
 
-Songbook serves from Cloudflare Workers. The OCI container below is kept
-running as the rollback target and still holds the authoritative SQLite file;
-deleting the `okdam.lost.plus/*` zone route returns traffic to it within
-seconds. Writes made on Workers after the cutover live only in D1, so a
-rollback taken later than the cutover loses them — re-export from D1 first if
-that ever matters.
+Songbook serves from Cloudflare Workers. The OCI container has been torn down;
+what remains there is the data, not a running service.
 
 ### Cloudflare Workers (serving)
 
@@ -67,8 +69,18 @@ that ever matters.
   `CLOUDFLARE_AI_API_TOKEN` as a Worker secret, same names the Node runtime
   uses so `songbook.env` transfers without translation.
 
-### OCI (rollback target, idle)
+### OCI (torn down, data retained)
 
+- Container, compose network, and all 24 `songbook:*` images removed
+  2026-09-18. Docker build cache pruned to zero on the same pass. Nothing
+  Songbook-related runs on the host.
+- Retained: `/var/lib/songbook/songbook.sqlite` and the checksummed archives in
+  `/var/backups/songbook`. `songbook-backup.timer` still fires daily against a
+  file nothing writes to, so its archives are now static copies rather than
+  backups of live state.
+- Rebuilding means `git pull`, `docker compose ... build songbook`, then
+  `up -d songbook`, and only then deleting the zone route. The details below
+  describe that topology.
 - Host: `oci-ubuntu` (Oracle Cloud always-free ARM64).
 - Compose: `compose.yaml` plus the host-local override
   `deploy/container/compose.oci.yaml` (publishes `127.0.0.1:3010:3000`;
