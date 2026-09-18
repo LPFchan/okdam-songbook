@@ -168,6 +168,48 @@ cd apps/worker
 npx wrangler deploy
 ```
 
+### Staging probes to run before the cutover
+
+`gateway/wrangler.toml` in `LPFchan/auth` calls proving the chain on a scratch
+hostname a gate rather than a suggestion, and it applies here: no `public` and
+no `oauth` route has ever run on the Cloudflare gateway. Its only production
+route is `tweet.lost.plus`, which is `mcp`.
+
+Songbook's five routes span all three policies, so one staging pass with this
+table covers every policy any current consumer needs. Read bodies, not status
+codes — `*.lost.plus` is a DNS-only wildcard to the NAS, so a hostname that
+does not exist answers 200 with a login page.
+
+| probe | expected |
+| --- | --- |
+| `GET /api/catalog` anonymous | 200, song JSON |
+| `GET /` anonymous | 200, the app shell |
+| `GET /api/...` signed out, browser navigation | 302 to `/login?to=…` |
+| `GET /api/...` signed in | 200, identity injected |
+| `POST /api/catalog` | falls through to the `oauth` route, not 405 |
+| `PUT` on a method-scoped `oauth` route, no session | **401, and no `Location` header** |
+| `PUT` on the same route, with a session | through, with `x-lost-plus-*` present |
+| `GET` with a body on a `public` route | 502 until the gateway bug is fixed |
+| identity round trip with a non-ASCII display name | decoded correctly in the app |
+
+Two of those are not obvious:
+
+- **`PUT` with no session must be 401 rather than 302.** `isBrowserNavigation`
+  checks for `GET`/`HEAD` before it looks at `sec-fetch-mode`, so a write
+  cannot take the redirect branch. If one ever did, `fetch()` follows redirects
+  by default: the write would land on the sign-in page, receive 200 with HTML,
+  fail JSON parsing, and be dead-lettered as an `INTERNAL_ERROR` carrying
+  status 200 — a silently lost edit from a request the server answered
+  correctly.
+- **`GET` with a body currently returns 502.** The gateway passes
+  `request.body` into a `RequestInit` unconditionally, and the Fetch API
+  forbids a body on a GET, so construction throws and surfaces as
+  `upstreamUnavailable` — naming a backend that was never contacted. Today the
+  Rust gateway proxies these fine: `GET /`, `GET /api/catalog`, and
+  `GET /healthz` with a body all return 200. Songbook's `/` is `public`, so
+  after the cutover this is reachable with no credential at all, which is not
+  true of `tweet.lost.plus` where the only proxying route needs one.
+
 ### Cutover from OCI
 
 1. Stand up the cloud Common Auth gateway and bind it to this Worker as a
