@@ -13,7 +13,8 @@
     "apps/server",
     "packages/server-core",
     "packages/songbook-mcp",
-    "packages/songbook-admin"
+    "packages/songbook-admin",
+    "apps/worker"
   ],
   "scripts": {
     "dev": "npm run dev -w @songbook/web",

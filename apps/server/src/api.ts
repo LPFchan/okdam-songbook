@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { sha256Hex } from "@songbook/server-core";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { extname, normalize, resolve } from "node:path";
 import { Hono } from "hono";
@@ -20,7 +20,7 @@ import {
   tjSongCandidateSchema,
   type CurrentUser
 } from "@songbook/shared";
-import type { SongbookDatabase } from "@songbook/server-core";
+import type { SongbookDatabaseBase } from "@songbook/server-core";
 import {
   createSongbookService,
   DomainError,
@@ -49,7 +49,7 @@ export interface BrowserPrincipal extends RequestActor {
 export type BrowserSessionResolver = (request: Request) => Promise<BrowserPrincipal | null>;
 
 export interface ServerAppOptions {
-  database: SongbookDatabase;
+  database: SongbookDatabaseBase;
   origin: string;
   assetsRoot?: string;
   service?: SongbookService;
@@ -66,7 +66,7 @@ export interface ServerAppOptions {
 
 export interface ServerApp {
   app: Hono;
-  database: SongbookDatabase;
+  database: SongbookDatabaseBase;
   service: SongbookService;
   mcpAuth: McpAuthAdapter;
 }
@@ -237,8 +237,8 @@ function bodyDerivedMcpRequest(request: Request, body: unknown): Request {
   return new Request(request, { headers });
 }
 
-function etag(value: string): string {
-  return `"${createHash("sha256").update(value).digest("hex")}"`;
+async function etag(value: string): Promise<string> {
+  return `"${await sha256Hex(value)}"`;
 }
 
 function safeAssetPath(root: string, pathname: string): string | null {
@@ -338,22 +338,22 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     try { return envelope(c, await fn(principal), now); } catch (error) { return failure(c, error, now); }
   };
 
-  app.get("/healthz", (c) => {
+  app.get("/healthz", async (c) => {
     try {
-      options.database.sqlite.prepare("SELECT 1 AS ok").get();
+      await options.database.sqlite.prepare("SELECT 1 AS ok").get();
       const name = `songbook_health_${crypto.randomUUID().replaceAll("-", "")}`;
       options.database.sqlite.exec(`SAVEPOINT ${name}; CREATE TEMP TABLE ${name}(ok INTEGER); INSERT INTO ${name}(ok) VALUES (1); ROLLBACK TO ${name}; RELEASE ${name};`);
       return c.json({ ok: true });
     } catch { return c.json({ ok: false }, 503); }
   });
 
-  app.get("/api/catalog", (c) => {
-    const songs = service.catalog();
+  app.get("/api/catalog", async (c) => {
+    const songs = await service.catalog();
     const updatedAt = songs.reduce((latest, song) => song.updatedAt > latest ? song.updatedAt : latest, "");
-    const revision = createHash("sha256").update(JSON.stringify(songs)).digest("hex").slice(0, 16);
+    const revision = (await sha256Hex(JSON.stringify(songs))).slice(0, 16);
     const data = publicDataSchema.parse({ songs, serverVersion: revision, updatedAt: updatedAt || "1970-01-01T00:00:00.000Z" });
     const body = JSON.stringify(data);
-    const tag = etag(body);
+    const tag = await etag(body);
     const incomingEtag = c.req.raw.headers.get("If-None-Match") || c.req.header("If-None-Match");
     if (incomingEtag?.replace(/^W\//, "") === tag || incomingEtag === tag) return new Response(null, { status: 304, headers: { ETag: tag } });
     const response = envelope(c, data, now);
@@ -383,7 +383,7 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     if (principal instanceof Response) return principal;
     try {
       const user = currentUser(principal, roleResolver)!;
-      const response = envelope(c, favoriteListSchema.parse({ ownerSubject: user.subject, songIds: service.favoriteSongIds(principal) }), now);
+      const response = envelope(c, favoriteListSchema.parse({ ownerSubject: user.subject, songIds: await service.favoriteSongIds(principal) }), now);
       response.headers.set("Cache-Control", "private, no-store");
       return response;
     } catch (error) {
@@ -393,33 +393,33 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
   app.post("/api/favorites/:songId", (c) => mutate(c, async (actor) => {
     const parsed = favoriteSetRequestSchema.safeParse({ ...(await c.req.json()), songId: c.req.param("songId") });
     if (!parsed.success) throw parsed.error;
-    return favoriteSetResultSchema.parse(service.setFavorite(actor, parsed.data));
+    return favoriteSetResultSchema.parse(await service.setFavorite(actor, parsed.data));
   }, true));
 
   app.post("/api/performances", (c) => mutate(c, async (actor) => {
     const parsed = performanceCreateRequestSchema.safeParse(await c.req.json());
     if (!parsed.success) throw parsed.error;
-    return service.createPerformance(actor, parsed.data);
+    return await service.createPerformance(actor, parsed.data);
   }, true));
   app.delete("/api/performances/:id", (c) => mutate(c, async (actor) => {
     const parsed = performanceCancelRequestSchema.safeParse({ ...(await c.req.json()), performanceId: c.req.param("id") });
     if (!parsed.success) throw parsed.error;
-    return service.cancelPerformance(actor, { ...parsed.data, expectedVersion: parsed.data.expectedVersion ?? 1 });
+    return await service.cancelPerformance(actor, { ...parsed.data, expectedVersion: parsed.data.expectedVersion ?? 1 });
   }, true));
   app.post("/api/songs", (c) => mutate(c, async (actor) => {
     const parsed = songCreateRequestSchema.safeParse(await c.req.json());
     if (!parsed.success) throw parsed.error;
-    return service.createSong(actor, parsed.data);
+    return await service.createSong(actor, parsed.data);
   }, true));
   app.patch("/api/songs/:id", (c) => mutate(c, async (actor) => {
     const parsed = songUpdateRequestSchema.safeParse({ ...(await c.req.json()), id: c.req.param("id") });
     if (!parsed.success) throw parsed.error;
-    return service.updateSong(actor, parsed.data);
+    return await service.updateSong(actor, parsed.data);
   }, true));
   app.delete("/api/songs/:id/delete", (c) => mutate(c, async (actor) => {
     const parsed = songDeleteRequestSchema.safeParse({ ...(await c.req.json()), songId: c.req.param("id") });
     if (!parsed.success) throw parsed.error;
-    return service.deleteSong(actor, { id: parsed.data.songId, expectedVersion: parsed.data.expectedVersion, clientRequestId: parsed.data.clientRequestId });
+    return await service.deleteSong(actor, { id: parsed.data.songId, expectedVersion: parsed.data.expectedVersion, clientRequestId: parsed.data.clientRequestId });
   }, true));
 
   app.post("/api/readings/generate", (c) => mutate(c, async () => {
@@ -447,7 +447,7 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     if (!parsed.success) throw parsed.error;
     const candidate = tjSongCandidateSchema.safeParse(parsed.data.candidate);
     if (!candidate.success) throw candidate.error;
-    return service.createTjSong(actor, candidate.data, parsed.data.clientRequestId);
+    return await service.createTjSong(actor, candidate.data, parsed.data.clientRequestId);
   }, true));
 
   app.all("/mcp", async (c) => {

@@ -283,7 +283,7 @@ function registerTools(
   }, (input) => runTrackedTool(lifecycle, async () => {
     try {
       guarded(authInfo, "catalog");
-      const songs = options.service.catalog();
+      const songs = await options.service.catalog();
       const offset = input.cursor ? Number(input.cursor) : 0;
       const page = songs.slice(offset, offset + input.limit);
       return result({ songs: page, total: songs.length, nextCursor: offset + page.length < songs.length ? String(offset + page.length) : null });

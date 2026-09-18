@@ -1,0 +1,23 @@
+name = "okdam-songbook"
+main = "src/index.ts"
+compatibility_date = "2026-09-18"
+
+[assets]
+directory = "../web/dist"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "SONGBOOK_DB"
+database_name = "okdam-songbook"
+# Provision with: wrangler d1 create okdam-songbook
+# then paste the database_id here. Never commit the real id to a public repo
+# without the operator's sign-off; it is not a secret but it identifies infra.
+database_id = "<operator-provisioned-d1-id>"
+
+[vars]
+ORIGIN = "https://okdam.lost.plus"
+AUTH_ORIGIN = "https://auth.lost.plus"
+
+# Secrets set with `wrangler secret put`:
+#   AI_API_TOKEN   — bearer token for the AI reading endpoint
+#   (AI_ENDPOINT and AI_MODEL can stay in [vars] when configured)

@@ -36,7 +36,7 @@ function requireAllowed(actor: AdminActor): void {
 /** Allowlisted operational data tools. Dry-run import never mutates the database. */
 export interface SongbookAdmin {
   importDryRun(source: ImportSource, options?: ImportOptions): ImportPlan;
-  importApply(source: ImportSource, options?: ImportOptions): ImportResult;
+  importApply(source: ImportSource, options?: ImportOptions): Promise<ImportResult>;
   reconcile(source: ImportSource, options?: ImportOptions): ReconciliationReport;
   exportCsv(sheet: SheetName): string;
   rollbackExport(): ReturnType<typeof exportRollback>;

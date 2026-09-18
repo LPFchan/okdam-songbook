@@ -1,6 +1,6 @@
-import type Database from "better-sqlite3";
 import type { Song, Performance, RecommendedKey } from "@songbook/shared";
-import type { AuditEventRow, IdempotencyKeyRow } from "./schema.js";
+import type { AuditEventRow } from "./schema.js";
+import type { SqlExecutor } from "./sql.js";
 
 type RawSong = Record<string, unknown>;
 type RawPerformance = Record<string, unknown>;
@@ -13,7 +13,6 @@ function parseJson<T>(value: unknown, fallback: T): T {
 function nullableString(value: unknown): string | undefined {
   return value === null || value === undefined ? undefined : String(value);
 }
-
 export function songFromRow(row: RawSong, displayNameForEmail: (email: string) => string = () => ""): Song {
   const performances = Number(row.performance_count ?? 0);
   const lastPerformedByEmail = String(row.last_performed_by_email ?? "");
@@ -43,23 +42,27 @@ export function performanceFromRow(row: RawPerformance): Performance {
 }
 
 export interface SongRepository {
-  list(options?: { includeDeleted?: boolean }): Song[];
-  get(id: string): Song | null;
-  getByTjNumber(tjNumber: string): Song | null;
-  findDuplicate(input: { tjNumber?: string | null; title: string; artist: string }, excludeId?: string, options?: { includeDeleted?: boolean }): Song | null;
-  insert(song: Song & { createdByEmail?: string; updatedByEmail?: string; deletedByEmail?: string | null }): void;
-  update(song: Song & { createdByEmail?: string; updatedByEmail?: string; deletedByEmail?: string | null }, expectedVersion: number): boolean;
-  remove(id: string, expectedVersion: number): boolean;
+  list(options?: { includeDeleted?: boolean }): Promise<Song[]>;
+  get(id: string): Promise<Song | null>;
+  getByTjNumber(tjNumber: string): Promise<Song | null>;
+  findDuplicate(input: { tjNumber?: string | null; title: string; artist: string }, excludeId?: string, options?: { includeDeleted?: boolean }): Promise<Song | null>;
+  insert(song: Song & { createdByEmail?: string; updatedByEmail?: string; deletedByEmail?: string | null }): Promise<void>;
+  update(song: Song & { createdByEmail?: string; updatedByEmail?: string; deletedByEmail?: string | null }, expectedVersion: number): Promise<boolean>;
+  remove(id: string, expectedVersion: number): Promise<boolean>;
 }
 
-export function createSongRepository(sqlite: Database.Database, displayNameForEmail: (email: string) => string = () => ""): SongRepository {
-  const select = `SELECT s.*, (SELECT COUNT(*) FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL) AS performance_count, (SELECT MAX(p.performed_at) FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL) AS last_performed_at, (SELECT p.created_by_email FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL ORDER BY p.performed_at DESC, p.created_at DESC, p.id DESC LIMIT 1) AS last_performed_by_email, (SELECT p.created_by_name FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL ORDER BY p.performed_at DESC, p.created_at DESC, p.id DESC LIMIT 1) AS last_performed_by_name FROM songs s`;
+const SONG_SELECT = "SELECT s.*, (SELECT COUNT(*) FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL) AS performance_count, (SELECT MAX(p.performed_at) FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL) AS last_performed_at, (SELECT p.created_by_email FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL ORDER BY p.performed_at DESC, p.created_at DESC, p.id DESC LIMIT 1) AS last_performed_by_email, (SELECT p.created_by_name FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL ORDER BY p.performed_at DESC, p.created_at DESC, p.id DESC LIMIT 1) AS last_performed_by_name FROM songs s";
+const SONG_INSERT_SQL = "INSERT INTO songs (id,tj_number,title,title_reading_ko,artist,artist_reading_ko,country,recommended_key_json,performer_ids_json,memo,source_type,source_reference,created_by_email,created_by_name,created_at,updated_by_email,updated_by_name,updated_at,deleted_at,deleted_by_email,version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+const SONG_UPDATE_SQL = "UPDATE songs SET tj_number=?,title=?,title_reading_ko=?,artist=?,artist_reading_ko=?,country=?,recommended_key_json=?,performer_ids_json=?,memo=?,source_type=?,source_reference=?,updated_by_email=?,updated_by_name=?,updated_at=?,deleted_at=?,deleted_by_email=?,version=version+1 WHERE id=? AND version=?";
+
+export function createSongRepository(sqlite: SqlExecutor, displayNameForEmail: (email: string) => string = () => ""): SongRepository {
+  const select = SONG_SELECT;
   const map = (row: RawSong) => songFromRow(row, displayNameForEmail);
   return {
-    list: (options = {}) => (sqlite.prepare(`${select} ${options.includeDeleted ? "" : "WHERE s.deleted_at IS NULL"} ORDER BY s.updated_at DESC`).all() as RawSong[]).map(map),
-    get: (id) => { const row = sqlite.prepare(`${select} WHERE s.id=?`).get(id) as RawSong | undefined; return row ? map(row) : null; },
-    getByTjNumber: (tjNumber) => { const row = sqlite.prepare(`${select} WHERE s.tj_number=?`).get(tjNumber) as RawSong | undefined; return row ? map(row) : null; },
-    findDuplicate: (input, excludeId, options = {}) => {
+    list: async (options = {}) => (await sqlite.prepare(select + " " + (options.includeDeleted ? "" : "WHERE s.deleted_at IS NULL ") + "ORDER BY s.updated_at DESC").all<RawSong>()).map(map),
+    get: async (id) => { const row = await sqlite.prepare(select + " WHERE s.id=?").get<RawSong>(id); return row ? map(row) : null; },
+    getByTjNumber: async (tjNumber) => { const row = await sqlite.prepare(select + " WHERE s.tj_number=?").get<RawSong>(tjNumber); return row ? map(row) : null; },
+    findDuplicate: async (input, excludeId, options = {}) => {
       const values: unknown[] = [];
       const clauses: string[] = [];
       if (input.tjNumber) { clauses.push("s.tj_number=?"); values.push(input.tjNumber); }
@@ -67,122 +70,69 @@ export function createSongRepository(sqlite: Database.Database, displayNameForEm
       const exclusion = excludeId ? " AND s.id<>?" : "";
       if (excludeId) values.push(excludeId);
       const deleted = options.includeDeleted ? "" : " AND s.deleted_at IS NULL";
-      const row = sqlite.prepare(`${select} WHERE (${clauses.join(" OR ")})${exclusion}${deleted} LIMIT 1`).get(...values) as RawSong | undefined;
+      const row = await sqlite.prepare(select + " WHERE (" + clauses.join(" OR ") + ")" + exclusion + deleted + " LIMIT 1").get<RawSong>(...values);
       return row ? map(row) : null;
     },
-    insert: (song) => { sqlite.prepare(`INSERT INTO songs (id,tj_number,title,title_reading_ko,artist,artist_reading_ko,country,recommended_key_json,performer_ids_json,memo,source_type,source_reference,created_by_email,created_by_name,created_at,updated_by_email,updated_by_name,updated_at,deleted_at,deleted_by_email,version) VALUES (${Array.from({ length: 21 }, () => "?").join(",")})`).run(...songValues(song)); },
-    update: (song, expectedVersion) => {
-      const result = sqlite.prepare(`UPDATE songs SET tj_number=?,title=?,title_reading_ko=?,artist=?,artist_reading_ko=?,country=?,recommended_key_json=?,performer_ids_json=?,memo=?,source_type=?,source_reference=?,updated_by_email=?,updated_by_name=?,updated_at=?,deleted_at=?,deleted_by_email=?,version=version+1 WHERE id=? AND version=?`).run(song.tjNumber || null,song.title,song.titleReadingKo,song.artist,song.artistReadingKo,song.country,song.recommendedKey ? JSON.stringify(song.recommendedKey) : null,JSON.stringify(song.performerIds),song.memo,song.sourceType,song.sourceReference,song.updatedByEmail || "",song.updatedByName,song.updatedAt,song.deletedAt || null,song.deletedByEmail || null,song.id,expectedVersion); return result.changes === 1; },
-    remove: (id, expectedVersion) => sqlite.prepare("DELETE FROM songs WHERE id=? AND version=? AND deleted_at IS NULL").run(id, expectedVersion).changes === 1
+    insert: async (song) => { await sqlite.prepare(SONG_INSERT_SQL).run(...songValues(song)); },
+    update: async (song, expectedVersion) => {
+      const result = await sqlite.prepare(SONG_UPDATE_SQL).run(song.tjNumber || null, song.title, song.titleReadingKo, song.artist, song.artistReadingKo, song.country, song.recommendedKey ? JSON.stringify(song.recommendedKey) : null, JSON.stringify(song.performerIds), song.memo, song.sourceType, song.sourceReference, song.updatedByEmail || "", song.updatedByName, song.updatedAt, song.deletedAt || null, song.deletedByEmail || null, song.id, expectedVersion);
+      return result.changes === 1;
+    },
+    remove: async (id, expectedVersion) => (await sqlite.prepare("DELETE FROM songs WHERE id=? AND version=? AND deleted_at IS NULL").run(id, expectedVersion)).changes === 1
   };
 }
 
 function songValues(song: Song & { createdByEmail?: string; updatedByEmail?: string; deletedByEmail?: string | null }): unknown[] {
-  return [song.id,song.tjNumber || null,song.title,song.titleReadingKo,song.artist,song.artistReadingKo,song.country,song.recommendedKey ? JSON.stringify(song.recommendedKey) : null,JSON.stringify(song.performerIds),song.memo,song.sourceType,song.sourceReference,song.createdByEmail || "",song.createdByName,song.createdAt,song.updatedByEmail || "",song.updatedByName,song.updatedAt,song.deletedAt || null,song.deletedByEmail || null,song.version];
+  return [song.id, song.tjNumber || null, song.title, song.titleReadingKo, song.artist, song.artistReadingKo, song.country, song.recommendedKey ? JSON.stringify(song.recommendedKey) : null, JSON.stringify(song.performerIds), song.memo, song.sourceType, song.sourceReference, song.createdByEmail || "", song.createdByName, song.createdAt, song.updatedByEmail || "", song.updatedByName, song.updatedAt, song.deletedAt || null, song.deletedByEmail || null, song.version];
 }
 
 export interface PerformanceRepository {
-  get(id: string): Performance | null;
-  getByClientRequestId(id: string): Performance | null;
-  listForSong(songId: string, includeCancelled?: boolean): Performance[];
-  insert(performance: Performance & { createdByEmail?: string }): void;
-  cancel(id: string, expectedVersion: number, cancelledAt: string, email: string): boolean;
+  get(id: string): Promise<Performance | null>;
+  getByClientRequestId(id: string): Promise<Performance | null>;
+  listForSong(songId: string, includeCancelled?: boolean): Promise<Performance[]>;
+  insert(performance: Performance & { createdByEmail?: string }): Promise<void>;
+  cancel(id: string, expectedVersion: number, cancelledAt: string, email: string): Promise<boolean>;
 }
 
-export function createPerformanceRepository(sqlite: Database.Database): PerformanceRepository {
+export function createPerformanceRepository(sqlite: SqlExecutor): PerformanceRepository {
   const map = (row: RawPerformance | undefined) => row ? performanceFromRow(row) : null;
   return {
-    get: (id) => map(sqlite.prepare("SELECT * FROM performances WHERE id=?").get(id) as RawPerformance | undefined),
-    getByClientRequestId: (id) => map(sqlite.prepare("SELECT * FROM performances WHERE client_request_id=?").get(id) as RawPerformance | undefined),
-    listForSong: (songId, includeCancelled = false) => (sqlite.prepare(`SELECT * FROM performances WHERE song_id=? ${includeCancelled ? "" : "AND cancelled_at IS NULL"} ORDER BY performed_at DESC`).all(songId) as RawPerformance[]).map(performanceFromRow),
-    insert: (p) => sqlite.prepare("INSERT INTO performances (id,song_id,performed_at,key_selection_json,memo,created_by_email,created_by_name,created_at,cancelled_at,cancelled_by_email,client_request_id,version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)").run(p.id,p.songId,p.performedAt,p.keySelection ? JSON.stringify(p.keySelection) : null,p.memo,p.createdByEmail || "",p.createdByName,p.createdAt,p.cancelledAt || null,null,p.clientRequestId,p.version),
-    cancel: (id, expectedVersion, cancelledAt, email) => sqlite.prepare("UPDATE performances SET cancelled_at=?,cancelled_by_email=?,version=version+1 WHERE id=? AND version=? AND cancelled_at IS NULL").run(cancelledAt,email,id,expectedVersion).changes === 1
+    get: async (id) => map(await sqlite.prepare("SELECT * FROM performances WHERE id=?").get<RawPerformance>(id)),
+    getByClientRequestId: async (id) => map(await sqlite.prepare("SELECT * FROM performances WHERE client_request_id=?").get<RawPerformance>(id)),
+    listForSong: async (songId, includeCancelled = false) => (await sqlite.prepare("SELECT * FROM performances WHERE song_id=? " + (includeCancelled ? "" : "AND cancelled_at IS NULL ") + "ORDER BY performed_at DESC").all<RawPerformance>(songId)).map(performanceFromRow),
+    insert: async (p) => { await sqlite.prepare("INSERT INTO performances (id,song_id,performed_at,key_selection_json,memo,created_by_email,created_by_name,created_at,cancelled_at,cancelled_by_email,client_request_id,version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)").run(p.id, p.songId, p.performedAt, p.keySelection ? JSON.stringify(p.keySelection) : null, p.memo, p.createdByEmail || "", p.createdByName, p.createdAt, p.cancelledAt || null, null, p.clientRequestId, p.version); },
+    cancel: async (id, expectedVersion, cancelledAt, email) => (await sqlite.prepare("UPDATE performances SET cancelled_at=?,cancelled_by_email=?,version=version+1 WHERE id=? AND version=? AND cancelled_at IS NULL").run(cancelledAt, email, id, expectedVersion)).changes === 1
   };
 }
 
 export interface FavoriteRepository {
-  listSongIds(subject: string): string[];
-  has(subject: string, songId: string): boolean;
-  set(subject: string, songId: string, favorite: boolean, createdAt: string): void;
+  listSongIds(subject: string): Promise<string[]>;
+  has(subject: string, songId: string): Promise<boolean>;
+  set(subject: string, songId: string, favorite: boolean, createdAt: string): Promise<void>;
 }
 
-export function createFavoriteRepository(sqlite: Database.Database): FavoriteRepository {
+export function createFavoriteRepository(sqlite: SqlExecutor): FavoriteRepository {
   return {
-    listSongIds: (subject) => (sqlite.prepare("SELECT f.song_id FROM song_favorites f JOIN songs s ON s.id=f.song_id WHERE f.user_subject=? AND s.deleted_at IS NULL ORDER BY f.created_at DESC, f.song_id ASC").all(subject) as Array<{ song_id: string }>).map((row) => row.song_id),
-    has: (subject, songId) => Boolean(sqlite.prepare("SELECT 1 FROM song_favorites WHERE user_subject=? AND song_id=?").get(subject, songId)),
-    set: (subject, songId, favorite, createdAt) => {
+    listSongIds: async (subject) => (await sqlite.prepare("SELECT f.song_id FROM song_favorites f JOIN songs s ON s.id=f.song_id WHERE f.user_subject=? AND s.deleted_at IS NULL ORDER BY f.created_at DESC, f.song_id ASC").all<{ song_id: string }>(subject)).map((row) => row.song_id),
+    has: async (subject, songId) => Boolean(await sqlite.prepare("SELECT 1 FROM song_favorites WHERE user_subject=? AND song_id=?").get(subject, songId)),
+    set: async (subject, songId, favorite, createdAt) => {
       if (favorite) {
-        sqlite.prepare("INSERT OR IGNORE INTO song_favorites (user_subject,song_id,created_at) VALUES (?,?,?)").run(subject, songId, createdAt);
+        await sqlite.prepare("INSERT OR IGNORE INTO song_favorites (user_subject,song_id,created_at) VALUES (?,?,?)").run(subject, songId, createdAt);
       } else {
-        sqlite.prepare("DELETE FROM song_favorites WHERE user_subject=? AND song_id=?").run(subject, songId);
+        await sqlite.prepare("DELETE FROM song_favorites WHERE user_subject=? AND song_id=?").run(subject, songId);
       }
     }
   };
 }
 
 export interface AuditRepository {
-  append(event: Omit<AuditEventRow, "id"> & { id?: string }): string;
-  list(entityType?: string, entityId?: string): AuditEventRow[];
+  append(event: Omit<AuditEventRow, "id"> & { id?: string }): Promise<string>;
+  list(entityType?: string, entityId?: string): Promise<AuditEventRow[]>;
 }
 
-export function createAuditRepository(sqlite: Database.Database): AuditRepository {
+export function createAuditRepository(sqlite: SqlExecutor): AuditRepository {
   return {
-    append: (event) => { const id = event.id || crypto.randomUUID(); sqlite.prepare("INSERT INTO audit_events (id,entity_type,entity_id,action,before_json,after_json,actor_email,actor_name,actor_role,created_at,client_request_id,entity_version_before,entity_version_after) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)").run(id,event.entityType,event.entityId,event.action,event.beforeJson,event.afterJson,event.actorEmail,event.actorName,event.actorRole,event.createdAt,event.clientRequestId,event.entityVersionBefore,event.entityVersionAfter); return id; },
-    list: (entityType, entityId) => sqlite.prepare(`SELECT * FROM audit_events ${entityType ? "WHERE entity_type=?" : ""}${entityId ? entityType ? " AND entity_id=?" : "WHERE entity_id=?" : ""} ORDER BY created_at ASC`).all(...([entityType,entityId].filter((v): v is string => Boolean(v)))) as AuditEventRow[]
-  };
-}
-
-export interface IdempotencyRepository {
-  get(key: string): IdempotencyKeyRow | null;
-  reserve(input: IdempotencyClaimInput): IdempotencyClaim;
-  put(input: Omit<IdempotencyKeyRow, "responseJson"> & { responseJson?: string | null }): void;
-  complete(key: string, responseJson: string): void;
-  prune(now: string): number;
-}
-
-export interface IdempotencyClaimInput {
-  key: string;
-  actorSubject: string;
-  operation: string;
-  requestHash: string;
-  createdAt: string;
-  expiresAt: string;
-}
-
-export type IdempotencyClaim =
-  | { kind: "new"; record: IdempotencyKeyRow }
-  | { kind: "replay"; record: IdempotencyKeyRow };
-
-export class IdempotencyMismatchError extends Error {
-  readonly code = "IDEMPOTENCY_MISMATCH" as const;
-  readonly existing: IdempotencyKeyRow;
-
-  constructor(existing: IdempotencyKeyRow) {
-    super("Idempotency key was already used for a different request.");
-    this.name = "IdempotencyMismatchError";
-    this.existing = existing;
-  }
-}
-
-export function createIdempotencyRepository(sqlite: Database.Database): IdempotencyRepository {
-  const rowForKey = (key: string): IdempotencyKeyRow | null => {
-    const row = sqlite.prepare("SELECT * FROM idempotency_keys WHERE key=?").get(key) as Record<string, unknown> | undefined;
-    if (!row) return null;
-    return { key: String(row.key), actorSubject: String(row.actor_subject ?? ""), operation: String(row.operation), requestHash: String(row.request_hash), responseJson: row.response_json === null ? null : String(row.response_json), createdAt: String(row.created_at), expiresAt: String(row.expires_at) } as IdempotencyKeyRow;
-  };
-  return {
-    get: rowForKey,
-    reserve: (input) => sqlite.transaction(() => {
-      sqlite.prepare("DELETE FROM idempotency_keys WHERE key=? AND expires_at<=?").run(input.key, input.createdAt);
-      const result = sqlite.prepare("INSERT OR IGNORE INTO idempotency_keys (key,actor_subject,operation,request_hash,response_json,created_at,expires_at) VALUES (?,?,?,?,NULL,?,?)").run(input.key,input.actorSubject,input.operation,input.requestHash,input.createdAt,input.expiresAt);
-      if (result.changes === 1) return { kind: "new", record: rowForKey(input.key)! };
-      const existing = rowForKey(input.key);
-      if (!existing) throw new Error("Idempotency claim disappeared during reservation.");
-      if (existing.actorSubject !== input.actorSubject || existing.operation !== input.operation || existing.requestHash !== input.requestHash) throw new IdempotencyMismatchError(existing);
-      return { kind: "replay", record: existing };
-    })() as IdempotencyClaim,
-    put: (input) => sqlite.prepare("INSERT INTO idempotency_keys (key,actor_subject,operation,request_hash,response_json,created_at,expires_at) VALUES (?,?,?,?,?,?,?)").run(input.key,input.actorSubject,input.operation,input.requestHash,input.responseJson ?? null,input.createdAt,input.expiresAt),
-    complete: (key, responseJson) => sqlite.prepare("UPDATE idempotency_keys SET response_json=? WHERE key=?").run(responseJson,key),
-    prune: (now) => sqlite.prepare("DELETE FROM idempotency_keys WHERE expires_at<=?").run(now).changes
+    append: async (event) => { const id = event.id || crypto.randomUUID(); await sqlite.prepare("INSERT INTO audit_events (id,entity_type,entity_id,action,before_json,after_json,actor_email,actor_name,actor_role,created_at,client_request_id,entity_version_before,entity_version_after) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)").run(id, event.entityType, event.entityId, event.action, event.beforeJson, event.afterJson, event.actorEmail, event.actorName, event.actorRole, event.createdAt, event.clientRequestId, event.entityVersionBefore, event.entityVersionAfter); return id; },
+    list: async (entityType, entityId) => sqlite.prepare("SELECT * FROM audit_events " + (entityType ? "WHERE entity_type=? " : "") + (entityId ? (entityType ? "AND entity_id=? " : "WHERE entity_id=? ") : "") + "ORDER BY created_at ASC").all<AuditEventRow>(...([entityType, entityId].filter((v): v is string => Boolean(v))))
   };
 }

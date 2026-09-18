@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { fnv1aHex } from "./domain/sha256.js";
 import {
   importSongsFromCsv,
   songSchema,
@@ -9,8 +9,6 @@ import {
 } from "@songbook/shared";
 import type { SongbookDatabase } from "./db/connection.js";
 import { songFromRow } from "./db/repositories.js";
-import { requestHash } from "./domain/hash.js";
-
 /** A row which is safe to import into the SQLite representation of Songs. */
 export type ImportedSong = Song & {
   createdByEmail: string;
@@ -142,11 +140,11 @@ function stableJson(value: unknown): string {
 }
 
 export function canonicalHash(value: unknown): string {
-  return requestHash(value);
+  return fnv1aHex(stableJson(value));
 }
 
 function canonicalId(prefix: string, value: unknown): string {
-  return `${prefix}-${createHash("sha256").update(stableJson(value)).digest("hex").slice(0, 24)}`;
+  return `${prefix}-${fnv1aHex(stableJson(value))}`;
 }
 
 function parseCsv(text: string): { headers: string[]; rows: Record<string, string>[] } {
@@ -412,11 +410,11 @@ function upsertSnapshot(database: SongbookDatabase, snapshot: ImportSnapshot): v
   for (const event of snapshot.changeLog) insertAudit.run(event.id, event.entityType, event.entityId, event.action, event.beforeJson, event.afterJson, event.actorEmail, event.actorName, event.actorRole, event.createdAt, event.clientRequestId, event.entityVersionBefore, event.entityVersionAfter);
 }
 
-export function applyImport(database: SongbookDatabase, source: ImportSource, options: ImportOptions = {}): ImportResult {
+export async function applyImport(database: SongbookDatabase, source: ImportSource, options: ImportOptions = {}): Promise<ImportResult> {
   const plan = prepareImport(database, source, options);
   if (!plan.valid) throw new ImportValidationError("Import validation failed.", plan.errors);
   const changed = [...plan.songs, ...plan.performances, ...plan.auditEvents];
-  database.sqlite.transaction(() => upsertSnapshot(database, plan.snapshot))();
+  await database.sqlite.transaction(() => upsertSnapshot(database, plan.snapshot));
   return { plan, applied: true, inserted: changed.filter((item) => item.action === "insert").length, updated: changed.filter((item) => item.action === "update").length, unchanged: changed.filter((item) => item.action === "unchanged").length };
 }
 

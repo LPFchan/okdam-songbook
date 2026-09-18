@@ -63,7 +63,7 @@ export async function combinedSongSearch(options: {
   authenticated: boolean;
 }): Promise<CombinedSongSearch> {
   const query = options.query.trim();
-  const saved = options.service.search(query).slice(0, options.limit);
+  const saved = (await options.service.search(query)).slice(0, options.limit);
   const searchType = searchTypeForQuery(query);
   let tj: CombinedSongSearch["tj"];
 
@@ -81,15 +81,15 @@ export async function combinedSongSearch(options: {
       tj = {
         state: "searched",
         searchType,
-        candidates: result.candidates.map((candidate) => {
-          const existing = options.service.checkDuplicate({ tjNumber: candidate.tjNumber, title: candidate.title, artist: candidate.artist });
+        candidates: await Promise.all(result.candidates.map(async (candidate) => {
+          const existing = await options.service.checkDuplicate({ tjNumber: candidate.tjNumber, title: candidate.title, artist: candidate.artist });
           return {
             ...candidate,
             alreadySaved: Boolean(existing),
             savedSongId: existing?.id ?? null,
             exactNumberMatch: searchType === "number" && candidate.tjNumber === query
           };
-        }),
+        })),
         hasMore: result.hasMore,
         sourceUrl: result.sourceUrl,
         error: null

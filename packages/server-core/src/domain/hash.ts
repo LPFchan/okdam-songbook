@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { sha256Hex } from "./sha256.js";
 
 function stable(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stable);
@@ -8,6 +8,6 @@ function stable(value: unknown): unknown {
   return value;
 }
 
-export function requestHash(value: unknown): string {
-  return createHash("sha256").update(JSON.stringify(stable(value))).digest("hex");
+export function requestHash(value: unknown): Promise<string> {
+  return sha256Hex(JSON.stringify(stable(value)));
 }

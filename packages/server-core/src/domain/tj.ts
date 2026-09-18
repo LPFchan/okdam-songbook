@@ -164,9 +164,9 @@ export function createTjAdapter(options: TjAdapterOptions = {}): TjAdapter {
     }
   };
 
-  const readMirror = (queryKey: string): TjMirrorSnapshot | null => {
+  const readMirror = async (queryKey: string): Promise<TjMirrorSnapshot | null> => {
     try {
-      return mirror.get(queryKey);
+      return await mirror.get(queryKey);
     } catch (error) {
       if (!warnedMirrorRead) {
         warnedMirrorRead = true;
@@ -176,9 +176,9 @@ export function createTjAdapter(options: TjAdapterOptions = {}): TjAdapter {
     }
   };
 
-  const recordFailure = (queryKey: string, attemptedAt: string, error: unknown): number | null => {
+  const recordFailure = async (queryKey: string, attemptedAt: string, error: unknown): Promise<number | null> => {
     try {
-      return mirror.recordFailure(queryKey, attemptedAt, errorCode(error));
+      return await mirror.recordFailure(queryKey, attemptedAt, errorCode(error));
     } catch (recordError) {
       if (!warnedMirrorFailureRecord) {
         warnedMirrorFailureRecord = true;
@@ -210,7 +210,7 @@ export function createTjAdapter(options: TjAdapterOptions = {}): TjAdapter {
         sourceUrl: queryKey
       };
       try {
-        mirror.replace(result, new Date(now()).toISOString(), attemptedAt);
+        await mirror.replace(result, new Date(now()).toISOString(), attemptedAt);
       } catch (error) {
         if (!warnedMirrorWrite) {
           warnedMirrorWrite = true;
@@ -225,7 +225,7 @@ export function createTjAdapter(options: TjAdapterOptions = {}): TjAdapter {
     } catch (error) {
       const code = errorCode(error);
       if (stale) {
-        const count = recordFailure(queryKey, attemptedAt, error);
+        const count = await recordFailure(queryKey, attemptedAt, error);
         if (!warnedFailureKeys.has(queryKey)) {
           warnedFailureKeys.add(queryKey);
           warn({ code: "refresh_failed", queryKey, errorCode: code, consecutiveFailures: count ?? undefined, message: `TJ refresh failed; serving the previous snapshot: ${errorMessage(error)}` });
@@ -249,7 +249,7 @@ export function createTjAdapter(options: TjAdapterOptions = {}): TjAdapter {
       pageSize: input.pageSize ?? 15
     };
     const queryKey = buildTjSearchUrl(request);
-    const snapshot = readMirror(queryKey);
+    const snapshot = await readMirror(queryKey);
     if (snapshot && isFresh(snapshot, now(), freshnessMs)) return { ...snapshot.result, query: request.query };
     const existing = inFlight.get(queryKey);
     if (existing) return { ...(await existing), query: request.query };

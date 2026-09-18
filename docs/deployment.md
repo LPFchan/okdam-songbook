@@ -1,77 +1,80 @@
 # Deployment
 
-Production is the OCI single server at https://okdam.lost.plus. The legacy
-GitHub Pages / Apps Script / Cloudflare Worker stack is retired: the Pages
-workflow is a manual-dispatch redirect stub and nothing deploys automatically.
+Songbook runs in two interchangeable production topologies. Both serve the
+same Hono application, the same API surface, and the same PWA; only the
+database driver and process model differ.
 
-Every MCP operation requires Common Auth OAuth or a valid machine token.
-Protected browser and MCP requests use `auth.lost.plus`; OAuth refresh/revocation and the modern/legacy MCP client
-matrix must be verified after auth-related releases.
+## OCI (current production)
 
-## Current production components
+The OCI single server at https://okdam.lost.plus runs the Dockerized Node/Hono
+app on oci-ubuntu. See `deploy/ops/README.md` for container operations,
+backups, and the restore drill.
 
-- `oci-ubuntu` (Oracle Cloud always-free ARM64) runs the Dockerized app as
-  container `okdam-songbook-songbook-1`, image `songbook:local`.
-- The repo checkout lives at `/home/ubuntu/okdam-songbook` on the host.
-- `deploy/container/compose.oci.yaml` (host-local, untracked) overrides the
-  published port to `127.0.0.1:3010:3000`; `deploy/container/songbook.env`
-  (host-local, untracked) carries the public origin and optional AI
-  configuration.
-- Cloudflare Tunnel `obsidian-sync` routes `okdam.lost.plus` to the Common Auth
-  gateway at `http://localhost:8740`; the gateway reaches the container's
-  localhost-only port at `http://localhost:3010`.
-- SQLite lives at `/var/lib/songbook/songbook.sqlite` on the host, bind
-  mounted into the container.
-- `songbook-backup.timer` (systemd, user `opc`) runs
-  `/opt/songbook/scripts/ops/backup-sqlite.sh` daily at 03:15 UTC, writing
-  checksummed archives to `/var/backups/songbook`. A restore drill completed
-  on 2026-08-13; see `deploy/ops/README.md`.
-
-## Deploying a change
-
-1. Commit on `main` using the provenance-gated `LOG-*` message flow and
-   push to `origin`.
+1. Commit on `main` and push to `origin`.
 2. On the host: `cd ~/okdam-songbook && git pull --ff-only`.
 3. Rebuild and restart:
    ```
    docker compose -f compose.yaml -f deploy/container/compose.oci.yaml build songbook
    docker compose -f compose.yaml -f deploy/container/compose.oci.yaml up -d songbook
    ```
-   Before the first release containing migration
-   `0107_immutable_account_ownership`, stop the restarted container, back up
-   both `/var/lib/songbook/songbook.sqlite` and `/var/lib/auth/auth.db`, and
-   map each `legacy-email:<normalized-email>` favorite owner to
-   `auth.lost.plus:<users.id>` by joining the two databases on normalized
-   email. Abort on an unmatched or duplicate email, then restart. This is a
-   one-time offline data migration; never let a runtime request claim a legacy
-   owner from an email address.
 4. Verify `curl http://127.0.0.1:3010/healthz` and
-   `curl https://okdam.lost.plus/healthz` both return healthy responses, and
-   that `docker ps` reports the container healthy.
-5. For an auth or MCP release, verify shared-cookie identity, path-preserving
-   login, anonymous MCP rejection, OAuth discovery and authorization, a protected tool with a shared bearer, an
-   invalid-token challenge, a visibility-restricted bearer rejection, token
-   revocation, and the external client matrix
-   before calling the release complete.
+   `curl https://okdam.lost.plus/healthz` return `{"ok":true}`.
 
-The image builds natively on the ARM64 host; never push an amd64-built image
-to production.
+## Cloudflare Workers (supported target)
 
-## Rollback
+`apps/worker` deploys the same application to Cloudflare Workers with D1 for
+state and Workers Assets for the PWA. The Node-specific entry point
+(`apps/server/src/main.ts`) is not used; the Worker entry point
+(`apps/worker/src/index.ts`) binds D1 and proxies statics to Assets.
 
-Follow the release-specific, schema-aware procedure in
-`records/STATUS.md#rollback`. It identifies which image and database snapshot
-form a compatible pair, when the current database may be reused, and when
-post-cutover writes must be quarantined and reconciled. Use
-`deploy/ops/README.md` for the guarded restore mechanics. Verify an affected
-favorite or idempotent operation as well as `/healthz` before declaring the
-rollback complete.
+### One-time setup
 
-## Retired legacy path (reference only)
+```
+cd apps/worker
+npx wrangler d1 create okdam-songbook
+# paste the printed database_id into wrangler.toml
+npx wrangler d1 execute okdam-songbook --file=migrations/0001_init.sql
+npx wrangler secret put AI_API_TOKEN   # optional, for AI readings
+```
 
-The GitHub Pages static app, Apps Script private Sheet, and Cloudflare Worker
-ChatGPT OAuth Action were the production topology before 2026-08-13. The
-setup steps that used to live here (Pages variables, clasp Script Properties,
-D1/Worker secrets) no longer apply to production. Keep the legacy source
-available for the observation window recorded in `DEC-20260813-005`; removal
-is a separate operator decision.
+### Deploy
+
+```
+npm run build                 # repo root: builds shared/server-core/server/web
+cd apps/worker
+npx wrangler deploy
+```
+
+### Cutover from OCI
+
+1. Take a SQLite backup on OCI (`deploy/ops/README.md`).
+2. Apply the D1 schema and import data with `@songbook/admin` import tools
+   or `sqlite3 .dump` piped through `wrangler d1 execute`.
+3. Point `okdam.lost.plus` DNS/Tunnel at the Worker, then verify
+   `curl https://okdam.lost.plus/healthz`.
+
+### Known tradeoffs
+
+- **Transactions**: D1 has no interactive transactions — you cannot hold one
+  open while application code reads a result and decides what to write next,
+  which is what every songbook mutation does. Statements therefore run
+  immediately on Workers and `sqlite.transaction()` is a pass-through, so a
+  mutation that fails partway leaves its earlier writes applied (a song
+  without its audit row). Retries stay safe: claiming an idempotency key is a
+  single INSERT OR IGNORE against the primary key. The Node/OCI runtime keeps
+  real transactions with savepoints.
+  `packages/server-core/test/d1-service.test.ts` drives the service through
+  the D1 binding shape so this path is covered by `npm run verify`.
+- **Do not enable D1 read replication.** It is off by default, which is what
+  keeps every query on the primary and lets a mutation read back the row it
+  just wrote. Turning it on in the dashboard routes reads to replicas that may
+  lag behind the write, which breaks that assumption silently — mutations
+  would start failing to find rows they had just inserted. Adopting it would
+  mean threading D1's Sessions API and its bookmarks through every request
+  first.
+- **TJ mirror concurrency**: the in-memory in-flight dedup from the Node
+  server does not exist on Workers, so concurrent stale searches for the same
+  query may each fetch TJ once. Accepted behavior.
+- **Backups**: use `wrangler d1 export` or the D1 time-travel/console
+  snapshot instead of the OCI `.backup` script.
+- **Static assets**: served by Workers Assets, not the filesystem.
