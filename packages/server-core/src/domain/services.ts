@@ -157,7 +157,17 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
           if (!claim.record.responseJson) throw new DomainError("CONFLICT", "요청이 아직 처리 중이야.");
           return normalizeMutationResult(operation, JSON.parse(claim.record.responseJson) as T);
         }
-        const result = normalizeMutationResult(operation, await work(resolved));
+        // On Node the enclosing transaction rolls a failed claim back. D1 has
+        // no transaction, so the claim is released by hand: left behind, it
+        // would answer every retry of the same clientRequestId with CONFLICT
+        // ("still processing") until it expired a day later.
+        let result: T;
+        try {
+          result = normalizeMutationResult(operation, await work(resolved));
+        } catch (error) {
+          await idempotency.release(clientRequestId);
+          throw error;
+        }
         await idempotency.complete(clientRequestId, json(result));
         return result;
       });

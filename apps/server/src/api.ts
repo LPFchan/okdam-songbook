@@ -268,9 +268,13 @@ function staticHeaders(path: string): Record<string, string> {
   };
 }
 
-function staticResponse(root: string | undefined, pathname: string): Response | null {
-  if (!root) return null;
-  if (pathname.startsWith("/api/") || pathname === "/api" || pathname.startsWith("/mcp") || pathname.startsWith("/.well-known/")) return null;
+/** Paths the server owns outright: an unknown one is a 404, never the SPA shell. */
+export function isServerPath(pathname: string): boolean {
+  return pathname.startsWith("/api/") || pathname === "/api" || pathname.startsWith("/mcp") || pathname.startsWith("/.well-known/");
+}
+
+function staticResponse(root: string, pathname: string): Response | null {
+  if (isServerPath(pathname)) return null;
   const direct = safeAssetPath(root, pathname);
   if (direct && existsSync(direct) && statSync(direct).isFile()) return new Response(readFileSync(direct), { headers: staticHeaders(direct) });
   const fallback = safeAssetPath(root, "/index.html");
@@ -491,10 +495,14 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     }
   });
 
-  app.all("*", (c) => {
-    const staticFile = staticResponse(options.assetsRoot, new URL(c.req.url).pathname);
-    return staticFile ?? c.notFound();
-  });
+  // With an assets root this app is the whole server and owns the 404. Without
+  // one it is mounted inside a host (the Worker) that serves statics after it,
+  // so an unmatched path must fall through to the host's handler rather than
+  // end here as a 404 — Hono stops at the first handler that returns.
+  if (options.assetsRoot) {
+    const assetsRoot = options.assetsRoot;
+    app.all("*", (c) => staticResponse(assetsRoot, new URL(c.req.url).pathname) ?? c.notFound());
+  }
   return { app, database: options.database, service, mcpAuth };
 }
 

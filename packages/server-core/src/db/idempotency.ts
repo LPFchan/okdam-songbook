@@ -6,6 +6,8 @@ export interface IdempotencyRepository {
   reserve(input: IdempotencyClaimInput): Promise<IdempotencyClaim>;
   put(input: Omit<IdempotencyKeyRow, "responseJson"> & { responseJson?: string | null }): Promise<void>;
   complete(key: string, responseJson: string): Promise<void>;
+  /** Drop a claim whose work never produced a response, so a retry can run it again. */
+  release(key: string): Promise<void>;
   prune(now: string): Promise<number>;
 }
 
@@ -64,6 +66,7 @@ export function createIdempotencyRepository(sqlite: SqlExecutor): IdempotencyRep
     }),
     put: async (input) => { await sqlite.prepare("INSERT INTO idempotency_keys (key,actor_subject,operation,request_hash,response_json,created_at,expires_at) VALUES (?,?,?,?,?,?,?)").run(input.key, input.actorSubject, input.operation, input.requestHash, input.responseJson ?? null, input.createdAt, input.expiresAt); },
     complete: async (key, responseJson) => { await sqlite.prepare("UPDATE idempotency_keys SET response_json=? WHERE key=?").run(responseJson, key); },
+    release: async (key) => { await sqlite.prepare("DELETE FROM idempotency_keys WHERE key=? AND response_json IS NULL").run(key); },
     prune: async (now) => (await sqlite.prepare("DELETE FROM idempotency_keys WHERE expires_at<=?").run(now)).changes
   };
 }

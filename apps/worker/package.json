@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint \"src/**/*.ts\" \"test/**/*.test.ts\""
   },
   "dependencies": {
     "@songbook/server": "file:../server",
@@ -16,7 +18,10 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260813.1",
+    "better-sqlite3": "^13.0.3",
+    "eslint": "^8.57.1",
     "typescript": "^5.5.4",
+    "vitest": "^4.1.9",
     "wrangler": "^4.134.0"
   }
 }

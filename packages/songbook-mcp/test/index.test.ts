@@ -65,9 +65,30 @@ describe("stateless Songbook MCP", () => {
     const handler = createSongbookMcpHandler({ service: service() });
     expect((await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2026-07-28", capabilities: {}, clientInfo: { name: "test", version: "1" } } }, false))).status).toBe(200);
     const listed = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }));
-    expect((await listed.json()).result.tools.map((tool: { name: string }) => tool.name).sort()).toEqual(Object.keys(mcpToolPolicy).sort());
+    const listResult = (await listed.json()).result;
+    expect(listResult.tools.map((tool: { name: string }) => tool.name).sort()).toEqual(Object.keys(mcpToolPolicy).sort());
+    expect(listResult).toMatchObject({ ttlMs: 300_000, cacheScope: "private" });
     const unauthenticatedCall = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "catalog", arguments: {} } }));
     expect((await unauthenticatedCall.json()).result.isError).toBe(true);
+  });
+
+  it("still initializes 2025-era clients through the stateless legacy fallback", async () => {
+    // 2025-era exchanges come back as a single SSE frame, not a JSON body.
+    const legacyResult = async (response: Response) => {
+      expect(response.status).toBe(200);
+      const frame = (await response.text()).split("\n").find((line) => line.startsWith("data: "));
+      return JSON.parse(frame!.slice("data: ".length)).result;
+    };
+    const handler = createSongbookMcpHandler({ service: service() });
+    for (const protocolVersion of ["2025-06-18", "2025-03-26"]) {
+      const result = await legacyResult(await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion, capabilities: {}, clientInfo: { name: "legacy", version: "1" } } }, false)));
+      expect(result.protocolVersion).toBe(protocolVersion);
+      expect(result.serverInfo.name).toBe("songbook");
+    }
+    const legacyHeaders = { "Content-Type": "application/json", Accept: "application/json, text/event-stream", "MCP-Protocol-Version": "2025-06-18" };
+    const listResult = await legacyResult(await handler.fetch(new Request("https://songbook.example/mcp", { method: "POST", headers: legacyHeaders, body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} }) })));
+    expect(listResult.tools.map((tool: { name: string }) => tool.name).sort()).toEqual(Object.keys(mcpToolPolicy).sort());
+    expect(listResult.ttlMs).toBeUndefined();
   });
 
   it("keeps protected tool guards separate from public tools", async () => {

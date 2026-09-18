@@ -442,7 +442,11 @@ function registerTools(
 export function createSongbookMcpHandler(options: SongbookMcpHandlerOptions) {
   const lifecycles = new WeakMap<Request, ToolLifecycle>();
   const handler = createMcpHandler((context: McpRequestContext) => {
-    const server = new McpServer({ name: "songbook", version: "0.1.0" });
+    // The tool list is the same for every admitted caller, but a 2026-07-28
+    // client caches per the hint and `private` keeps a shared cache out of it.
+    const server = new McpServer({ name: "songbook", version: "0.1.0" }, {
+      cacheHints: { "tools/list": { ttlMs: 300_000, cacheScope: "private" } }
+    });
     registerTools(server, options, context.authInfo, context.requestInfo ? lifecycles.get(context.requestInfo) : undefined);
     return server;
   }, { legacy: "stateless", responseMode: "json" });

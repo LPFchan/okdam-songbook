@@ -4,7 +4,7 @@ import {
   createTjSearchMirror,
   openD1Database
 } from "@songbook/server-core";
-import { createConfiguredServer, createAiReadingGenerator, type ReadingGenerator } from "@songbook/server";
+import { createConfiguredServer, createAiReadingGenerator, isServerPath, type ReadingGenerator } from "@songbook/server";
 
 export interface Env {
   SONGBOOK_DB: D1Database;
@@ -38,12 +38,15 @@ function assetHeaders(pathname: string): Record<string, string> {
  * The Workers runtime cannot read the filesystem, so static assets come from
  * the Workers Assets binding. API and MCP paths are handled by the Hono app;
  * everything else is proxied to Assets with an index.html fallback for the
- * SPA, mirroring the Node server's staticResponse behavior.
+ * SPA, mirroring the Node server's staticResponse behavior. A path the server
+ * owns that reached this point is unknown to it, and stays a 404 rather than
+ * becoming the app shell.
  */
 async function serveAsset(env: Env, request: Request): Promise<Response> {
   const url = new URL(request.url);
-  const direct = await env.ASSETS.fetch(new Request(url.toString(), request));
   const pathname = url.pathname;
+  if (isServerPath(pathname)) return new Response("Not Found", { status: 404 });
+  const direct = await env.ASSETS.fetch(new Request(url.toString(), request));
   const looksLikeFile = /\.[a-z0-9]+$/i.test(pathname);
   if (direct.status !== 404 || looksLikeFile) return withAssetHeaders(direct, pathname);
   const fallbackUrl = new URL("/index.html", url);
@@ -57,26 +60,53 @@ function withAssetHeaders(response: Response, pathname: string): Response {
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
+export function createWorkerApp(env: Env): Hono {
+  const origin = (env.ORIGIN ?? "").replace(/\/$/, "");
+  if (!origin) throw new Error("ORIGIN is not configured");
+
+  const database = openD1Database(env.SONGBOOK_DB);
+  const server = createConfiguredServer({
+    database,
+    origin,
+    tj: createTjAdapter({
+      mirror: createTjSearchMirror(database.sqlite),
+      onWarn: (warning) => console.warn(JSON.stringify({ event: "tj_adapter_warning", ...warning }))
+    }),
+    readingGenerator: readingGenerator(env)
+    // assetsRoot intentionally omitted: the Worker serves statics itself.
+  });
+
+  const app = new Hono();
+  app.route("/", server.app);
+  app.all("*", (c) => serveAsset(env, c.req.raw));
+  return app;
+}
+
+/**
+ * Built once per isolate and reused across the requests it serves, keyed on
+ * the D1 binding so a different env (tests, a future second binding) gets its
+ * own app. The MCP body gate and the TJ throttle live inside the app; built
+ * per request they would reset on every call and limit nothing.
+ */
+const apps = new WeakMap<object, Hono>();
+
+function workerApp(env: Env): Hono {
+  let app = apps.get(env.SONGBOOK_DB);
+  if (!app) {
+    app = createWorkerApp(env);
+    apps.set(env.SONGBOOK_DB, app);
+  }
+  return app;
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const origin = (env.ORIGIN ?? "").replace(/\/$/, "");
-    if (!origin) return new Response("ORIGIN is not configured", { status: 500 });
-
-    const database = openD1Database(env.SONGBOOK_DB);
-    const server = createConfiguredServer({
-      database,
-      origin,
-      tj: createTjAdapter({
-        mirror: createTjSearchMirror(database.sqlite),
-        onWarn: (warning) => console.warn(JSON.stringify({ event: "tj_adapter_warning", ...warning }))
-      }),
-      readingGenerator: readingGenerator(env)
-      // assetsRoot intentionally omitted: the Worker serves statics itself.
-    });
-
-    const app = new Hono();
-    app.route("/", server.app);
-    app.all("*", (c) => serveAsset(env, c.req.raw));
+    let app: Hono;
+    try {
+      app = workerApp(env);
+    } catch (error) {
+      return new Response(error instanceof Error ? error.message : "Worker is not configured", { status: 500 });
+    }
     return app.fetch(request, env);
   }
 } satisfies ExportedHandler<Env>;

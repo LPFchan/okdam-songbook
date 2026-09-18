@@ -96,6 +96,22 @@ describe("songbook service on a D1 executor", () => {
     } as Parameters<SongbookService["updateSong"]>[1])).rejects.toThrow(DomainError);
   });
 
+  it("lets a retry rerun a mutation whose first attempt failed, instead of reporting it as in flight", async () => {
+    // D1 cannot roll the idempotency claim back with the failed work, so the
+    // service releases it by hand. The offline queue replays with the same
+    // clientRequestId; before the release it saw CONFLICT for a day.
+    const created = await service.createSong(allowed, songInput());
+    const clientRequestId = crypto.randomUUID();
+    const stale = { ...songInput({ title: "Retry" }), id: created.id, expectedVersion: created.version + 5, clientRequestId } as Parameters<SongbookService["updateSong"]>[1];
+    await expect(service.updateSong(allowed, stale)).rejects.toMatchObject({ code: "VERSION_MISMATCH" });
+    // An identical retry must see the real error again, not the stuck claim.
+    await expect(service.updateSong(allowed, stale)).rejects.toMatchObject({ code: "VERSION_MISMATCH" });
+    // And the key is free: the corrected request runs rather than mismatching.
+    const retry = await service.updateSong(allowed, { ...stale, expectedVersion: created.version });
+    expect(retry.title).toBe("Retry");
+    expect(retry.version).toBe(created.version + 1);
+  });
+
   it("deletes a song", async () => {
     const created = await service.createSong(allowed, songInput());
     await service.deleteSong(allowed, { id: created.id, expectedVersion: created.version, clientRequestId: crypto.randomUUID() });

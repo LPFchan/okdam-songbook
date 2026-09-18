@@ -1,22 +1,33 @@
 name = "okdam-songbook"
 main = "src/index.ts"
+# 2026-08-04 or later turns Node.js compatibility on without a flag; the shared
+# Hono app imports node:fs for the Node-only static path it never takes here.
 compatibility_date = "2026-09-18"
 
 # No public route. Songbook trusts the Common Auth gateway's identity headers
-# (DEC-20260914-002) and has no way to tell a forged one from a real one, so it
-# must never be reachable except through the gateway. On OCI that is a loopback
-# bind; here it is the absence of a workers.dev subdomain and of any [[routes]]
-# entry, leaving a service binding from the gateway Worker as the only way in.
+# (DEC-20260914-002, DEC-20260919-001) and has no way to tell a forged one
+# from a real one, so it must never be reachable except through the gateway:
+# no workers.dev subdomain and no [[routes]] entry, leaving the auth-gateway
+# Worker's SONGBOOK_BACKEND service binding as the only way in. Deploying a
+# Worker replaces its route list with what this file says, so keep it absent.
 workers_dev = false
 
 [assets]
 directory = "../web/dist"
 binding = "ASSETS"
+# Every request reaches the Worker, including ones that match a static file.
+# Otherwise Assets answers `/` and `/index.html` before the Worker runs and
+# the frame-denial headers the app sets on HTML never get attached.
+run_worker_first = true
 
 [[d1_databases]]
 binding = "SONGBOOK_DB"
 database_name = "okdam-songbook"
 database_id = "9b353a3b-6526-4d14-8b10-5f618275b4cf"
+# `wrangler d1 migrations apply okdam-songbook --remote` records what it
+# applied in D1's d1_migrations table; 0001_init.sql is the schema the OCI
+# SQLite reached and was applied at cutover.
+migrations_dir = "migrations"
 
 [vars]
 ORIGIN = "https://okdam.lost.plus"
@@ -25,5 +36,4 @@ AI_MODEL = "@cf/google/gemma-4-26b-a4b-it"
 
 # Secret, set with `wrangler secret put CLOUDFLARE_AI_API_TOKEN`.
 # All three must be set together or the Worker refuses to start; set none and
-# AI reading generation is simply off. The name matches the Node runtime's so
-# deploy/container/songbook.env can be copied across without translation.
+# AI reading generation is simply off.

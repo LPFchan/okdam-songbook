@@ -88,5 +88,18 @@ export default [
         clearTimeout: "readonly"
       }
     }
+  },
+  {
+    files: ["apps/worker/**/*.ts"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        D1Database: "readonly",
+        ExecutionContext: "readonly",
+        ExportedHandler: "readonly",
+        Fetcher: "readonly",
+        RequestInfo: "readonly"
+      }
+    }
   }
 ];
