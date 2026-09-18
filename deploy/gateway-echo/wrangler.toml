@@ -1,0 +1,8 @@
+name = "gateway-echo"
+main = "src/index.ts"
+compatibility_date = "2026-09-18"
+
+# Route-less, like every application Worker behind the gateway. It must be
+# reached through a binding so that what it reports is what the gateway
+# actually forwards, rather than what a direct caller sent.
+workers_dev = false
