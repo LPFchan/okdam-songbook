@@ -1,116 +1,39 @@
 # Deployment
 
-Songbook runs in two interchangeable production topologies. Both serve the
-same Hono application, the same API surface, and the same PWA; only the
-database driver and process model differ.
+Songbook runs on Cloudflare Workers. There is one production shape
+(DEC-20260919-001): the `okdam-songbook` Worker, D1 `okdam-songbook`, and
+Workers Assets, behind the `auth-gateway` Worker.
 
-## OCI (current production)
+## Topology
 
-The OCI single server at https://okdam.lost.plus runs the Dockerized Node/Hono
-app on oci-ubuntu. See `deploy/ops/README.md` for container operations,
-backups, and the restore drill.
+| piece | value |
+| --- | --- |
+| Worker | `okdam-songbook`, `apps/worker`, `workers_dev = false`, no `[[routes]]` |
+| Zone route | `okdam.lost.plus/*` → `auth-gateway` (held in `LPFchan/auth`, `gateway/wrangler.toml`) |
+| Path in | `auth-gateway` service binding `SONGBOOK_BACKEND` → `okdam-songbook` |
+| Database | D1 `okdam-songbook`, APAC, id in `apps/worker/wrangler.toml`; schema `apps/worker/migrations/` |
+| Static files | Workers Assets from `apps/web/dist`, `run_worker_first = true` |
+| Secrets | `CLOUDFLARE_AI_API_TOKEN` (optional; with `AI_ENDPOINT` and `AI_MODEL` from `[vars]`, all three or none) |
+| Compatibility | `compatibility_date = 2026-09-18`; Node.js built-ins are on by default at this date, no flag |
 
-1. Commit on `main` and push to `origin`.
-2. On the host: `cd ~/okdam-songbook && git pull --ff-only`.
-3. Rebuild and restart:
-   ```
-   docker compose -f compose.yaml -f deploy/container/compose.oci.yaml build songbook
-   docker compose -f compose.yaml -f deploy/container/compose.oci.yaml up -d songbook
-   ```
-4. Verify `curl http://127.0.0.1:3010/healthz` and
-   `curl https://okdam.lost.plus/healthz` return `{"ok":true}`.
+### Why the Worker has no route
 
-## Cloudflare Workers (supported target)
+Songbook trusts the gateway's `x-lost-plus-*` identity headers and cannot
+tell a forged one from a real one (DEC-20260914-002). On Workers the
+equivalent of a loopback bind is having no public route: `workers_dev =
+false` and no `[[routes]]`, which leaves the gateway's service binding as the
+only way in. **Deploying a Worker replaces its route list with what its
+config says**, so never add a route here; the gateway owns it.
 
-`apps/worker` deploys the same application to Cloudflare Workers with D1 for
-state and Workers Assets for the PWA. The Node-specific entry point
-(`apps/server/src/main.ts`) is not used; the Worker entry point
-(`apps/worker/src/index.ts`) binds D1 and proxies statics to Assets.
+`/` and `GET /api/catalog` are public by gateway policy and arrive with no
+identity headers, so the application cannot fail closed on missing identity
+for every path — route-lessness is the guarantee, not a header check.
 
-### Prerequisite: the Worker must not be the edge
+### Gateway routes for this host
 
-Songbook trusts the Common Auth gateway's `X-Lost-Plus-*` identity headers and
-cannot tell a forged one from a real one (DEC-20260914-002). On OCI the Node
-port is bound to loopback, so only the gateway can reach it. A Worker has no
-loopback, so the equivalent guarantee is having no public route:
-`wrangler.toml` sets `workers_dev = false` and declares no `[[routes]]`, which
-leaves a service binding from the gateway Worker as the only way in.
-
-**Adding a route or a workers.dev subdomain without the gateway in front is an
-authentication bypass** — anyone setting four headers becomes any user. The
-cutover is blocked until a gateway Worker is deployed and its service binding
-to this Worker is configured (DEC-20260918-001).
-
-The gateway rewrite exists in `LPFchan/auth` under `gateway/` and runs on
-workerd, but no gateway Worker is deployed on Cloudflare yet. The other
-Workers-hosted services each implement Common Auth themselves in the meantime.
-Songbook does not copy that: DEC-20260914-002 removed its auth client on
-purpose and DEC-20260918-002 rejects per-service validation, so this runtime
-waits for the gateway instead.
-
-### State so far
-
-D1 database `okdam-songbook` is provisioned in APAC, its id is in
-`wrangler.toml`, and `migrations/0001_init.sql` has been applied.
-
-The Worker is deployed and carries no public route: `wrangler deploy` reports
-`No targets deployed`, and `okdam-songbook.yeowool.workers.dev` answers 404
-rather than reaching the application. It exists so a gateway Worker has a
-service to bind to; nothing can call it until one does.
-
-D1 holds a **dated snapshot** taken 2026-09-18 18:32 KST: 127 songs, 19
-performances, 107 audit events, and the three `tj_mirror_*` tables, each
-matching the OCI counts at that moment. It was imported to prove the path
-works, not to serve traffic.
-
-> **Re-import at cutover.** Every song added or edited on OCI after that
-> timestamp is missing here, and nothing detects it — the Worker would come up
-> looking healthy and quietly serving stale data. Clear the tables and import
-> again as part of the cutover, not before it.
-
-`idempotency_keys` is deliberately not imported: the rows expire after 24
-hours and exist to deduplicate in-flight retries, so a stale copy has no value.
-`schema_migrations` is also skipped because the D1 migration wrote its own.
-
-Regenerate the dump with:
-
-```
-for t in songs performances song_favorites audit_events \
-         tj_mirror_songs tj_mirror_queries tj_mirror_query_results; do
-  sudo sqlite3 /var/lib/songbook/songbook.sqlite \
-    ".mode insert \"$t\"" "SELECT * FROM \"$t\";" >> okdam-data.sql
-done
-npx wrangler d1 execute okdam-songbook --remote --file=okdam-data.sql
-```
-
-### Gateway routes for the cutover
-
-The identity contract needs no change: the V8 gateway injects the same
-`x-lost-plus-sub`, `-email`, `-name`, `-role`, and `x-lost-plus-encoding:
-percent-utf8` that `apps/server/src/auth.ts` already reads.
-
-What changes is how the gateway reaches the backend. Each route names a
-`binding` instead of a loopback `upstream`, so on Cloudflare these five entries
-replace the `okdam.lost.plus` block in `deploy/oci/gateway.json`.
-
-Their order in the file does not matter. `parseConfig` sorts each host's routes
-by `pathPrefix` length in UTF-8 bytes descending, then puts method-scoped
-routes ahead of unscoped ones, so `/api/catalog` is tried before `/api`
-whichever way round they are written. They are listed longest-first below
-anyway, because that is the order they are evaluated in and reading them in
-evaluation order is how you check them.
-
-Two consequences of that sort are worth knowing before editing this table:
-
-- A **method mismatch falls through to the next route rather than returning
-  405**: the method test sits inside `routeFor`'s `find` predicate. So
-  `GET /api/catalog` is public, while `POST /api/catalog` skips that route and
-  lands on `/api`, which is `oauth`. A method-scoped public route above an
-  unscoped protected one is how a path gets anonymous reads and authenticated
-  writes.
-- Adding a longer prefix silently takes precedence over a shorter one no
-  matter where it is written, so a new `/api/...` route can capture traffic
-  from `/api` without touching the `/api` line.
+Owned by `auth/gateway/config/cloudflare.gateway.json`; reproduced so the
+behaviour is understandable from this repo. Longest prefix wins; a method
+mismatch falls through to the next route rather than answering 405.
 
 ```json
 { "host": "okdam.lost.plus", "path_prefix": "/mcp", "policy": "mcp", "visibility": "okdam", "token_scope": "okdam-mcp", "binding": "SONGBOOK_BACKEND" },
@@ -120,150 +43,102 @@ Two consequences of that sort are worth knowing before editing this table:
 { "host": "okdam.lost.plus", "path_prefix": "/", "policy": "public", "binding": "SONGBOOK_BACKEND" }
 ```
 
-`SONGBOOK_BACKEND` must also be declared as a service binding to the
-`okdam-songbook` script in the gateway Worker's own `wrangler.toml`, and the
-gateway takes the `okdam.lost.plus` route that the Tunnel holds today.
+- `GET /_auth/logout` is answered by the gateway; the application never
+  sees it.
+- `/healthz` matches the public `/` route, so the gateway forwards it and the
+  application answers `{"ok":true}`.
+- `/.well-known/oauth-protected-resource/mcp` is answered by the gateway.
 
-Songbook needs no code change to move behind the gateway. It never
-reimplemented Common Auth the way the other Workers-hosted services did, so
-there is no auth client to delete: `createGatewayMcpAuthAdapter` reads identity
-headers and validates nothing, and the app serves no `/.well-known/`, no CORS,
-and no credential of its own.
-
-Two surfaces look like exceptions to that and are not:
-
-- **`/healthz` stays, and it stays Songbook's.** The gateway only answers
-  `/healthz` itself when the matched route's policy is `mcp`. Songbook's
-  `/healthz` matches its `/` route, which is `public`, so the gateway forwards
-  it and the application answers. That means it keeps returning
-  `{"ok":true}` as JSON rather than becoming the gateway's plain-text `ok`, as
-  happened on `tweet.lost.plus` where the only route is `mcp`. Anything
-  checking the body keeps working. The OCI container healthcheck probes the
-  app's own on loopback regardless.
-- **`WWW-Authenticate` on `/mcp` stays for now.** It fires only when a request
-  reaches `/mcp` with no identity headers. Under the `mcp` policy the gateway
-  should answer that case first, so the app's challenge should become
-  unreachable rather than wrong — but this is the one interaction that cannot
-  be confirmed until Songbook is actually behind the gateway. Check it there
-  before removing anything.
-
-Note that Songbook cannot fail closed the way an all-authenticated service can.
-The gateway strips every inbound `x-lost-plus-*` and injects its own only when
-there is an identity, so a `public` route arrives with no identity headers and
-is indistinguishable from a direct call. `/api/catalog` and the app shell are
-public by policy, so absent headers are a valid state. Route-lessness is what
-keeps direct calls out, which is why `workers_dev = false` matters more here
-than a header assertion would.
+## Deploy
 
 ```
+npm run build                 # repo root: shared, server-core, mcp, admin, server, web
 cd apps/worker
-npx wrangler secret put AI_API_TOKEN   # optional, for AI readings
+npx wrangler deploy           # expect "No targets deployed": the Worker is route-less
 ```
 
-### Deploy
+Credentials: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in the
+environment, or `wrangler login`. Secrets are set once with
+`npx wrangler secret put CLOUDFLARE_AI_API_TOKEN` and survive deploys.
+
+### Verify after every deploy
+
+From anywhere on the internet, with `$TOKEN` an `okdam-mcp` machine token
+(never echo it):
 
 ```
-npm run build                 # repo root: builds shared/server-core/server/web
+H=https://okdam.lost.plus
+curl -s -o /dev/null -w '%{http_code}\n' $H/healthz                           # 200
+curl -s -o /dev/null -w '%{http_code} %{content_type}\n' $H/admin             # 200 text/html
+curl -s -D - -o /dev/null $H/ | grep -i x-frame-options                       # DENY
+curl -s -o /dev/null -w '%{http_code}\n' $H/api/catalog                       # 200
+curl -s -o /dev/null -w '%{http_code}\n' $H/api/me                            # 401
+curl -s -o /dev/null -w '%{http_code}\n' -H 'Accept: text/html' $H/api/me     # 302
+curl -s -o /dev/null -w '%{http_code}\n' -X POST $H/mcp \
+  -H 'Authorization: Bearer bogus' -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"c","version":"1"}}}'   # 401
+curl -s -X POST $H/mcp -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+  -H 'MCP-Protocol-Version: 2026-07-28' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}'
+  # result.tools has eight names, result.ttlMs 300000, result.cacheScope "private"
+```
+
+2025-era clients (`protocolVersion` 2025-03-26 / 2025-06-18) get an SSE-framed
+response; both must still initialize.
+
+## Rollback
+
+- **Code and assets**: `npx wrangler deployments list` then
+  `npx wrangler rollback <version-id>` (or plain `wrangler rollback` for the
+  previous version). Seconds, no data involved.
+- **Data**: D1 Time Travel keeps 30 days of history.
+  `npx wrangler d1 time-travel info okdam-songbook` shows the current
+  bookmark; `npx wrangler d1 time-travel restore okdam-songbook
+  --timestamp=<ISO>` restores. Export first with
+  `npx wrangler d1 export okdam-songbook --remote --output=backup.sql`.
+- **Schema**: migrations are append-only files under
+  `apps/worker/migrations/`, applied with `npx wrangler d1 migrations apply
+  okdam-songbook --remote` and recorded in D1's `d1_migrations` table. Rolling
+  code back across a migration needs a Time Travel restore first.
+- There is no container to fall back to. The OCI SQLite at
+  `/var/lib/songbook/songbook.sqlite` is an archive of the catalogue at
+  cutover (last write 2026-08-26) and predates every Workers write.
+
+## State and backups
+
+- D1 holds everything: songs, performances, private favorites, audit events,
+  idempotency keys (24-hour), and the TJ mirror. No KV, no R2.
+- Backups: `wrangler d1 export` on demand, plus Time Travel. Nothing is
+  scheduled; the catalogue changes a few rows a week.
+- Do not enable D1 read replication. Mutations read back the row they just
+  wrote; replicas may lag.
+
+## Known tradeoffs of the D1 runtime
+
+- **No interactive transactions.** Statements run immediately and
+  `sqlite.transaction()` is a pass-through, so a mutation that fails partway
+  leaves earlier writes applied (a song without its audit row). Retries stay
+  safe: the idempotency claim is a single `INSERT OR IGNORE` on the primary
+  key, and a claim whose work threw is released so the retry reruns.
+  `packages/server-core/test/d1-service.test.ts` covers this path.
+- **Per-isolate memory.** The app is built once per isolate. The MCP body
+  gate (4 in flight) and the TJ throttle (4 per 10 s) hold within an isolate
+  and not across them; concurrent stale TJ searches in different isolates may
+  each fetch once.
+- **Bundle contents.** `packages/server-core` still exports the Node
+  `openDatabase` (better-sqlite3 + drizzle, ~86 KiB) for tests and the admin
+  tools; it is bundled and never called on Workers.
+
+## Local development
+
+```
+npm run build          # once, at the repo root
 cd apps/worker
-npx wrangler deploy
+npx wrangler dev       # http://localhost:8787 with a local D1
 ```
 
-### Staging pass: what was measured
-
-Run 2026-09-18 against `okdamnext.lost.plus`, a temporary proxied record in the
-`lost.plus` zone, with the gateway's `SONGBOOK_BACKEND` bound to
-`deploy/gateway-echo` rather than to Songbook. The echo reports what the
-gateway *forwarded*; Songbook would have served pages and revealed nothing
-about headers. Hostname and both Workers were torn down afterwards.
-
-`gateway/wrangler.toml` in `LPFchan/auth` calls this a gate rather than a
-suggestion, and it earned that: before this pass, no `public` and no `oauth`
-route had ever run on the Cloudflare gateway. Its only production route was
-`tweet.lost.plus`, which is `mcp`.
-
-**Measured.** Every line observed through the real gateway on Cloudflare.
-
-| probe | result |
-| --- | --- |
-| `GET /` + body, http/1.1 and http/2 | `400 body not allowed on GET or HEAD`, `up=5B` both |
-| `GET /` no body (control) | 200, `bodyPresent=false` — the fix changes nothing else |
-| `GET /` and `/api/catalog` anonymous | 200, `identity={}` |
-| `POST /api/catalog` | 401 at `oauth` — falls through, does not 405 |
-| `PUT` cross-origin | 403, CSRF refuses |
-| `PUT` same-origin, no session | **401, no `Location`** |
-| `GET /api` browser navigation, no session | 302 to `auth.lost.plus/login?to=…`, return address intact |
-| `GET /api` signed in | identity injected, `%40` decoded to `@` |
-| `GET /mcp` with an `okdam-mcp` machine token | 200, identity injected |
-| cookie stripping, signed-in browser request | `cookie` absent at the backend |
-| bearer stripping, machine token request | `authorization` absent at the backend |
-
-**Inferred, and labelled as such.**
-
-- **Multi-byte UTF-8 in a display name.** The operator's is ASCII, so `raw` and
-  `decoded` matched and the probe could not prove what it was written for. The
-  decoder is exercised by the email; a Korean name is not.
-- **`x-api-key` stripping**, by shared code path with the two that were measured.
-
-**Two traps this pass walked into, both worth keeping.**
-
-- **A write probe sent with `curl` measures CSRF, not auth.** `needsCsrfCheck`
-  runs before the policy branch and curl sends no `Origin`, so the first
-  attempt returned `403 cross-origin request denied` — which reads as "not a
-  302, pass" while proving nothing about the redirect behaviour it was written
-  to test. Send the `Origin` a browser would.
-- **`request.cf.httpProtocol` is `null` behind a service binding.** The `cf`
-  object does not carry the original protocol across the hop, so the echo
-  cannot observe protocol from the far side. Protocol questions fall back to
-  `%{http_version}`, which is the client reporting on itself.
-
-**Subject continuity**, checked because the cutover turns on it: the gateway
-sends `x-lost-plus-sub: 1`, so Songbook computes `auth.lost.plus:1`, which is
-what it already computes today. Nothing is keyed on a subject that changes.
-`idempotency_keys` still holds `legacy-email:` subjects from before gateway
-identity, and those expire within a day.
-
-That fallback is also why `song_favorites` is empty: favorites were keyed on
-`legacy-email:<email>`, the Common Auth cutover moved subjects to
-`auth.lost.plus:<sub>`, and DEC-20260914-002's remap did not carry them. It
-does not repeat here — same hub, same account, same `sub` — but it is the
-failure this class of migration produces, it already happened once silently,
-and it was found by diffing a backup rather than by anything noticing.
-
-### Cutover from OCI
-
-1. Stand up the cloud Common Auth gateway and bind it to this Worker as a
-   service binding. Without it, stop here.
-2. Take a SQLite backup on OCI (`deploy/ops/README.md`).
-3. Import data with `@songbook/admin` import tools or `sqlite3 .dump` piped
-   through `wrangler d1 execute --remote`. The seven Better Auth tables in the
-   OCI database (`user`, `session`, `account`, `verification`, `oauth*`) are
-   left over from before Common Auth and are not imported.
-4. Point `okdam.lost.plus` DNS/Tunnel at the **gateway**, not at this Worker,
-   then verify `curl https://okdam.lost.plus/healthz` and confirm that forged
-   `X-Lost-Plus-*` headers on `/api/me` still return 401.
-
-### Known tradeoffs
-
-- **Transactions**: D1 has no interactive transactions — you cannot hold one
-  open while application code reads a result and decides what to write next,
-  which is what every songbook mutation does. Statements therefore run
-  immediately on Workers and `sqlite.transaction()` is a pass-through, so a
-  mutation that fails partway leaves its earlier writes applied (a song
-  without its audit row). Retries stay safe: claiming an idempotency key is a
-  single INSERT OR IGNORE against the primary key. The Node/OCI runtime keeps
-  real transactions with savepoints.
-  `packages/server-core/test/d1-service.test.ts` drives the service through
-  the D1 binding shape so this path is covered by `npm run verify`.
-- **Do not enable D1 read replication.** It is off by default, which is what
-  keeps every query on the primary and lets a mutation read back the row it
-  just wrote. Turning it on in the dashboard routes reads to replicas that may
-  lag behind the write, which breaks that assumption silently — mutations
-  would start failing to find rows they had just inserted. Adopting it would
-  mean threading D1's Sessions API and its bookmarks through every request
-  first.
-- **TJ mirror concurrency**: the in-memory in-flight dedup from the Node
-  server does not exist on Workers, so concurrent stale searches for the same
-  query may each fetch TJ once. Accepted behavior.
-- **Backups**: use `wrangler d1 export` or the D1 time-travel/console
-  snapshot instead of the OCI `.backup` script.
-- **Static assets**: served by Workers Assets, not the filesystem.
+`wrangler dev` runs without the gateway, so protected routes see no identity
+and answer 401. To exercise them locally, send the five `x-lost-plus-*`
+headers by hand (see `apps/worker/test/index.test.ts` for the exact set).

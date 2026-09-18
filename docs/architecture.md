@@ -1,85 +1,95 @@
 # Architecture
 
-Songbook is a mobile-first PWA served by one Node/Hono application on OCI. The
-catalog remains public; protected browser writes use shared `auth.lost.plus`
-sessions through the local Common Auth gateway, and SQLite owns application
-state.
+Songbook is a mobile-first PWA served by one Cloudflare Worker behind the
+Common Auth cloud gateway. The catalog is public; protected browser writes and
+MCP use `auth.lost.plus` identity that the gateway validates and injects, and
+D1 owns application state.
 
 ```mermaid
 flowchart LR
   Browser[PWA] --> IndexedDB[(Public snapshot + offline queue)]
-  Browser --> Gateway[OCI Common Auth gateway]
+  Browser --> Gateway[auth-gateway Worker\nokdam.lost.plus/*]
   MCP[Stateless MCP clients] --> Gateway
-  Gateway --> Node[Private Node/Hono server]
-  Node --> SQLite[(SQLite operational DB)]
-  Node --> TJ[TJ public HTML, fixed host, bounded fetch]
-  Node --> Mirror[(TJ SQLite mirror)]
-  Gateway --> Auth[auth.lost.plus identity validation]
+  Gateway -- AUTH_HUB binding --> Auth[auth.lost.plus hub]
+  Gateway -- SONGBOOK_BACKEND binding --> Worker[okdam-songbook Worker]
+  Worker --> D1[(D1: songs, performances, favorites, audit, idempotency, TJ mirror)]
+  Worker --> Assets[Workers Assets: apps/web/dist]
+  Worker --> TJ[TJ public HTML, fixed host, bounded fetch]
 ```
 
 ## Frontend
 
-- React, TypeScript, Vite, and React Router.
-- `BrowserRouter` uses `/okdam-songbook/` basename.
-- `PublicPage` is the catalog-first primary surface. It owns search, quick
+- Svelte + TypeScript + Vite PWA in `apps/web`, built to `apps/web/dist`.
+- `CatalogPage.svelte` is the catalog-first primary surface: search, quick
   filters, account/session state, theme, sync details, and contextual entry to
-  role-aware management sheets.
-- `AdminPage` is embedded for add, manage, and history surfaces. `/admin` is a
-  compatibility route to the same `PublicPage` composition.
+  role-aware management sheets. `/admin` is a compatibility alias served by
+  the SPA fallback.
 - `vite-plugin-pwa` generates the service worker and manifest.
-- Dexie stores public snapshots and offline performance queue items. Protected
+- Dexie stores public snapshots and the offline performance queue. Protected
   auth/session responses and credentials must not enter those caches.
 
-## Node application
+## Worker
 
-- One Node/Hono process serves the PWA, same-origin API,
-  health endpoint, and stateless MCP endpoint.
-- SQLite is the operational source of truth for songs, performances, audit and
-  idempotency state, and the TJ mirror. Identity, sessions, bearer tokens,
-  service admission, and revocation live in `auth.lost.plus`.
-- The retired Apps Script/Sheets implementation remains historical migration
-  material only; it is not on the live request path.
+- `apps/worker/src/index.ts` is the only entry point. It builds the Hono
+  application from `apps/server` once per isolate over a D1 executor, mounts
+  it, and serves everything else from Workers Assets with an `index.html`
+  fallback. `/api`, `/mcp` and `/.well-known` never fall back to the shell.
+- `apps/server` is the Hono application: public catalog with ETag, protected
+  same-origin browser API, `/healthz`, and `/mcp`. It reads identity only
+  from the gateway's `x-lost-plus-*` headers (`auth.ts`) and validates no
+  credential.
+- `packages/server-core` holds the domain service, repositories, the SQL
+  executor abstraction (`sql.ts`) with a D1 implementation (`d1.ts`) and a
+  Node/better-sqlite3 one used by tests, and the TJ adapter and mirror.
+- `packages/songbook-mcp` registers the eight MCP tools on
+  `@modelcontextprotocol/server` v2 through `createMcpHandler`, stateless,
+  with the legacy fallback for 2025-era clients.
+- `packages/shared` holds contracts, schemas, search, permissions and TJ
+  parsing shared with the web app.
+
+## Identity and authorization
+
+- The gateway validates the browser cookie or bearer token against the hub,
+  strips it, and forwards with `x-lost-plus-{sub,email,name,role}` percent-
+  encoded and `x-lost-plus-encoding: percent-utf8`. A missing, incomplete or
+  undecodable identity is refused on protected paths.
+- The application owns authorization: every admitted identity gets the single
+  `allowed` role. Favorites and idempotency are keyed by the immutable subject
+  `auth.lost.plus:<sub>`.
+- Browser mutations additionally require JSON bodies, an exact `Origin`, and
+  an `X-Songbook-Owner-Subject` matching the identity.
 
 ## MCP transport and authorization
 
-- `/mcp` is a required-bearer mount serving modern and legacy stateless MCP
-  exchanges without long-lived MCP session state.
-- Requests without gateway identity fail with `401` before MCP dispatch,
-  including initialization, discovery, listing, and read-only tool calls.
-- The gateway evaluates every OAuth access token or explicit machine credential at `auth.lost.plus`;
-  malformed, expired, revoked, and incorrectly scoped credentials are rejected
-  before Node. Cookies never provide MCP identity.
-- The single tool-policy table requires `songbook:read` for read tools and
-  `songbook:write` for mutation tools after transport admission.
-  Every authenticated request reaches the shared service with verified
-  percent-encoded identity headers.
-- `search_songs` always returns saved matches and a TJ section. Anonymous
-  searches never invoke TJ; authenticated read-scoped eligible searches use
-  the existing mirror-backed adapter and preserve local matches when TJ fails.
+- `/mcp` is the gateway's `mcp` policy with token scope `okdam-mcp`. The
+  gateway answers requests without a valid credential; the application also
+  refuses any MCP request without gateway identity before dispatch.
+- Read tools require `songbook:read`, mutation tools `songbook:write`; every
+  admitted identity holds both.
+- `tools/list` is advertised as cacheable for five minutes, `private`.
+- `search_songs` returns saved matches and a TJ section; TJ is consulted only
+  for authenticated read-scoped searches and local matches survive TJ failure.
 
 ## Live TJ adapter
 
-- Browser requests only typed lookup/search/add/restore actions.
-- The Node adapter builds a fixed `tjmedia.com/song/accompaniment_search` URL,
-  fetches server-rendered HTML, parses result rows, strips markup/entities,
-  bounds pagination and result size, and throttles upstream fetches.
-- Exact canonical queries are mirrored in SQLite for 24 hours. A stale request
-  waits for refresh; successful rows update the normalized song index and
-  ordered query membership. A failed refresh serves the older snapshot when
-  available and records operational failure metadata.
-- Parser drift, upstream failure, empty results, and rate limiting are
-  structured errors. Manual entry remains available.
-- Candidate source URLs come from the serving query snapshot. Immediate add
-  uses duplicate checks and `clientRequestId` replay safety.
+- The adapter builds a fixed `tjmedia.com/song/accompaniment_search` URL,
+  fetches server-rendered HTML, parses rows, bounds pagination and result
+  size, and throttles upstream fetches.
+- Exact canonical queries are mirrored in D1 for 24 hours. A stale request
+  waits for refresh; a failed refresh serves the older snapshot and records
+  failure metadata. Parser drift, upstream failure, empty results and rate
+  limiting are structured errors; manual entry remains available.
 
-## Legacy Apps Script and Worker code
+## D1 specifics
 
-The former Apps Script/Sheets API and Cloudflare Worker integration are
-retained as legacy source and migration context. They are not live request
-boundaries after the OCI cutover.
+- No interactive transactions: `transaction()` is a pass-through, a
+  mutation that throws releases its idempotency claim by hand, and a partial
+  failure can leave a song without its audit row. See `docs/deployment.md`.
 
-## Separate legacy ChatGPT OAuth
+## Legacy code still in the tree
 
-The Worker’s `/authorize`, `/oauth/callback`, `/token`, and `/api/gpt*` routes
-remain a separate OAuth protocol for ChatGPT Actions. Shared browser sessions
-do not replace its redirect allowlist, bearer token, or GPT action contracts.
+- `apps-script/` (the Google Sheets backend) and
+  `integrations/chatgpt-proxy` (a ChatGPT Actions OAuth bridge to it) predate
+  the Node and Workers runtimes. Neither is deployed or on any request path.
+- `packages/songbook-admin` and `scripts/import-csv.mjs` are Node-only data
+  tools for a SQLite file; they cannot target D1.

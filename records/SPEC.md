@@ -22,14 +22,16 @@ history.
 
 ## Runtime Shape
 
-- One Node 22/Hono application runs on OCI and serves the PWA, same-origin API,
-  TJ integration, health endpoint, and MCP endpoint. The local Common Auth
-  gateway validates identity before forwarding to the private server.
-- Cloudflare Tunnel may provide ingress to the OCI service, but no application
-  logic runs in a Cloudflare Worker.
-- SQLite is the operational database for songs, private per-account favorites,
-  performers, performances,
-  audit events, idempotency records, and the search-driven TJ mirror.
+- One Cloudflare Worker (`okdam-songbook`) serves the PWA from Workers
+  Assets, the same-origin API, TJ integration, health endpoint, and MCP
+  endpoint through one Hono application. The Common Auth `auth-gateway`
+  Worker holds the `okdam.lost.plus/*` route, validates identity, and reaches
+  the application only over a service binding.
+- The Worker declares no route of its own and validates no credential; it
+  trusts the gateway's injected `x-lost-plus-*` identity headers only.
+- D1 is the operational database for songs, private per-account favorites,
+  performers, performances, audit events, idempotency records, and the
+  search-driven TJ mirror.
 - The catalog is the primary surface for search, filters, account/session
   state, theme, sync status, and role-aware management entry points.
 - The main search is an omnibar: saved-song matches appear immediately, then
@@ -94,8 +96,9 @@ history.
 
 ## Invariants
 
-- SQLite on OCI is the operational source of truth. Google Sheets and repo JSON
-  are migration inputs or recovery exports, not live production stores.
+- D1 `okdam-songbook` is the operational source of truth. The OCI SQLite,
+  Google Sheets and repo JSON are archives or recovery exports, not live
+  production stores.
 - Secrets, allowed emails, OAuth credentials, database files, and backup
   archives are never bundled in the frontend or committed to the repository.
 - Browser- or MCP-supplied identity values are never authority. The gateway
@@ -132,10 +135,10 @@ history.
 - Every write carries an idempotency key. Offline replay and MCP retries must
   preserve it across process restarts and lost responses.
 - TJ candidates remain editable, attributed input until an authenticated
-  SQLite write succeeds. TJ outages or parser drift never remove manual entry
+  D1 write succeeds. TJ outages or parser drift never remove manual entry
   or public catalog access.
 - The TJ mirror stores normalized songs plus exact query/page memberships in
-  SQLite. Each canonical query is fresh for 24 hours; stale refreshes wait for
+  D1. Each canonical query is fresh for 24 hours; stale refreshes wait for
   TJ, retain the prior snapshot on failure, and emit operational failure
   metadata. Search is the only ingestion path and mirrored songs are retained.
 - Backups are useful only when integrity checks and a restore drill pass.

@@ -7,10 +7,13 @@
 - `auth.lost.plus` is the identity, session, revocation, and service-admission
   authority. The Common Auth gateway validates every protected request and
   removes browser-supplied identity fields before forwarding.
-- The OCI server remains the authorization authority for Songbook actions.
+- The Songbook Worker is the authorization authority for Songbook actions.
   Every admitted identity receives the existing `allowed` role.
+- The Worker has no public route. It is reachable only through the
+  `auth-gateway` Worker's service binding, which is what keeps forged
+  `x-lost-plus-*` headers out (DEC-20260918-001, DEC-20260919-001).
 - The retired GitHub Pages, Apps Script, and ChatGPT Action sources retain their
-  historical boundaries but are not part of the live OCI path.
+  historical boundaries but are not on any live request path.
 
 ## Shared browser sessions
 
@@ -40,7 +43,7 @@
   `songbook:write` capabilities because Songbook has one equal-permission role.
   Token minting, lifetime, scope, and revocation remain owned by
   `auth.lost.plus`; Songbook MCP uses the `okdam-mcp` token scope.
-- The private Node server also requires gateway identity before reading or
+- The application also requires gateway identity before reading or
   dispatching an MCP body.
 
 ## Stored identity data
@@ -83,8 +86,8 @@ Values must never be committed.
 
 ## AI and images
 
-The live OCI server calls the configured AI reading endpoint with a server-only
-bearer credential. The browser route requires an admitted same-origin session,
+The Worker calls the configured AI reading endpoint with a server-only
+bearer credential held as a Worker secret. The browser route requires an admitted same-origin session,
 input and output are bounded and schema-validated, and provider error bodies are
 not returned to the browser. AI output remains an editable candidate and is
-never saved automatically. Images are not stored in GitHub or SQLite by default.
+never saved automatically. Images are not stored in GitHub or D1 by default.

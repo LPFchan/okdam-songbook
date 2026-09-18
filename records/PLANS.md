@@ -24,18 +24,19 @@ Recorded by agent: codex-orchestrator
   parser-drift outcomes.
 - Related ids: DEC-20260813-003.
 
-### OCI single-server architecture
+### Cloudflare Workers architecture
 
-- Status: `live in production at okdam.lost.plus`.
-- One OCI-hosted Node/Hono process serves the PWA, API, SQLite, TJ integration,
+- Status: `live in production at okdam.lost.plus` since 2026-09-18; the OCI
+  container shape is retired (DEC-20260919-001).
+- One Worker serves the PWA (Workers Assets), API, D1 state, TJ integration,
   health checks, and stateless MCP. `auth.lost.plus` owns identity, sessions,
   bearer tokens, service admission, and revocation.
-- The local Common Auth gateway revalidates browser and MCP credentials on
-  every protected request, then supplies verified identity to the private
-  Node server. Every admitted account has the same `allowed` role and mutation
-  permissions.
+- The cloud Common Auth gateway revalidates browser and MCP credentials on
+  every protected request, then supplies verified identity to the route-less
+  Worker over a service binding. Every admitted account has the same
+  `allowed` role and mutation permissions.
 - Related ids: DEC-20260813-001, DEC-20260813-005, DEC-20260814-001,
-  DEC-20260914-001, DEC-20260914-002.
+  DEC-20260914-001, DEC-20260914-002, DEC-20260918-001, DEC-20260919-001.
 
 ### Anonymous MCP and common-auth-protected operations
 
@@ -52,7 +53,7 @@ Recorded by agent: codex-orchestrator
 - Related ids: DEC-20260820-002, DEC-20260820-003, DEC-20260914-001,
   DEC-20260914-002.
 
-## Rollout Sequence (Completed 2026-08-13/14)
+## OCI Rollout Sequence (Completed 2026-08-13/14; shape retired 2026-09-18, see DEC-20260919-001)
 
 1. ~~Native OCI ARM64 image build, start, database health, disk-space gate.~~
    Done — image `songbook:local` (ARM64) healthy on oci-ubuntu.
@@ -86,13 +87,17 @@ Recorded by agent: codex-orchestrator
 - TJ parser maintenance and upstream compatibility review follow the fixed-host
   contract and parser-drift tests.
 - Systematic shared-bearer MCP client verification (item 5 above).
-- Retire or archive the legacy Apps Script/Sheets source and the Cloudflare
-  Worker once the observation period is accepted as complete.
+- Delete or port the legacy Apps Script/Sheets source, the ChatGPT proxy,
+  and the Node-only SQLite admin tools (`packages/songbook-admin`,
+  `scripts/import-csv.mjs`), none of which can target D1.
+- Split the Node-only `openDatabase` out of `packages/server-core`'s main
+  export so the Worker bundle stops carrying better-sqlite3 and drizzle.
+- Archive and remove the OCI leftovers listed in `records/STATUS.md`.
 
 ## Verification Ownership
 
-- Data owner: accept importer reconciliation, rollback export, backup, restore,
-  and the final production SQLite contents.
+- Data owner: accept D1 exports, Time Travel restores, and any future
+  migration under `apps/worker/migrations/`.
 - Auth/MCP owner: verify exact origins/cookies, shared session lifecycle,
   service admission, bearer revocation, and stateless tools.
 - Integration owner: verify browser/TJ/offline behavior on real devices and

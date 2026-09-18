@@ -10,7 +10,7 @@ Songbook is for a small private karaoke circle using phones inside a karaoke roo
 
 ## Product Purpose
 
-Songbook keeps a private Google Sheet as the source of truth while serving a public GitHub Pages PWA for fast read access and an authenticated admin surface for trusted editors. Success means the list is searchable offline after first sync, safe to edit by allowed users, and deployable without a paid server.
+Songbook keeps the catalog in a Cloudflare D1 database behind one Worker at `okdam.lost.plus`, serving a public PWA for fast read access and an authenticated management surface for trusted editors signed in through `auth.lost.plus`. Success means the list is searchable offline after first sync, safe to edit by allowed users, and deployable without a paid server.
 
 ## Brand Personality
 

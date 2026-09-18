@@ -23,7 +23,7 @@ Songs have no status field; a non-null `deletedAt` marks a deleted row.
 
 ## TJ Mirror
 
-The live Node server stores a search-driven local TJ index in three SQLite
+The Worker stores a search-driven local TJ index in three D1
 tables:
 
 - `tj_mirror_songs`: one normalized row per TJ number with title, artist,

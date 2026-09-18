@@ -1,46 +1,19 @@
 # API
 
-## Apps Script response
+## Public routes
 
-Apps Script uses one action-routed endpoint:
+Reached through the gateway's `public` policy, with no identity headers:
 
-```json
-{
-  "ok": true,
-  "data": {},
-  "error": null,
-  "requestId": "uuid",
-  "serverTime": "2026-08-13T00:00:00.000Z"
-}
-```
+- `GET /api/catalog` — the anonymous catalog envelope `{ ok, data: { songs,
+  serverVersion, updatedAt }, error, requestId, serverTime }` with an `ETag`;
+  `If-None-Match` answers 304. No email or favorite fields.
+- `GET /healthz` — `{"ok":true}` when D1 answers.
+- Everything else that is not `/api`, `/mcp` or `/.well-known` is the PWA
+  from Workers Assets, with `index.html` as the SPA fallback.
 
-Errors keep the same shape with `ok: false` and `error.code`.
-
-## Public action
-
-- `GET action=publicData`
-
-This returns the public song catalog and performance summary. It does not
-require login.
-
-## Legacy GIS actions
-
-These POST actions accept the existing `idToken` body field while the rollback
-path remains enabled:
-
-- `currentUser`
-- `createPerformance`
-- `cancelPerformance`
-- `upsertSong`
-- `generateReading`
-- `analyzeYouTube`
-- `lookupTjSong`
-- `searchTjSongs`
-- `addTjSong`
-- `restoreSong`
-
-Requests are authenticated and permission-checked by Apps Script. The browser
-must not supply an actor email or role as authority.
+Errors use `{ ok: false, data: null, error: { code, message, details } }`
+with the HTTP status mapped from `code` (400 validation, 401, 403, 404, 409
+conflict/duplicate, 429 rate limited, 502 upstream, 503 AI not configured).
 
 ## Shared-auth browser routes
 
@@ -102,14 +75,14 @@ fixed TJ source URL.
 `addTjSong` accepts a normalized candidate and `clientRequestId`. It returns
 `created`, `duplicate`, or `deleted` outcomes without overwriting an existing
 row. Successful rows use `sourceType=tjmedia` and retain the bounded source
-URL. Deleted matches return `canRestore: false`; the current OCI API exposes no
+URL. Deleted matches return `canRestore: false`; the current API exposes no
 restore route.
 
 ## Song data
 
 `Song.performerIds` is an array of user IDs. The server accepts only `marie`,
 `seongwook`, and `yeowool`, deduplicates them, and writes them to
-`performer_ids_json` in SQLite. `Song.recommendedKey` is either null or one
+`performer_ids_json` in D1. `Song.recommendedKey` is either null or one
 `{ baseMode, offset }` value. Original-work context is plain memo text prefixed
 with `원작:`; aliases, romanization, YouTube metadata, and song status are not
 part of the live song contract.
