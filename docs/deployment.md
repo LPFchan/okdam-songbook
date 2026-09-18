@@ -27,13 +27,28 @@ state and Workers Assets for the PWA. The Node-specific entry point
 (`apps/server/src/main.ts`) is not used; the Worker entry point
 (`apps/worker/src/index.ts`) binds D1 and proxies statics to Assets.
 
-### One-time setup
+### Prerequisite: the Worker must not be the edge
+
+Songbook trusts the Common Auth gateway's `X-Lost-Plus-*` identity headers and
+cannot tell a forged one from a real one (DEC-20260914-002). On OCI the Node
+port is bound to loopback, so only the gateway can reach it. A Worker has no
+loopback, so the equivalent guarantee is having no public route:
+`wrangler.toml` sets `workers_dev = false` and declares no `[[routes]]`, which
+leaves a service binding from the gateway Worker as the only way in.
+
+**Adding a route or a workers.dev subdomain without the gateway in front is an
+authentication bypass** — anyone setting four headers becomes any user. The
+cutover is blocked until the cloud Common Auth gateway exists and its service
+binding to this Worker is configured (DEC-20260918-001).
+
+### State so far
+
+D1 database `okdam-songbook` is provisioned in APAC, its id is in
+`wrangler.toml`, and `migrations/0001_init.sql` has been applied. It holds no
+data. No Worker is deployed.
 
 ```
 cd apps/worker
-npx wrangler d1 create okdam-songbook
-# paste the printed database_id into wrangler.toml
-npx wrangler d1 execute okdam-songbook --file=migrations/0001_init.sql
 npx wrangler secret put AI_API_TOKEN   # optional, for AI readings
 ```
 
@@ -47,11 +62,16 @@ npx wrangler deploy
 
 ### Cutover from OCI
 
-1. Take a SQLite backup on OCI (`deploy/ops/README.md`).
-2. Apply the D1 schema and import data with `@songbook/admin` import tools
-   or `sqlite3 .dump` piped through `wrangler d1 execute`.
-3. Point `okdam.lost.plus` DNS/Tunnel at the Worker, then verify
-   `curl https://okdam.lost.plus/healthz`.
+1. Stand up the cloud Common Auth gateway and bind it to this Worker as a
+   service binding. Without it, stop here.
+2. Take a SQLite backup on OCI (`deploy/ops/README.md`).
+3. Import data with `@songbook/admin` import tools or `sqlite3 .dump` piped
+   through `wrangler d1 execute --remote`. The seven Better Auth tables in the
+   OCI database (`user`, `session`, `account`, `verification`, `oauth*`) are
+   left over from before Common Auth and are not imported.
+4. Point `okdam.lost.plus` DNS/Tunnel at the **gateway**, not at this Worker,
+   then verify `curl https://okdam.lost.plus/healthz` and confirm that forged
+   `X-Lost-Plus-*` headers on `/api/me` still return 401.
 
 ### Known tradeoffs
 

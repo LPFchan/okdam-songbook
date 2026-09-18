@@ -19,6 +19,3 @@ packages/*/.output/
 backups/
 work/
 outputs/
-
-# Local wrangler config holding the real D1 database id (public repo)
-apps/worker/wrangler.local.toml

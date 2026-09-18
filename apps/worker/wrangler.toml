@@ -2,6 +2,13 @@ name = "okdam-songbook"
 main = "src/index.ts"
 compatibility_date = "2026-09-18"
 
+# No public route. Songbook trusts the Common Auth gateway's identity headers
+# (DEC-20260914-002) and has no way to tell a forged one from a real one, so it
+# must never be reachable except through the gateway. On OCI that is a loopback
+# bind; here it is the absence of a workers.dev subdomain and of any [[routes]]
+# entry, leaving a service binding from the gateway Worker as the only way in.
+workers_dev = false
+
 [assets]
 directory = "../web/dist"
 binding = "ASSETS"
@@ -9,10 +16,7 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "SONGBOOK_DB"
 database_name = "okdam-songbook"
-# Provision with: wrangler d1 create okdam-songbook
-# then paste the database_id here. Never commit the real id to a public repo
-# without the operator's sign-off; it is not a secret but it identifies infra.
-database_id = "<operator-provisioned-d1-id>"
+database_id = "9b353a3b-6526-4d14-8b10-5f618275b4cf"
 
 [vars]
 ORIGIN = "https://okdam.lost.plus"

@@ -5,12 +5,16 @@ Recorded by agent: codex-orchestrator
 
 ## Snapshot
 
-- Last updated: 2026-09-15 (browser and MCP credentials are now validated by
-  the local Common Auth gateway; the private server consumes verified identity).
+- Last updated: 2026-09-18 (persistence moved behind an async executor
+  interface so the same service layer runs on Node and on Cloudflare D1).
 - Overall posture: `live in production on OCI single-server`.
-- Production baseline: `34b230d` with fully gated MCP transport, gateway
+- Production baseline: `53f7ab1` with fully gated MCP transport, gateway
   identity, and single-role Songbook authorization, running as
   `songbook:local` (ARM64) on oci-ubuntu.
+- A Cloudflare Workers runtime (`apps/worker`) is built and verified but not
+  deployed. Its D1 database is provisioned and empty. The cutover is blocked on
+  the forthcoming cloud Common Auth gateway; see DEC-20260918-001 for why the
+  Worker must carry no public route.
 - Public URL: https://okdam.lost.plus via the Cloudflare Tunnel
   (`obsidian-sync` tunnel, hostname `okdam.lost.plus` → the OCI Common Auth
   gateway on `localhost:8740` → private Songbook on `localhost:3010`).
