@@ -1,4 +1,4 @@
-import { identityFrom } from "@lost-plus/gateway-identity";
+import { identityFrom } from "@lpfchan/gateway-identity";
 import type { RequestActor, ResolvedActor, RoleResolver } from "@songbook/server-core";
 import { normalizeEmail, type McpScope } from "@songbook/shared";
 

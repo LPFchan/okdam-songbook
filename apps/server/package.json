@@ -10,7 +10,7 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@lost-plus/gateway-identity": "github:LPFchan/gateway-identity#v1.0.0",
+    "@lpfchan/gateway-identity": "^1.0.0",
     "@songbook/mcp": "file:../../packages/songbook-mcp",
     "@songbook/server-core": "file:../../packages/server-core",
     "@songbook/shared": "file:../../packages/shared",

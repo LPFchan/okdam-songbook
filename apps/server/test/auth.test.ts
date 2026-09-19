@@ -13,7 +13,7 @@ function gatewayHeaders(overrides: Record<string, string> = {}): Headers {
 }
 
 // Decoding, the 80-character name cap and the fail-closed cases are the
-// shared parser's contract and are tested in @lost-plus/gateway-identity.
+// shared parser's contract and are tested in @lpfchan/gateway-identity.
 // These tests cover what this call site adds on top.
 describe("Common Auth gateway identity", () => {
   it("lower-cases the email and keeps the role the gateway vouched for", () => {

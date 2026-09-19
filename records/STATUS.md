@@ -7,7 +7,7 @@ Recorded by agent: codex-orchestrator
 
 - Last updated: 2026-09-19 (dead-code removal: Apps Script, ChatGPT Action,
   Sheets/CSV tools and the Node storage path deleted; identity decoding moved
-  to `@lost-plus/gateway-identity`; see DEC-20260919-002).
+  to `@lpfchan/gateway-identity`; see DEC-20260919-002).
 - 2026-09-19: removed `apps-script/`, `integrations/chatgpt-proxy`,
   `packages/songbook-admin`, `scripts/import-csv.mjs`, the better-sqlite3 +
   drizzle storage path and the Node static path. Tests run on a fake D1
@@ -27,7 +27,7 @@ Recorded by agent: codex-orchestrator
   GET/HEAD public, `/api` oauth, `/_auth/logout` oauth (answered by the
   gateway itself), `/` public.
 - What the app trusts: only the injected identity headers, decoded by
-  `@lost-plus/gateway-identity` in `apps/server/src/auth.ts`. It validates no
+  `@lpfchan/gateway-identity` in `apps/server/src/auth.ts`. It validates no
   credential and calls no auth origin. A request on a protected path without a complete, percent-encoded
   identity is refused (401); `/` and `GET /api/catalog` are anonymous by
   policy and arrive with no identity headers.

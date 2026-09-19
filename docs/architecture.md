@@ -37,7 +37,7 @@ flowchart LR
 - `apps/server` is the Hono application: public catalog with ETag, protected
   same-origin browser API, `/healthz`, and `/mcp`. It reads identity only
   from the gateway's `x-lost-plus-*` headers and validates no credential.
-  Decoding is the shared `@lost-plus/gateway-identity` package; `auth.ts`
+  Decoding is the shared `@lpfchan/gateway-identity` package; `auth.ts`
   adds the email lower-casing and role narrowing this codebase keys on.
 - `packages/server-core` holds the domain service, repositories, the SQL
   executor abstraction (`sql.ts`) with its one implementation on D1

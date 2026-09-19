@@ -31,7 +31,7 @@ code:
 - the pre-Common-Auth session-token helpers in `packages/shared/src/auth/`.
 
 The identity-header decoder in `apps/server/src/auth.ts` is replaced by the
-shared `@lost-plus/gateway-identity` package (v1.0.0), the same one the other
+shared `@lpfchan/gateway-identity` package (v1.0.0), the same one the other
 lost.plus Workers use.
 
 ## Context
