@@ -87,12 +87,9 @@ restore route.
 with `원작:`; aliases, romanization, YouTube metadata, and song status are not
 part of the live song contract.
 
-POST bodies are JSON sent as `text/plain;charset=utf-8` on the legacy Apps
-Script transport. The live browser gateway uses JSON and
-`Content-Type: application/json`.
+POST bodies are JSON with `Content-Type: application/json`.
 
-## Separate ChatGPT Action API
-
-`/authorize`, `/oauth/callback`, `/token`, and `/api/gptSearchSongs`,
-`/api/gptCheckDuplicate`, `/api/gptAddSong` remain the separate ChatGPT OAuth
-contract. Shared browser sessions do not change those retired routes.
+The ChatGPT Action API (`/authorize`, `/token`, `/api/gpt*`) that fronted the
+Apps Script backend is gone; see
+`records/decisions/DEC-20260919-002-retire-apps-script-and-chatgpt-action.md`.
+AI clients use `/mcp`.

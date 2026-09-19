@@ -1,5 +1,14 @@
 import type { SqlExecutor } from "./sql.js";
-import type { IdempotencyKeyRow } from "./schema.js";
+
+export interface IdempotencyKeyRow {
+  key: string;
+  actorSubject: string;
+  operation: string;
+  requestHash: string;
+  responseJson: string | null;
+  createdAt: string;
+  expiresAt: string;
+}
 
 export interface IdempotencyRepository {
   get(key: string): Promise<IdempotencyKeyRow | null>;

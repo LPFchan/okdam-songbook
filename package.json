@@ -9,17 +9,15 @@
   "workspaces": [
     "apps/web",
     "packages/shared",
-    "integrations/chatgpt-proxy",
     "apps/server",
     "packages/server-core",
     "packages/songbook-mcp",
-    "packages/songbook-admin",
     "apps/worker"
   ],
   "scripts": {
     "dev": "npm run dev -w @songbook/web",
-    "build:runtime": "npm run build -w @songbook/shared && npm run build -w @songbook/server-core && npm run build -w @songbook/mcp && npm run build -w @songbook/admin",
-    "build:ordered": "npm run build:runtime && npm run build -w @songbook/server && npm run build -w @songbook/web && npm run build -w @songbook/chatgpt-proxy",
+    "build:runtime": "npm run build -w @songbook/shared && npm run build -w @songbook/server-core && npm run build -w @songbook/mcp && npm run build -w @songbook/server",
+    "build:ordered": "npm run build:runtime && npm run build -w @songbook/web",
     "pretest": "npm run build:runtime",
     "lint": "npm run lint --workspaces --if-present",
     "pretypecheck": "npm run build:runtime",

@@ -26,11 +26,9 @@ MCP 전체는 `auth.lost.plus` OAuth 또는 `okdam-mcp` 용도의 machine token�
 apps/worker/            Cloudflare Worker 진입점, wrangler.toml, D1 migrations
 apps/server/            Worker가 mount하는 Hono 앱 (API, /healthz, /mcp, identity 헤더 파서)
 apps/web/               Svelte + TypeScript + Vite PWA → apps/web/dist (Workers Assets)
-packages/server-core/   도메인 서비스, 저장소, SQL executor(D1/Node), TJ 어댑터·미러
+packages/server-core/   도메인 서비스, 저장소, D1 SQL executor, TJ 어댑터·미러
 packages/songbook-mcp/  MCP 도구 (@modelcontextprotocol/server v2)
 packages/shared/        공용 schema, search, permissions, TJ contracts
-packages/songbook-admin/  Node 전용 SQLite 데이터 도구 (D1 대상 아님)
-apps-script/, integrations/chatgpt-proxy/  retired legacy source
 docs/                   architecture, deployment(runbook), security, API
 records/                repo-template truth, decisions, research
 ```

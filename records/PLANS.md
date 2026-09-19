@@ -87,11 +87,6 @@ Recorded by agent: codex-orchestrator
 - TJ parser maintenance and upstream compatibility review follow the fixed-host
   contract and parser-drift tests.
 - Systematic shared-bearer MCP client verification (item 5 above).
-- Delete or port the legacy Apps Script/Sheets source, the ChatGPT proxy,
-  and the Node-only SQLite admin tools (`packages/songbook-admin`,
-  `scripts/import-csv.mjs`), none of which can target D1.
-- Split the Node-only `openDatabase` out of `packages/server-core`'s main
-  export so the Worker bundle stops carrying better-sqlite3 and drizzle.
 - Archive and remove the OCI leftovers listed in `records/STATUS.md`.
 
 ## Verification Ownership

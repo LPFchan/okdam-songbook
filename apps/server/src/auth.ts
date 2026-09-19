@@ -1,15 +1,6 @@
+import { identityFrom } from "@lost-plus/gateway-identity";
 import type { RequestActor, ResolvedActor, RoleResolver } from "@songbook/server-core";
 import { normalizeEmail, type McpScope } from "@songbook/shared";
-import { z } from "zod";
-
-const gatewayIdentitySchema = z.object({
-  sub: z.string().trim().min(1),
-  email: z.string().trim().email(),
-  name: z.string().trim().min(1).refine((name) => Array.from(name).length <= 80, {
-    message: "Display name must be at most 80 Unicode characters"
-  }),
-  role: z.enum(["administrator", "user"])
-});
 
 export interface GatewayIdentity {
   sub: string;
@@ -18,26 +9,20 @@ export interface GatewayIdentity {
   role: "administrator" | "user";
 }
 
-function decodedHeader(request: Request, name: string): string | null {
-  const value = request.headers.get(name);
-  if (value === null) return null;
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return null;
-  }
-}
+const roles = ["administrator", "user"] as const satisfies readonly GatewayIdentity["role"][];
 
+/**
+ * The identity the Common Auth gateway attached, or null. Decoding and the
+ * hub's limits (80-character names, the two known roles) come from the shared
+ * parser; the hub already trims and validates the email, so only the
+ * lower-casing this codebase keys on is applied here.
+ */
 export function resolveGatewayIdentity(request: Request): GatewayIdentity | null {
-  if (request.headers.get("X-Lost-Plus-Encoding") !== "percent-utf8") return null;
-  const parsed = gatewayIdentitySchema.safeParse({
-    sub: decodedHeader(request, "X-Lost-Plus-Sub"),
-    email: decodedHeader(request, "X-Lost-Plus-Email"),
-    name: decodedHeader(request, "X-Lost-Plus-Name"),
-    role: decodedHeader(request, "X-Lost-Plus-Role")
-  });
-  if (!parsed.success) return null;
-  return { ...parsed.data, email: normalizeEmail(parsed.data.email) };
+  const identity = identityFrom(request.headers, { maxNameLength: 80, roles });
+  if (!identity) return null;
+  const role = roles.find((candidate) => candidate === identity.role);
+  if (!role) return null;
+  return { sub: identity.sub, email: normalizeEmail(identity.email), name: identity.name, role };
 }
 
 /** Every identity reaching this resolver has already been admitted by Common Auth. */

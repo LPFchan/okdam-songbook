@@ -1,6 +1,4 @@
 import { sha256Hex } from "@songbook/server-core";
-import { existsSync, readFileSync, statSync } from "node:fs";
-import { extname, normalize, resolve } from "node:path";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import {
@@ -51,7 +49,6 @@ export type BrowserSessionResolver = (request: Request) => Promise<BrowserPrinci
 export interface ServerAppOptions {
   database: SongbookDatabaseBase;
   origin: string;
-  assetsRoot?: string;
   service?: SongbookService;
   roleResolver?: RoleResolver;
   sessionResolver?: BrowserSessionResolver;
@@ -241,45 +238,9 @@ async function etag(value: string): Promise<string> {
   return `"${await sha256Hex(value)}"`;
 }
 
-function safeAssetPath(root: string, pathname: string): string | null {
-  const relative = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
-  const candidate = resolve(root, normalize(relative));
-  const base = resolve(root);
-  if (candidate !== base && !candidate.startsWith(`${base}/`)) return null;
-  return candidate;
-}
-
-function contentType(path: string): string {
-  return ({
-    ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8",
-    ".css": "text/css; charset=utf-8", ".json": "application/json; charset=utf-8", ".svg": "image/svg+xml",
-    ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".ico": "image/x-icon",
-    ".webmanifest": "application/manifest+json"
-  } as Record<string, string>)[extname(path).toLowerCase()] ?? "application/octet-stream";
-}
-
-function staticHeaders(path: string): Record<string, string> {
-  const type = contentType(path);
-  if (!type.startsWith("text/html")) return { "Content-Type": type };
-  return {
-    "Content-Type": type,
-    "Content-Security-Policy": "frame-ancestors 'none'; base-uri 'none'",
-    "X-Frame-Options": "DENY"
-  };
-}
-
 /** Paths the server owns outright: an unknown one is a 404, never the SPA shell. */
 export function isServerPath(pathname: string): boolean {
   return pathname.startsWith("/api/") || pathname === "/api" || pathname.startsWith("/mcp") || pathname.startsWith("/.well-known/");
-}
-
-function staticResponse(root: string, pathname: string): Response | null {
-  if (isServerPath(pathname)) return null;
-  const direct = safeAssetPath(root, pathname);
-  if (direct && existsSync(direct) && statSync(direct).isFile()) return new Response(readFileSync(direct), { headers: staticHeaders(direct) });
-  const fallback = safeAssetPath(root, "/index.html");
-  if (fallback && existsSync(fallback) && statSync(fallback).isFile()) return new Response(readFileSync(fallback), { headers: staticHeaders(fallback) });
-  return null;
 }
 
 function currentUser(principal: BrowserPrincipal, roleResolver: RoleResolver): CurrentUser | null {
@@ -342,14 +303,11 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     try { return envelope(c, await fn(principal), now); } catch (error) { return failure(c, error, now); }
   };
 
-  // Reachability is checked everywhere; writability only where the executor
-  // can prove it without leaving a write behind. The probe used to be inlined
-  // here as a savepoint around a temp table, which is Node-only — on D1 it
-  // threw, and this handler reported a healthy service as unhealthy.
+  // Reachability only: D1 has no way to prove writability without leaving a
+  // write behind.
   app.get("/healthz", async (c) => {
     try {
       await options.database.sqlite.prepare("SELECT 1 AS ok").get();
-      await options.database.sqlite.writeProbe?.();
       return c.json({ ok: true });
     } catch { return c.json({ ok: false }, 503); }
   });
@@ -495,15 +453,8 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     }
   });
 
-  // With an assets root this app is the whole server and owns the 404. Without
-  // one it is mounted inside a host (the Worker) that serves statics after it,
-  // so an unmatched path must fall through to the host's handler rather than
-  // end here as a 404 — Hono stops at the first handler that returns.
-  if (options.assetsRoot) {
-    const assetsRoot = options.assetsRoot;
-    app.all("*", (c) => staticResponse(assetsRoot, new URL(c.req.url).pathname) ?? c.notFound());
-  }
+  // This app is mounted inside the Worker, which serves static assets after
+  // it, so an unmatched path must fall through to the host's handler rather
+  // than end here as a 404 — Hono stops at the first handler that returns.
   return { app, database: options.database, service, mcpAuth };
 }
-
-export { safeAssetPath };

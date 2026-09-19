@@ -1,6 +1,5 @@
-// AUTO-GENERATED from scripts/import-csv.mjs on 2026-07-01T08:45:05.500Z.
-// Do not edit by hand; rerun the importer to refresh this file with the latest
-// CSV data from /Users/marie/Downloads/개인 페이지 & 공유된 페이지.
+// Fixture songs generated once from the original 2026-07-01 Sheets export.
+// The importer that produced this file is gone; edit by hand if it must change.
 import type { Song } from "./schemas.js";
 
 export const sampleSongs: Song[] = [

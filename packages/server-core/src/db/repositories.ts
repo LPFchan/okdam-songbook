@@ -1,6 +1,21 @@
 import type { Song, Performance, RecommendedKey } from "@songbook/shared";
-import type { AuditEventRow } from "./schema.js";
 import type { SqlExecutor } from "./sql.js";
+
+export interface AuditEventRow {
+  id: string;
+  entityType: string;
+  entityId: string;
+  action: string;
+  beforeJson: string | null;
+  afterJson: string | null;
+  actorEmail: string;
+  actorName: string;
+  actorRole: string | null;
+  createdAt: string;
+  clientRequestId: string | null;
+  entityVersionBefore: number | null;
+  entityVersionAfter: number | null;
+}
 
 type RawSong = Record<string, unknown>;
 type RawPerformance = Record<string, unknown>;

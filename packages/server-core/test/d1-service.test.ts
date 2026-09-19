@@ -1,39 +1,12 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import Database from "better-sqlite3";
 import { beforeEach, describe, expect, it } from "vitest";
-import { openD1Database, type D1DatabaseLike, type D1PreparedStatementLike } from "../src/db/d1.js";
 import { createSongbookService, DomainError, type RoleResolver, type SongbookService } from "../src/index.js";
-
-const schemaSql = readFileSync(
-  fileURLToPath(new URL("../../../apps/worker/migrations/0001_init.sql", import.meta.url)),
-  "utf8"
-);
+import { openFakeDatabase } from "./fake-d1.js";
 
 /**
- * The songbook service driven through the D1 executor rather than the Node
- * one. better-sqlite3 supplies the storage, but it is reached only through the
- * D1 binding shape, so anything the executor cannot express — reading back a
- * queued write, nesting a transaction — fails here the way it would on
- * Cloudflare. The Node-backed suites cannot catch those; this one exists so a
- * green `npm run verify` means the Worker runtime works too.
+ * The songbook service driven through the D1 executor, so anything the
+ * executor cannot express — reading back a queued write, nesting a
+ * transaction — fails here the way it would on Cloudflare.
  */
-function fakeD1(): D1DatabaseLike {
-  const db = new Database(":memory:");
-  db.exec(schemaSql);
-  const statement = (sql: string): D1PreparedStatementLike => {
-    let bound: unknown[] = [];
-    const self: D1PreparedStatementLike = {
-      bind(...values: unknown[]) { bound = values; return self; },
-      async first<T>() { return (db.prepare(sql).get(...(bound as never[])) ?? null) as T | null; },
-      async all<T>() { return { results: db.prepare(sql).all(...(bound as never[])) as T[] }; },
-      async run() { const r = db.prepare(sql).run(...(bound as never[])); return { meta: { changes: Number(r.changes) } }; }
-    };
-    return self;
-  };
-  return { prepare: statement };
-}
-
 const allowed = { email: "allowed@example.com", displayName: "Allowed" };
 
 function roleResolver(): RoleResolver {
@@ -56,7 +29,7 @@ function songInput(overrides: Record<string, unknown> = {}) {
 let service: SongbookService;
 
 beforeEach(() => {
-  service = createSongbookService(openD1Database(fakeD1()), { roleResolver: roleResolver() });
+  service = createSongbookService(openFakeDatabase(), { roleResolver: roleResolver() });
 });
 
 describe("songbook service on a D1 executor", () => {

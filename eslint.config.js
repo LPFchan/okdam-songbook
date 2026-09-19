@@ -73,7 +73,7 @@ export default [
     }
   },
   {
-    files: ["apps/server/**/*.ts", "packages/server-core/**/*.ts", "packages/songbook-mcp/**/*.ts", "packages/songbook-admin/**/*.ts"],
+    files: ["apps/server/**/*.ts", "packages/server-core/**/*.ts", "packages/songbook-mcp/**/*.ts"],
     languageOptions: {
       globals: {
         Buffer: "readonly",

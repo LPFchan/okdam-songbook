@@ -1,26 +1,39 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { describe, expect, it } from "vitest";
 import { ReadableStream } from "node:stream/web";
-import BetterSqlite3 from "better-sqlite3";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { openDatabase, openD1Database, type D1DatabaseLike, type D1PreparedStatementLike, type SongbookDatabase, type SqlExecutor, type TjAdapter } from "@songbook/server-core";
+import BetterSqlite3 from "better-sqlite3";
+import { openD1Database, type D1DatabaseLike, type D1PreparedStatementLike, type D1SongbookDatabase, type TjAdapter } from "@songbook/server-core";
 import { createServerApp } from "../src/api.js";
 import { createCommonAuthRoleResolver } from "../src/auth.js";
 
 const origin = "https://songbook.example";
-let database: SongbookDatabase | undefined;
+const schemaSql = readFileSync(fileURLToPath(new URL("../../worker/migrations/0001_init.sql", import.meta.url)), "utf8");
 
-afterEach(() => {
-  database?.close();
-  database = undefined;
-});
+/** better-sqlite3 behind the D1 binding shape, as in the Worker and server-core suites. */
+function fakeD1(): D1DatabaseLike {
+  const db = new BetterSqlite3(":memory:");
+  db.pragma("foreign_keys = ON");
+  db.exec(schemaSql);
+  const statement = (sql: string): D1PreparedStatementLike => {
+    let bound: unknown[] = [];
+    const self: D1PreparedStatementLike = {
+      bind(...values: unknown[]) { bound = values; return self; },
+      async first<T>() { return (db.prepare(sql).get(...(bound as never[])) ?? null) as T | null; },
+      async all<T>() { return { results: db.prepare(sql).all(...(bound as never[])) as T[] }; },
+      async run() { const r = db.prepare(sql).run(...(bound as never[])); return { meta: { changes: Number(r.changes) } }; }
+    };
+    return self;
+  };
+  return { prepare: statement };
+}
+
+function openDatabase(): D1SongbookDatabase {
+  return openD1Database(fakeD1());
+}
 
 function app(options: Partial<Parameters<typeof createServerApp>[0]> = {}) {
-  database = openDatabase();
-  return createServerApp({ database, origin, ...options } as Parameters<typeof createServerApp>[0]).app;
+  return createServerApp({ database: openDatabase(), origin, ...options } as Parameters<typeof createServerApp>[0]).app;
 }
 
 function request(path: string, init: globalThis.RequestInit = {}) {
@@ -184,80 +197,11 @@ describe("same-origin server surface", () => {
     expect(JSON.stringify(body.data.songs)).not.toContain("allowed@example.com");
   });
 
-  it("performs a DB read and scratch write/rollback in healthz", async () => {
+  it("reports healthy after a read on the D1 executor", async () => {
     const server = app();
     const response = await server.request(request("/healthz"));
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
-    expect(database!.sqlite.prepare("SELECT name FROM sqlite_temp_master WHERE type='table'").all()).toEqual([]);
-  });
-
-  /**
-   * The same handler, on the executor that cannot do the write probe.
-   *
-   * /healthz used to run a savepoint around a temp table inline, which is
-   * Node-only. On D1 it threw and the handler answered 503 for a database that
-   * was serving reads and writes perfectly well. Nothing caught it: every
-   * server test built its app on better-sqlite3, and the gateway staging pass
-   * bound to an echo backend rather than to this application.
-   */
-  it("reports healthy on an executor with no write probe", async () => {
-    const schemaSql = readFileSync(
-      fileURLToPath(new URL("../../worker/migrations/0001_init.sql", import.meta.url)),
-      "utf8"
-    );
-    const raw = new BetterSqlite3(":memory:");
-    raw.exec(schemaSql);
-    const binding: D1DatabaseLike = {
-      prepare(sql: string): D1PreparedStatementLike {
-        let bound: unknown[] = [];
-        const self: D1PreparedStatementLike = {
-          bind(...values: unknown[]) { bound = values; return self; },
-          async first<T>() { return (raw.prepare(sql).get(...(bound as never[])) ?? null) as T | null; },
-          async all<T>() { return { results: raw.prepare(sql).all(...(bound as never[])) as T[] }; },
-          async run() { const r = raw.prepare(sql).run(...(bound as never[])); return { meta: { changes: Number(r.changes) } }; }
-        };
-        return self;
-      }
-    };
-    const d1 = openD1Database(binding);
-    // Read through the interface: the concrete D1Executor does not declare the
-    // member at all, which is the point being asserted.
-    const executor: SqlExecutor = d1.sqlite;
-    expect(executor.writeProbe).toBeUndefined();
-
-    const server = createServerApp({ database: d1, origin } as Parameters<typeof createServerApp>[0]).app;
-    const response = await server.request(request("/healthz"));
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true });
-    raw.close();
-  });
-
-  it("keeps API/auth/MCP paths out of SPA fallback", async () => {
-    const root = mkdtempSync(join(tmpdir(), "songbook-server-assets-"));
-    mkdirSync(join(root, "assets"));
-    writeFileSync(join(root, "index.html"), "<html>app</html>");
-    try {
-      const server = app({ assetsRoot: root });
-      expect((await server.request(request("/catalog"))).status).toBe(200);
-      expect((await server.request(request("/api/unknown"))).status).toBe(404);
-      expect((await server.request(request("/mcp/unknown"))).status).toBe(404);
-      expect((await server.request(request("/.well-known/unknown"))).status).toBe(404);
-    } finally { rmSync(root, { recursive: true, force: true }); }
-  });
-
-  it("denies framing for direct and fallback HTML", async () => {
-    const root = mkdtempSync(join(tmpdir(), "songbook-server-assets-"));
-    writeFileSync(join(root, "index.html"), "<html>app</html>");
-    try {
-      const server = app({ assetsRoot: root });
-      for (const path of ["/", "/admin"]) {
-        const response = await server.request(request(path));
-        expect(response.status).toBe(200);
-        expect(response.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
-        expect(response.headers.get("x-frame-options")).toBe("DENY");
-      }
-    } finally { rmSync(root, { recursive: true, force: true }); }
   });
 
   it("requires JSON and exact same-origin for browser mutations", async () => {
@@ -412,8 +356,7 @@ describe("MCP common-auth gate", () => {
   };
 
   it("bounds declared and chunked MCP bodies after gateway admission", async () => {
-    database = openDatabase();
-    const server = createServerApp({ database, origin, mcpMaxBodyBytes: 256, mcpAuth, roleResolver: createCommonAuthRoleResolver() }).app;
+    const server = createServerApp({ database: openDatabase(), origin, mcpMaxBodyBytes: 256, mcpAuth, roleResolver: createCommonAuthRoleResolver() }).app;
     const ordinary = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} });
     expect((await server.request(request("/mcp", {
       method: "POST",
@@ -437,8 +380,7 @@ describe("MCP common-auth gate", () => {
   });
 
   it("times out an MCP body that never finishes", async () => {
-    database = openDatabase();
-    const server = createServerApp({ database, origin, mcpBodyTimeoutMs: 10, mcpAuth, roleResolver: createCommonAuthRoleResolver() }).app;
+    const server = createServerApp({ database: openDatabase(), origin, mcpBodyTimeoutMs: 10, mcpAuth, roleResolver: createCommonAuthRoleResolver() }).app;
     const stream = new ReadableStream<Uint8Array>({
       start(controller) { controller.enqueue(new TextEncoder().encode("{")); }
     });
@@ -453,7 +395,7 @@ describe("MCP common-auth gate", () => {
   });
 
   it("holds an MCP body permit until an aborted tool finishes", async () => {
-    database = openDatabase();
+    const database = openDatabase();
     let searches = 0;
     let firstEntered!: () => void;
     let releaseFirst!: () => void;
@@ -532,7 +474,7 @@ describe("MCP common-auth gate", () => {
   });
 
   it("runs the stateless MCP handler only after bearer verification", async () => {
-    database = openDatabase();
+    const database = openDatabase();
     let verifiedScopes: string[] = [];
     const server = createServerApp({
       database,
@@ -569,8 +511,7 @@ describe("MCP common-auth gate", () => {
   });
 
   it("challenges every MCP request without a gateway identity", async () => {
-    database = openDatabase();
-    const server = createServerApp({ database, origin }).app;
+    const server = createServerApp({ database: openDatabase(), origin }).app;
     const listed = await server.request(request("/mcp", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }) }));
     expect(listed.status).toBe(401);
     const protectedCall = await server.request(request("/mcp", { method: "POST", headers: { Cookie: "lp_auth=browser-only", "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "record_performance", arguments: {} } }) }));
@@ -579,8 +520,7 @@ describe("MCP common-auth gate", () => {
   });
 
   it("rejects all anonymous MCP bodies before dispatch", async () => {
-    database = openDatabase();
-    const server = createServerApp({ database, origin }).app;
+    const server = createServerApp({ database: openDatabase(), origin }).app;
     const publicWithProtectedHeader = await server.request(request("/mcp", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", "Mcp-Name": "delete_song" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "catalog", arguments: {} } }) }));
     expect(publicWithProtectedHeader.status).toBe(401);
     const protectedWithPublicHeader = await server.request(request("/mcp", { method: "POST", headers: { "Content-Type": "application/json", "Mcp-Name": "catalog" }, body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "delete_song", arguments: {} } }) }));

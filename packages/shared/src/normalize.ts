@@ -57,3 +57,7 @@ export function includesAllTokens(haystack: string, query: string): boolean {
     .every((token) => normalizedHaystack.includes(token) || normalizedChoseong.includes(token));
 }
 
+
+export function normalizeEmail(value: string | null | undefined): string {
+  return String(value || "").trim().toLowerCase();
+}

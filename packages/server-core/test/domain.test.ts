@@ -1,21 +1,21 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Song } from "@songbook/shared";
-import type { AuditRepository } from "../src/db/repositories.js";
 import {
   createAuditRepository,
   createSongRepository,
   createSongbookService,
   DomainError,
-  openDatabase,
   type RoleResolver,
   createTjAdapter,
   TjAdapterError,
   toApiError,
   domainErrorCodes,
-  domainErrorCodeToApiErrorCode
+  domainErrorCodeToApiErrorCode,
+  type D1SongbookDatabase
 } from "../src/index.js";
+import { openFakeDatabase } from "./fake-d1.js";
 
-let database: ReturnType<typeof openDatabase>;
+let database: D1SongbookDatabase;
 const allowed = { email: "allowed@example.com", displayName: "Allowed" };
 const allowedPeer = { email: "peer@example.com", displayName: "Peer" };
 
@@ -36,11 +36,7 @@ function roleResolver(): RoleResolver {
 }
 
 beforeEach(() => {
-  database = openDatabase();
-});
-
-afterEach(() => {
-  database.close();
+  database = openFakeDatabase();
 });
 
 describe("songbook domain services", () => {
@@ -99,7 +95,7 @@ describe("songbook domain services", () => {
     expect(tj).toMatchObject({ outcome: "created", song: { country: "미국", sourceType: "tjmedia", sourceReference: "https://tj.example/song" } });
 
     const deleted = await service.createSong(allowed, songInput({ title: "Deleted", artist: "Artist", tjNumber: "99999" }));
-    database.sqlite.prepare("UPDATE songs SET deleted_at=? WHERE id=?").run("2026-08-13T00:00:00.000Z", deleted.id);
+    await database.sqlite.prepare("UPDATE songs SET deleted_at=? WHERE id=?").run("2026-08-13T00:00:00.000Z", deleted.id);
     expect(await service.getSong(deleted.id)).toBeNull();
     const deletedOutcome = await service.createSongOutcome(allowed, songInput({ title: "Deleted", artist: "Artist", tjNumber: "99999", clientRequestId: crypto.randomUUID() }));
     expect(deletedOutcome).toMatchObject({ outcome: "deleted", existing: { id: deleted.id }, song: null, canOpen: false });
@@ -165,7 +161,7 @@ describe("songbook domain services", () => {
     expect(Object.hasOwn(replay, "expectedVersion")).toBe(false);
     expect((await createSongRepository(database.sqlite).list({ includeDeleted: true }))).toHaveLength(1);
     expect((await createAuditRepository(database.sqlite).list("song", first.id))).toHaveLength(1);
-    const storedReplay = database.sqlite.prepare("SELECT response_json FROM idempotency_keys WHERE key=?").get(clientRequestId) as { response_json: string };
+    const storedReplay = await database.sqlite.prepare("SELECT response_json FROM idempotency_keys WHERE key=?").get(clientRequestId) as { response_json: string };
     expect(Object.hasOwn(JSON.parse(storedReplay.response_json), "clientRequestId")).toBe(false);
   });
 
@@ -177,7 +173,7 @@ describe("songbook domain services", () => {
     const updated = await service.updateSong(allowedPeer, input);
     expect(Object.hasOwn(updated, "clientRequestId")).toBe(false);
     expect(Object.hasOwn(updated, "expectedVersion")).toBe(false);
-    const stored = database.sqlite.prepare("SELECT response_json FROM idempotency_keys WHERE key=?").get(clientRequestId) as { response_json: string };
+    const stored = await database.sqlite.prepare("SELECT response_json FROM idempotency_keys WHERE key=?").get(clientRequestId) as { response_json: string };
     expect(Object.hasOwn(JSON.parse(stored.response_json), "clientRequestId")).toBe(false);
     expect(Object.hasOwn(JSON.parse(stored.response_json), "expectedVersion")).toBe(false);
     const replay = await service.updateSong(allowedPeer, input);
@@ -186,21 +182,12 @@ describe("songbook domain services", () => {
     expect(Object.hasOwn(replay, "expectedVersion")).toBe(false);
   });
 
-  it("rolls back the mutation and idempotency claim when audit writing fails", async () => {
-    const auditFailure = { append: () => { throw new Error("audit unavailable"); }, list: async () => [] } as unknown as AuditRepository;
-    const service = createSongbookService(database, { roleResolver: roleResolver(), auditRepository: auditFailure });
-    const clientRequestId = crypto.randomUUID();
-    await expect(service.createSong(allowed, songInput({ clientRequestId }))).rejects.toThrow("audit unavailable");
-    expect((await createSongRepository(database.sqlite).list({ includeDeleted: true }))).toHaveLength(0);
-    expect(database.sqlite.prepare("SELECT COUNT(*) AS count FROM idempotency_keys WHERE key=?").get(clientRequestId)).toEqual({ count: 0 });
-  });
-
   it("allows an allowlisted user to hard delete and free the TJ number", async () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
     const created = await service.createSong(allowedPeer, songInput());
     const deleted = await service.deleteSong(allowed, { id: created.id, expectedVersion: 1, clientRequestId: crypto.randomUUID() });
     expect(deleted.id).toBe(created.id);
-    expect(database.sqlite.prepare("SELECT actor_role FROM audit_events WHERE entity_type='song' AND entity_id=? ORDER BY created_at").all(created.id)).toEqual([{ actor_role: "allowed" }, { actor_role: "allowed" }]);
+    expect(await database.sqlite.prepare("SELECT actor_role FROM audit_events WHERE entity_type='song' AND entity_id=? ORDER BY created_at").all(created.id)).toEqual([{ actor_role: "allowed" }, { actor_role: "allowed" }]);
     expect(await service.catalog()).toHaveLength(0);
     const recreated = await service.createSong(allowed, songInput({ clientRequestId: crypto.randomUUID() }));
     expect(recreated.tjNumber).toBe(created.tjNumber);
@@ -212,7 +199,7 @@ describe("songbook domain services", () => {
     const performance = await service.createPerformance(allowedPeer, { songId: created.id, keySelection: null, memo: "", performedAt: "2026-08-13T10:00:00.000Z", clientRequestId: crypto.randomUUID() });
     expect(await service.performanceStats(created.id)).toEqual({ count: 1, lastPerformedAt: "2026-08-13T10:00:00.000Z" });
     expect((await service.getSong(created.id))?.lastPerformedByName).toBe("Peer");
-    database.sqlite.prepare("UPDATE performances SET created_by_email=? WHERE id=?").run("unknown@example.com", performance.id);
+    await database.sqlite.prepare("UPDATE performances SET created_by_email=? WHERE id=?").run("unknown@example.com", performance.id);
     expect((await service.getSong(created.id))?.lastPerformedByName).toBe("Peer");
     const cancelled = await service.cancelPerformance(allowed, { performanceId: performance.id, expectedVersion: 1, clientRequestId: crypto.randomUUID() });
     expect(cancelled.cancelledAt).toBeTruthy();

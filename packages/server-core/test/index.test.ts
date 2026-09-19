@@ -1,31 +1,20 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { mkdtempSync, rmSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
-import Database from "better-sqlite3";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   createAuditRepository,
   createFavoriteRepository,
   createIdempotencyRepository,
   createPerformanceRepository,
   createSongRepository,
-  databasePragmas,
   IdempotencyMismatchError,
-  migrations,
-  openDatabase,
-  runMigrations,
-  type SongbookDatabase
+  type D1SongbookDatabase
 } from "../src/index.js";
 import type { Song } from "@songbook/shared";
+import { openFakeDatabase } from "./fake-d1.js";
 
-let database: SongbookDatabase;
+let database: D1SongbookDatabase;
 
 beforeEach(() => {
-  database = openDatabase();
-});
-
-afterEach(() => {
-  database.close();
+  database = openFakeDatabase();
 });
 
 function song(overrides: Partial<Song> = {}): Song {
@@ -39,57 +28,9 @@ function song(overrides: Partial<Song> = {}): Song {
   };
 }
 
-describe("SQLite storage foundation", () => {
-  it("applies required pragmas on every connection", async () => {
-    expect(databasePragmas(database)).toEqual({ foreignKeys: 1, journalMode: "memory", synchronous: 1, busyTimeout: 5000 });
-  });
-
-  it("runs numbered migrations once and records them", async () => {
-    expect(runMigrations(database.sqlite.raw)).toEqual([]);
-    expect(database.sqlite.prepare("SELECT id FROM schema_migrations").all()).toEqual(expect.arrayContaining([{ id: "0001_core" }, { id: "0100_mcp_token_resources" }, { id: "0101_tj_mirror" }, { id: "0102_drop_song_genres" }, { id: "0103_drop_practicing_status" }, { id: "0104_personal_favorites" }, { id: "0105_collapse_song_schema" }, { id: "0106_drop_mcp_token_resources" }, { id: "0107_immutable_account_ownership" }]));
-    expect(database.sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='mcp_token_resources'").get()).toBeUndefined();
-    const songColumns = database.sqlite.prepare("PRAGMA table_info('songs')").all() as Array<{ name: string }>;
-    expect(songColumns.map((column) => column.name)).not.toContain("genres_json");
-  });
-
-  it("removes retired song fields and statuses without losing related data", async () => {
-    const legacy = new Database(":memory:");
-    try {
-      legacy.exec(migrations[0].sql);
-      legacy.exec("CREATE TABLE schema_migrations (id TEXT PRIMARY KEY NOT NULL, applied_at TEXT NOT NULL)");
-      legacy.prepare("INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?)").run("0001_core", "2026-08-13T00:00:00.000Z");
-      legacy.prepare("INSERT INTO songs (id, title, artist, country, genres_json, original_work, key_candidates_json, memo, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run("legacy-song", "Title", "Artist", "일본", '["J-POP"]', "애니메이션", '[{"id":"key-1","baseMode":"female","offset":2,"label":"추천","memo":"","isPrimary":true}]', "후렴 주의", "practicing", "2026-08-13T00:00:00.000Z", "2026-08-13T00:00:00.000Z");
-      legacy.prepare("INSERT INTO songs (id, title, artist, country, genres_json, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run("legacy-favorite", "Favorite", "Artist", "한국", '[]', "favorite", "2026-08-13T00:00:00.000Z", "2026-08-13T00:00:00.000Z");
-      legacy.prepare("INSERT INTO performances (id, song_id, performed_at, created_at, client_request_id) VALUES (?, ?, ?, ?, ?)").run("performance-1", "legacy-song", "2026-08-13T00:00:00.000Z", "2026-08-13T00:00:00.000Z", "request-1");
-      legacy.pragma("foreign_keys = ON");
-
-      expect(runMigrations(legacy)).toEqual(expect.arrayContaining(["0102_drop_song_genres", "0103_drop_practicing_status", "0104_personal_favorites", "0105_collapse_song_schema"]));
-      expect(legacy.prepare("SELECT memo, recommended_key_json FROM songs WHERE id=?").get("legacy-song")).toEqual({ memo: "원작: 애니메이션\n후렴 주의", recommended_key_json: '{"baseMode":"female","offset":2}' });
-      expect(legacy.prepare("SELECT song_id FROM performances").get()).toEqual({ song_id: "legacy-song" });
-      expect(legacy.pragma("foreign_keys", { simple: true })).toBe(1);
-      expect(legacy.pragma("foreign_key_check")).toEqual([]);
-      const columns = legacy.prepare("PRAGMA table_info('songs')").all() as Array<{ name: string }>;
-      expect(columns.map((column) => column.name)).not.toEqual(expect.arrayContaining(["genres_json", "original_work", "key_candidates_json", "status", "title_romanized", "title_aliases_json", "artist_aliases_json", "youtube_url", "youtube_video_id", "is_official_tj_video"]));
-      expect((legacy.prepare("PRAGMA table_info('song_favorites')").all() as Array<{ name: string }>).map((column) => column.name)).toContain("user_subject");
-      expect((legacy.prepare("PRAGMA table_info('idempotency_keys')").all() as Array<{ name: string }>).map((column) => column.name)).toContain("actor_subject");
-    } finally {
-      legacy.close();
-    }
-  });
-
-  it("uses WAL for a file-backed database", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "songbook-core-"));
-    const fileDatabase = openDatabase({ filename: join(directory, "songbook.sqlite") });
-    try {
-      expect(databasePragmas(fileDatabase).journalMode).toBe("wal");
-    } finally {
-      fileDatabase.close();
-      rmSync(directory, { recursive: true, force: true });
-    }
-  });
-
+describe("D1 storage foundation", () => {
   it("creates the expected query indexes", async () => {
-    const names = (database.sqlite.prepare("SELECT name FROM sqlite_master WHERE type='index'").all() as Array<{ name: string }>).map((row) => row.name);
+    const names = (await database.sqlite.prepare("SELECT name FROM sqlite_master WHERE type='index'").all<{ name: string }>()).map((row) => row.name);
     expect(names).toEqual(expect.arrayContaining([
       "songs_updated_at_idx",
       "song_favorites_song_idx",

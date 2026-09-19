@@ -50,8 +50,8 @@ class D1Statement implements SqliteStatement {
  * The songbook's mutations are interactive by nature — reserve an idempotency
  * key, read what the reservation produced, act on it, record the outcome — so
  * they cannot be expressed as a batch. Statements therefore execute
- * immediately and transaction() is a pass-through that provides grouping for
- * the Node runtime and no isolation here.
+ * immediately and transaction() is a pass-through: it groups the statements
+ * for the reader and provides no isolation.
  *
  * What that costs: a mutation that throws partway leaves its earlier statements
  * applied, so a song can land without its audit row. What it does not cost:
@@ -64,10 +64,6 @@ class D1Executor implements SqlExecutor {
 
   prepare(sql: string): SqliteStatement {
     return new D1Statement(this.d1.prepare(sql));
-  }
-
-  exec(_sql: string): void {
-    throw new Error("D1Executor: exec() is not supported; use prepare().run() or migrations");
   }
 
   async transaction<T>(operation: () => Promise<T> | T): Promise<T> {

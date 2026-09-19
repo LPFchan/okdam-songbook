@@ -19,14 +19,12 @@
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
-    "@songbook/shared": "file:../../packages/shared",
-    "better-sqlite3": "^13.0.3",
-    "drizzle-orm": "^0.45.2"
+    "@songbook/shared": "file:../../packages/shared"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^22.10.2",
-    "drizzle-kit": "^0.31.10",
+    "better-sqlite3": "^13.0.3",
     "typescript": "^5.5.4",
     "vitest": "^4.1.9"
   }

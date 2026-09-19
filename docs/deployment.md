@@ -129,9 +129,10 @@ response; both must still initialize.
   gate (4 in flight) and the TJ throttle (4 per 10 s) hold within an isolate
   and not across them; concurrent stale TJ searches in different isolates may
   each fetch once.
-- **Bundle contents.** `packages/server-core` still exports the Node
-  `openDatabase` (better-sqlite3 + drizzle, ~86 KiB) for tests and the admin
-  tools; it is bundled and never called on Workers.
+- **Bundle contents.** `packages/server-core` has no Node storage path any
+  more: D1 is the only executor, and tests drive it through a
+  better-sqlite3-backed fake of the D1 binding (`test/fake-d1.ts`).
+  better-sqlite3 is a devDependency only; drizzle is gone.
 
 ## Local development
 

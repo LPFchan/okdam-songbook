@@ -1,26 +1,8 @@
-import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
-import { openD1Database, type D1DatabaseLike, type D1PreparedStatementLike } from "../src/db/d1.js";
+import { openD1Database } from "../src/db/d1.js";
+import { fakeD1 as fakeD1WithSchema } from "./fake-d1.js";
 
-/**
- * A D1 binding backed by better-sqlite3 so the executor can be tested without
- * a Workers runtime.
- */
-function fakeD1(): D1DatabaseLike {
-  const db = new Database(":memory:");
-  db.exec("CREATE TABLE items (id TEXT PRIMARY KEY NOT NULL, label TEXT NOT NULL, flag INTEGER)");
-  const statement = (sql: string): D1PreparedStatementLike => {
-    let bound: unknown[] = [];
-    const self: D1PreparedStatementLike = {
-      bind(...values: unknown[]) { bound = values; return self; },
-      async first<T>() { return (db.prepare(sql).get(...(bound as never[])) ?? null) as T | null; },
-      async all<T>() { return { results: db.prepare(sql).all(...(bound as never[])) as T[] }; },
-      async run() { const r = db.prepare(sql).run(...(bound as never[])); return { meta: { changes: Number(r.changes) } }; }
-    };
-    return self;
-  };
-  return { prepare: statement };
-}
+const fakeD1 = () => fakeD1WithSchema("CREATE TABLE items (id TEXT PRIMARY KEY NOT NULL, label TEXT NOT NULL, flag INTEGER)");
 
 describe("D1 executor", () => {
   it("runs statements immediately", async () => {
@@ -66,10 +48,5 @@ describe("D1 executor", () => {
     await database.sqlite.prepare("INSERT INTO items (id, label, flag) VALUES (?, ?, ?)").run("f", "off", undefined);
     expect(await database.sqlite.prepare("SELECT flag FROM items WHERE id=?").get("e")).toEqual({ flag: 1 });
     expect(await database.sqlite.prepare("SELECT flag FROM items WHERE id=?").get("f")).toEqual({ flag: null });
-  });
-
-  it("rejects exec()", async () => {
-    const database = openD1Database(fakeD1());
-    expect(() => database.sqlite.exec("SELECT 1")).toThrow(/exec/);
   });
 });

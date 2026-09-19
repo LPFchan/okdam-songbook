@@ -12,8 +12,9 @@
 - The Worker has no public route. It is reachable only through the
   `auth-gateway` Worker's service binding, which is what keeps forged
   `x-lost-plus-*` headers out (DEC-20260918-001, DEC-20260919-001).
-- The retired GitHub Pages, Apps Script, and ChatGPT Action sources retain their
-  historical boundaries but are not on any live request path.
+- The GitHub Pages, Apps Script, and ChatGPT Action sources were removed from
+  the repo on 2026-09-19 (DEC-20260919-002); nothing outside the Worker is on
+  a live request path.
 
 ## Shared browser sessions
 
@@ -77,8 +78,6 @@ The frontend never bundles:
 
 - account emails or service membership
 - `lp_auth` cookie values or shared bearer tokens
-- Apps Script internal proxy secrets
-- Sheet IDs as an authorization mechanism
 - AI, YouTube, or other provider keys
 
 Secrets belong in the operator's credential store and host-only runtime files.

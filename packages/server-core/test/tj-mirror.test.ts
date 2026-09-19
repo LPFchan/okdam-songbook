@@ -1,16 +1,11 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { mkdtempSync, rmSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { describe, expect, it, vi } from "vitest";
 import { buildTjSearchUrl, type TjSearchResult } from "@songbook/shared";
 import {
   createTjAdapter,
   createTjSearchMirror,
-  openDatabase,
-  runMigrations,
-  type SongbookDatabase,
   type TjSearchMirror
 } from "../src/index.js";
+import { openFakeDatabase } from "./fake-d1.js";
 
 const html = (number: string, title: string) => `<ul class="grid-container list"><li class="grid-item center"><span class="num2">${number}</span></li><li class="grid-item title3"><p>${title}</p></li><li class="grid-item title4 singer"><p>Artist</p></li><li class="grid-item title5"><p>Lyricist</p></li><li class="grid-item title6"><p>Composer</p></li></ul></li>`;
 const emptyHtml = Array.from({ length: 6 }, () => `<section class="music-search-list"><div class="no-result"><p>검색 결과를 찾을 수 없습니다.</p></div></section>`).join("");
@@ -25,23 +20,20 @@ function staleSnapshot(sourceUrl: string, overrides: Partial<ReturnType<typeof r
   return { result: snapshot, checkedAt: "2026-08-19T00:00:00.000Z", lastAttemptedAt: "2026-08-19T00:00:00.000Z", lastErrorCode: null, consecutiveFailures: 0 };
 }
 
-describe("TJ SQLite mirror", () => {
-  let database: SongbookDatabase | undefined;
-  afterEach(() => database?.close());
+describe("TJ D1 mirror", () => {
 
-  it("creates all mirror tables with repeatable migrations and the required foreign keys", async () => {
-    database = openDatabase();
-    expect(runMigrations(database.sqlite.raw)).toEqual([]);
-    const tables = (database.sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'tj_mirror_%'").all() as Array<{ name: string }>).map((row) => row.name);
+  it("has all mirror tables and the required foreign keys in the D1 schema", async () => {
+    const database = openFakeDatabase();
+    const tables = (await database.sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'tj_mirror_%'").all() as Array<{ name: string }>).map((row) => row.name);
     expect(tables).toEqual(expect.arrayContaining(["tj_mirror_songs", "tj_mirror_queries", "tj_mirror_query_results"]));
-    expect(database.sqlite.prepare("PRAGMA foreign_key_list('tj_mirror_query_results')").all()).toEqual(expect.arrayContaining([
+    expect(await database.sqlite.prepare("PRAGMA foreign_key_list('tj_mirror_query_results')").all()).toEqual(expect.arrayContaining([
       expect.objectContaining({ table: "tj_mirror_queries", on_delete: "CASCADE" }),
       expect.objectContaining({ table: "tj_mirror_songs", on_delete: "RESTRICT" })
     ]));
   });
 
   it("normalizes snapshots, preserves first_seen_at, replaces membership order, and retains absent songs", async () => {
-    database = openDatabase();
+    const database = openFakeDatabase();
     const mirror = createTjSearchMirror(database.sqlite);
     const source = "https://www.tjmedia.com/song/accompaniment_search?one";
     await mirror.replace(result(source, "hello", "10001"), "2026-08-20T00:00:00.000Z", "2026-08-20T00:00:00.000Z");
@@ -52,7 +44,7 @@ describe("TJ SQLite mirror", () => {
     const snapshot = await mirror.get(source);
     expect(snapshot?.result.candidates.map((candidate) => candidate.tjNumber)).toEqual(["10002", "10001"]);
     expect(snapshot?.result.candidates[1]).toMatchObject({ title: "Updated", artist: "Updated Artist" });
-    expect(database.sqlite.prepare("SELECT tj_number,title,artist,first_seen_at,last_seen_at FROM tj_mirror_songs ORDER BY tj_number").all()).toEqual([
+    expect(await database.sqlite.prepare("SELECT tj_number,title,artist,first_seen_at,last_seen_at FROM tj_mirror_songs ORDER BY tj_number").all()).toEqual([
       { tj_number: "10001", title: "Updated", artist: "Updated Artist", first_seen_at: "2026-08-20T00:00:00.000Z", last_seen_at: "2026-08-21T00:00:00.000Z" },
       { tj_number: "10002", title: "Title", artist: "Artist", first_seen_at: "2026-08-21T00:00:00.000Z", last_seen_at: "2026-08-21T00:00:00.000Z" }
     ]);
@@ -60,11 +52,11 @@ describe("TJ SQLite mirror", () => {
     expect(await mirror.get(source)).toMatchObject({ lastErrorCode: "TJ_UPSTREAM_ERROR", consecutiveFailures: 1 });
     await mirror.replace(result(source), "2026-08-23T00:00:00.000Z", "2026-08-23T00:00:00.000Z");
     expect(await mirror.get(source)).toMatchObject({ lastErrorCode: null, consecutiveFailures: 0 });
-    expect(database.sqlite.prepare("SELECT COUNT(*) AS count FROM tj_mirror_songs").get()).toEqual({ count: 2 });
+    expect(await database.sqlite.prepare("SELECT COUNT(*) AS count FROM tj_mirror_songs").get()).toEqual({ count: 2 });
   });
 
   it("reconstructs candidate provenance from the serving query", async () => {
-    database = openDatabase();
+    const database = openFakeDatabase();
     const mirror = createTjSearchMirror(database.sqlite);
     const first = "https://www.tjmedia.com/song/accompaniment_search?first";
     const second = "https://www.tjmedia.com/song/accompaniment_search?second";
@@ -74,38 +66,21 @@ describe("TJ SQLite mirror", () => {
     expect((await mirror.get(second))?.result.candidates[0]?.sourceUrl).toBe(second);
   });
 
-  it("treats malformed timestamps as stale and persists across reopen", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "songbook-tj-mirror-"));
-    const filename = join(directory, "songbook.sqlite");
-    let fileDatabase: SongbookDatabase | undefined;
-    try {
-      fileDatabase = openDatabase({ filename });
-      const mirror = createTjSearchMirror(fileDatabase.sqlite);
-      const source = buildTjSearchUrl({ query: "persist", searchType: "all", nation: "", page: 1, pageSize: 15 });
-      await mirror.replace(result(source), "2026-08-20T00:00:00.000Z", "2026-08-20T00:00:00.000Z");
-      fileDatabase.sqlite.prepare("UPDATE tj_mirror_queries SET checked_at='not-a-date'").run();
-      expect((await mirror.get(source))?.checkedAt).toBeNull();
-      fileDatabase.close();
-      fileDatabase = undefined;
-      fileDatabase = openDatabase({ filename });
-      const reopenedMirror = createTjSearchMirror(fileDatabase.sqlite);
-      expect((await reopenedMirror.get(source))?.result.candidates[0]?.tjNumber).toBe("10001");
-      const fetcher = vi.fn(async () => ({ status: 200, text: async () => html("10002", "Revalidated") }));
-      const adapter = createTjAdapter({ mirror: reopenedMirror, now: () => Date.parse("2026-08-21T00:00:00.000Z"), fetcher });
-      expect((await adapter.search({ query: "persist", searchType: "all", nation: "", page: 1, pageSize: 15 })).candidates[0]?.tjNumber).toBe("10002");
-      expect(fetcher).toHaveBeenCalledTimes(1);
-    } finally {
-      fileDatabase?.close();
-      rmSync(directory, { recursive: true, force: true });
-    }
+  it("treats malformed timestamps as stale", async () => {
+    const database = openFakeDatabase();
+    const mirror = createTjSearchMirror(database.sqlite);
+    const source = buildTjSearchUrl({ query: "persist", searchType: "all", nation: "", page: 1, pageSize: 15 });
+    await mirror.replace(result(source), "2026-08-20T00:00:00.000Z", "2026-08-20T00:00:00.000Z");
+    await database.sqlite.prepare("UPDATE tj_mirror_queries SET checked_at='not-a-date'").run();
+    expect((await mirror.get(source))?.checkedAt).toBeNull();
   });
 
   it("treats malformed reconstructed rows as misses", async () => {
-    database = openDatabase();
+    const database = openFakeDatabase();
     const mirror = createTjSearchMirror(database.sqlite);
     const source = "https://www.tjmedia.com/song/accompaniment_search?malformed";
     await mirror.replace(result(source), "2026-08-20T00:00:00.000Z", "2026-08-20T00:00:00.000Z");
-    database.sqlite.prepare("UPDATE tj_mirror_songs SET title='' WHERE tj_number='10001'").run();
+    await database.sqlite.prepare("UPDATE tj_mirror_songs SET title='' WHERE tj_number='10001'").run();
     expect(await mirror.get(source)).toBeNull();
   });
 });
@@ -114,7 +89,7 @@ describe("TJ mirror adapter", () => {
   const input = { query: "hello", searchType: "all" as const, nation: "" as const, page: 1, pageSize: 15 };
 
   it("survives a new adapter instance, refreshes successfully at 24 hours, and preserves caller spelling", async () => {
-    const database = openDatabase();
+    const database = openFakeDatabase();
     const mirror = createTjSearchMirror(database.sqlite);
     let current = Date.parse("2026-08-20T00:00:00.000Z");
     const firstFetcher = vi.fn(async () => ({ status: 200, text: async () => html("10002", "Initial") }));
@@ -161,15 +136,15 @@ describe("TJ mirror adapter", () => {
 
   it("serves stale snapshots for parser drift and body limits while changing only failure metadata", async () => {
     const source = buildTjSearchUrl(input);
-    const database = openDatabase();
+    const database = openFakeDatabase();
     const mirror = createTjSearchMirror(database.sqlite);
     await mirror.replace(result(source), "2026-08-19T00:00:00.000Z", "2026-08-19T00:00:00.000Z");
     const parserAdapter = createTjAdapter({ mirror, now: () => Date.parse("2026-08-20T00:00:00.000Z"), fetcher: async () => ({ status: 200, text: async () => "<div>drift</div>" }) });
     expect((await parserAdapter.search(input)).candidates[0]?.tjNumber).toBe("10001");
-    expect(database.sqlite.prepare("SELECT checked_at,last_error_code,consecutive_failures FROM tj_mirror_queries WHERE query_key=?").get(source)).toEqual({ checked_at: "2026-08-19T00:00:00.000Z", last_error_code: "TJ_PARSER_ERROR", consecutive_failures: 1 });
+    expect(await database.sqlite.prepare("SELECT checked_at,last_error_code,consecutive_failures FROM tj_mirror_queries WHERE query_key=?").get(source)).toEqual({ checked_at: "2026-08-19T00:00:00.000Z", last_error_code: "TJ_PARSER_ERROR", consecutive_failures: 1 });
     const bodyAdapter = createTjAdapter({ mirror, now: () => Date.parse("2026-08-21T00:00:00.000Z"), maxBodyBytes: 2, fetcher: async () => ({ status: 200, text: async () => "large" }) });
     expect((await bodyAdapter.search(input)).candidates[0]?.tjNumber).toBe("10001");
-    expect(database.sqlite.prepare("SELECT checked_at,last_error_code,consecutive_failures FROM tj_mirror_queries WHERE query_key=?").get(source)).toEqual({ checked_at: "2026-08-19T00:00:00.000Z", last_error_code: "TJ_BODY_TOO_LARGE", consecutive_failures: 2 });
+    expect(await database.sqlite.prepare("SELECT checked_at,last_error_code,consecutive_failures FROM tj_mirror_queries WHERE query_key=?").get(source)).toEqual({ checked_at: "2026-08-19T00:00:00.000Z", last_error_code: "TJ_BODY_TOO_LARGE", consecutive_failures: 2 });
     database.close();
   });
 
@@ -209,7 +184,7 @@ describe("TJ mirror adapter", () => {
     const hit = createTjAdapter({ mirror: fresh, freshnessMs: 24 * 60 * 60 * 1_000, now: () => Date.parse("2026-08-19T12:00:00.000Z"), throttleLimit: 0, fetcher });
     expect((await hit.search(input)).candidates[0]?.tjNumber).toBe("10001");
     expect(fetcher).not.toHaveBeenCalled();
-    const database = openDatabase();
+    const database = openFakeDatabase();
     const mirror = createTjSearchMirror(database.sqlite);
     const emptyAdapter = createTjAdapter({ mirror, now: () => Date.parse("2026-08-20T00:00:00.000Z"), fetcher: vi.fn(async () => ({ status: 200, text: async () => emptyHtml })) });
     expect((await emptyAdapter.search({ ...input, query: "nothing" })).candidates).toEqual([]);
@@ -221,7 +196,7 @@ describe("TJ mirror adapter", () => {
   });
 
   it("keeps independent query/page keys and coalesces concurrent success to one fetch", async () => {
-    const database = openDatabase();
+    const database = openFakeDatabase();
     const mirror = createTjSearchMirror(database.sqlite);
     const fetcher = vi.fn(async (url: string) => ({ status: 200, text: async () => html(url.includes("pageNo=2") ? "10002" : "10001", url.includes("pageNo=2") ? "Page 2" : "Page 1") }));
     const adapter = createTjAdapter({ mirror, fetcher });
@@ -262,7 +237,7 @@ describe("TJ mirror adapter", () => {
     expect((await adapter.search({ ...input, query: "open-three" })).candidates[0]?.tjNumber).toBe("10005");
     expect(warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: "circuit_opened" }), expect.objectContaining({ code: "circuit_recovered" })]));
     const source = buildTjSearchUrl(input);
-    const database = openDatabase();
+    const database = openFakeDatabase();
     const mirror = createTjSearchMirror(database.sqlite);
     await mirror.replace(result(source), "2026-08-19T00:00:00.000Z", "2026-08-19T00:00:00.000Z");
     await mirror.recordFailure(source, "2026-08-19T01:00:00.000Z", "TJ_UPSTREAM_ERROR");

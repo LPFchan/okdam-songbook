@@ -12,8 +12,11 @@ function gatewayHeaders(overrides: Record<string, string> = {}): Headers {
   });
 }
 
+// Decoding, the 80-character name cap and the fail-closed cases are the
+// shared parser's contract and are tested in @lost-plus/gateway-identity.
+// These tests cover what this call site adds on top.
 describe("Common Auth gateway identity", () => {
-  it("decodes and validates the identity injected by the local gateway", () => {
+  it("lower-cases the email and keeps the role the gateway vouched for", () => {
     const request = new Request("http://127.0.0.1:3000/api/me", { headers: gatewayHeaders() });
     expect(resolveGatewayIdentity(request)).toEqual({
       sub: "42",
@@ -21,29 +24,15 @@ describe("Common Auth gateway identity", () => {
       name: "마리",
       role: "user"
     });
+    expect(resolveGatewayIdentity(new Request("http://127.0.0.1:3000/api/me", {
+      headers: gatewayHeaders({ "X-Lost-Plus-Role": "administrator" })
+    }))?.role).toBe("administrator");
   });
 
-  it("fails closed for missing, incomplete, or malformed gateway identity", () => {
+  it("passes the parser's refusal through as null", () => {
     expect(resolveGatewayIdentity(new Request("http://127.0.0.1:3000/api/me"))).toBeNull();
     expect(resolveGatewayIdentity(new Request("http://127.0.0.1:3000/api/me", {
-      headers: gatewayHeaders({ "X-Lost-Plus-Encoding": "plain" })
-    }))).toBeNull();
-    const incomplete = gatewayHeaders();
-    incomplete.delete("X-Lost-Plus-Sub");
-    expect(resolveGatewayIdentity(new Request("http://127.0.0.1:3000/api/me", { headers: incomplete }))).toBeNull();
-    expect(resolveGatewayIdentity(new Request("http://127.0.0.1:3000/api/me", {
-      headers: gatewayHeaders({ "X-Lost-Plus-Name": "%ZZ" })
-    }))).toBeNull();
-  });
-
-  it("uses Common Auth's 80-Unicode-character display-name contract", () => {
-    const accepted = encodeURIComponent("🦊".repeat(80));
-    const rejected = encodeURIComponent("🦊".repeat(81));
-    expect(resolveGatewayIdentity(new Request("http://127.0.0.1:3000/api/me", {
-      headers: gatewayHeaders({ "X-Lost-Plus-Name": accepted })
-    }))?.name).toBe("🦊".repeat(80));
-    expect(resolveGatewayIdentity(new Request("http://127.0.0.1:3000/api/me", {
-      headers: gatewayHeaders({ "X-Lost-Plus-Name": rejected })
+      headers: gatewayHeaders({ "X-Lost-Plus-Role": "owner" })
     }))).toBeNull();
   });
 });

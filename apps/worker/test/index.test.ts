@@ -16,6 +16,7 @@ const origin = "https://okdam.example";
  */
 function fakeD1(): D1DatabaseLike {
   const db = new Database(":memory:");
+  db.pragma("foreign_keys = ON");
   db.exec(schemaSql);
   const statement = (sql: string): D1PreparedStatementLike => {
     let bound: unknown[] = [];

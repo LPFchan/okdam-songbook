@@ -36,11 +36,13 @@ flowchart LR
   fallback. `/api`, `/mcp` and `/.well-known` never fall back to the shell.
 - `apps/server` is the Hono application: public catalog with ETag, protected
   same-origin browser API, `/healthz`, and `/mcp`. It reads identity only
-  from the gateway's `x-lost-plus-*` headers (`auth.ts`) and validates no
-  credential.
+  from the gateway's `x-lost-plus-*` headers and validates no credential.
+  Decoding is the shared `@lost-plus/gateway-identity` package; `auth.ts`
+  adds the email lower-casing and role narrowing this codebase keys on.
 - `packages/server-core` holds the domain service, repositories, the SQL
-  executor abstraction (`sql.ts`) with a D1 implementation (`d1.ts`) and a
-  Node/better-sqlite3 one used by tests, and the TJ adapter and mirror.
+  executor abstraction (`sql.ts`) with its one implementation on D1
+  (`d1.ts`), and the TJ adapter and mirror. Tests reach D1 semantics through
+  a better-sqlite3-backed fake of the binding (`test/fake-d1.ts`).
 - `packages/songbook-mcp` registers the eight MCP tools on
   `@modelcontextprotocol/server` v2 through `createMcpHandler`, stateless,
   with the legacy fallback for 2025-era clients.
@@ -86,10 +88,9 @@ flowchart LR
   mutation that throws releases its idempotency claim by hand, and a partial
   failure can leave a song without its audit row. See `docs/deployment.md`.
 
-## Legacy code still in the tree
+## Removed code
 
-- `apps-script/` (the Google Sheets backend) and
-  `integrations/chatgpt-proxy` (a ChatGPT Actions OAuth bridge to it) predate
-  the Node and Workers runtimes. Neither is deployed or on any request path.
-- `packages/songbook-admin` and `scripts/import-csv.mjs` are Node-only data
-  tools for a SQLite file; they cannot target D1.
+The Google Sheets/Apps Script backend, the ChatGPT Actions OAuth bridge, the
+Node-only SQLite admin and CSV import tools, and the better-sqlite3/drizzle
+storage path were removed on 2026-09-19 (DEC-20260919-002). They live in git
+history before that date.

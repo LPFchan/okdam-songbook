@@ -5,8 +5,14 @@ Recorded by agent: codex-orchestrator
 
 ## Snapshot
 
-- Last updated: 2026-09-19 (post-cutover audit: Workers runtime fixed, OCI
-  packaging removed from the repo).
+- Last updated: 2026-09-19 (dead-code removal: Apps Script, ChatGPT Action,
+  Sheets/CSV tools and the Node storage path deleted; identity decoding moved
+  to `@lost-plus/gateway-identity`; see DEC-20260919-002).
+- 2026-09-19: removed `apps-script/`, `integrations/chatgpt-proxy`,
+  `packages/songbook-admin`, `scripts/import-csv.mjs`, the better-sqlite3 +
+  drizzle storage path and the Node static path. Tests run on a fake D1
+  binding. Worker bundle 1739 → 1637 KiB (gzip 312 → 293 KiB). Verified live after deploy
+  (see Evidence).
 - Overall posture: `live in production on Cloudflare Workers`.
 - Where it runs: Worker `okdam-songbook` (account `f6f0cfde…`), route-less,
   over D1 `okdam-songbook` (APAC, `9b353a3b-…`) and Workers Assets built from
@@ -20,9 +26,9 @@ Recorded by agent: codex-orchestrator
   `/mcp` mcp (visibility `okdam`, token scope `okdam-mcp`), `/api/catalog`
   GET/HEAD public, `/api` oauth, `/_auth/logout` oauth (answered by the
   gateway itself), `/` public.
-- What the app trusts: only the injected identity headers
-  (`apps/server/src/auth.ts`). It validates no credential and calls no auth
-  origin. A request on a protected path without a complete, percent-encoded
+- What the app trusts: only the injected identity headers, decoded by
+  `@lost-plus/gateway-identity` in `apps/server/src/auth.ts`. It validates no
+  credential and calls no auth origin. A request on a protected path without a complete, percent-encoded
   identity is refused (401); `/` and `GET /api/catalog` are anonymous by
   policy and arrive with no identity headers.
 - State: D1 holds songs, performances, private favorites, audit events,
@@ -70,7 +76,7 @@ Recorded by agent: codex-orchestrator
 ### Deploying changes
 
 1. Commit and push to `main` (provenance-gated `LOG-*` commits).
-2. `npm run build` at the repo root (builds shared, server-core, mcp, admin,
+2. `npm run build` at the repo root (builds shared, server-core, mcp,
    server, web).
 3. `cd apps/worker && npm run deploy` (fetches the deploy token from passage,
    `infra` / `CF_MASTER_TOKEN`). Expect `No targets deployed` — that is the
@@ -175,6 +181,7 @@ Recorded by agent: codex-orchestrator
 
 ## Evidence
 
+- Dead-code removal and shared identity parser: `DEC-20260919-002`.
 - Workers cutover and audit: `DEC-20260919-001`.
 - Cloud gateway decision: `DEC-20260918-001`.
 - Common Auth adoption and gateway trust: `DEC-20260914-001`,
