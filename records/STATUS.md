@@ -72,8 +72,9 @@ Recorded by agent: codex-orchestrator
 1. Commit and push to `main` (provenance-gated `LOG-*` commits).
 2. `npm run build` at the repo root (builds shared, server-core, mcp, admin,
    server, web).
-3. `cd apps/worker && npx wrangler deploy` with Cloudflare credentials in the
-   environment. Expect `No targets deployed` — that is the route-less shape.
+3. `cd apps/worker && npm run deploy` (fetches the deploy token from passage,
+   `infra` / `CF_MASTER_TOKEN`). Expect `No targets deployed` — that is the
+   route-less shape.
 4. Verify through the public hostname (see `docs/deployment.md` for the
    commands): `/healthz`, `/api/catalog`, `/admin` with frame headers,
    `/api/me` 401, `/mcp` initialize with an `okdam-mcp` token, bogus bearer

@@ -54,11 +54,13 @@ mismatch falls through to the next route rather than answering 405.
 ```
 npm run build                 # repo root: shared, server-core, mcp, admin, server, web
 cd apps/worker
-npx wrangler deploy           # expect "No targets deployed": the Worker is route-less
+npm run deploy                # expect "No targets deployed": the Worker is route-less
 ```
 
-Credentials: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in the
-environment, or `wrangler login`. Secrets are set once with
+`npm run deploy` is `passage run --env CLOUDFLARE_API_TOKEN=infra/CF_MASTER_TOKEN
+-- wrangler deploy`: the deploy token is read from passage at run time through
+the `passage` setup module, and an already-exported `CLOUDFLARE_API_TOKEN` wins
+if one is set. Secrets are set once with
 `npx wrangler secret put CLOUDFLARE_AI_API_TOKEN` and survive deploys.
 
 ### Verify after every deploy
