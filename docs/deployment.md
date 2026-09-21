@@ -57,10 +57,9 @@ cd apps/worker
 npm run deploy                # expect "No targets deployed": the Worker is route-less
 ```
 
-`npm run deploy` is `passage run --env CLOUDFLARE_API_TOKEN=infra/CF_MASTER_TOKEN
--- wrangler deploy`: the deploy token is read from passage at run time through
-the `passage` setup module, and an already-exported `CLOUDFLARE_API_TOKEN` wins
-if one is set. Secrets are set once with
+`npm run deploy` is `wrangler deploy` and needs `CLOUDFLARE_API_TOKEN` in the
+environment; on the deploy host it is exported from `~/.zshenv` with the value
+of passage `infra` / `CF_MASTER_TOKEN`. Secrets are set once with
 `npx wrangler secret put CLOUDFLARE_AI_API_TOKEN` and survive deploys.
 
 ### Verify after every deploy
