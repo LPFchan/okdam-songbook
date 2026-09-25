@@ -5,7 +5,7 @@ Recorded by agent: codex-orchestrator
 
 ## Snapshot
 
-- Last updated: 2026-09-19 (dead-code removal: Apps Script, ChatGPT Action,
+- Last updated: 2026-09-25 (dead-code removal: Apps Script, ChatGPT Action,
   Sheets/CSV tools and the Node storage path deleted; identity decoding moved
   to `@lpfchan/gateway-identity`; see DEC-20260919-002).
 - 2026-09-19: removed `apps-script/`, `integrations/chatgpt-proxy`,
