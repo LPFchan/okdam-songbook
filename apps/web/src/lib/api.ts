@@ -35,11 +35,11 @@ export function mockMode(): boolean {
   return (import.meta.env.VITE_ENABLE_MOCK_API ?? "false") === "true";
 }
 
-export interface ParsedApiError {
-  code: string;
-  message: string;
-  status: number;
-  payload?: unknown;
+export class ParsedApiError extends Error {
+  constructor(readonly code: string, message: string, readonly status: number, readonly payload?: unknown) {
+    super(message);
+    this.name = "ParsedApiError";
+  }
 }
 
 function isUnauthorizedError(code: string): boolean {
@@ -52,7 +52,7 @@ export function isApiAuthError(error: unknown): error is ParsedApiError {
 }
 
 function apiError(code: string, message: string, status: number, payload?: unknown): ParsedApiError {
-  return { code, message, status, payload };
+  return new ParsedApiError(code, message, status, payload);
 }
 
 async function parseResponse<T>(response: Response, parser: (value: unknown) => T): Promise<T> {
