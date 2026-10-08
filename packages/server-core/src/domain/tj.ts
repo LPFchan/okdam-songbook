@@ -15,7 +15,7 @@ export interface TjResponse {
   text(): Promise<string>;
 }
 
-export type TjFetcher = (url: string, init: { signal: globalThis.AbortSignal }) => Promise<TjResponse>;
+export type TjFetcher = (url: string, init: { signal: globalThis.AbortSignal; headers: Record<string, string> }) => Promise<TjResponse>;
 
 export interface TjAdapterWarning {
   code: "refresh_failed" | "refresh_recovered" | "mirror_read_failed" | "mirror_write_failed" | "mirror_failure_record_failed" | "circuit_opened" | "circuit_recovered";
@@ -66,6 +66,9 @@ export interface TjAdapter {
 }
 
 const defaultFetcher: TjFetcher = async (url, init) => globalThis.fetch(url, init);
+// TJ answers requests without a browser User-Agent (the Workers default) with
+// a 200 "서비스 점검중입니다" maintenance page instead of search results.
+const TJ_REQUEST_HEADERS = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36" };
 const DAY_MS = 24 * 60 * 60 * 1_000;
 
 function errorCode(error: unknown): string {
@@ -136,7 +139,7 @@ export function createTjAdapter(options: TjAdapterOptions = {}): TjAdapter {
     try {
       let response: TjResponse;
       try {
-        response = await fetcher(url, { signal: controller.signal });
+        response = await fetcher(url, { signal: controller.signal, headers: TJ_REQUEST_HEADERS });
       } catch (error) {
         markFailure();
         if (controller.signal.aborted) throw new TjAdapterError("TJ_TIMEOUT", "TJ 요청 시간이 초과되었어. 수동 입력을 사용할 수 있어.", true);
