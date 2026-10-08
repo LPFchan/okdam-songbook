@@ -238,6 +238,12 @@ describe("bounded TJ adapter", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
+  it("sends a browser User-Agent so TJ serves results instead of its maintenance page", async () => {
+    const fetcher = vi.fn(async (_url: string, _init: { headers: Record<string, string> }) => response(tjHtml));
+    await createTjAdapter({ fetcher }).search({ query: "フォニイ", searchType: "all", nation: "", page: 1, pageSize: 15 });
+    expect(fetcher.mock.calls[0]?.[1].headers["User-Agent"]).toMatch(/^Mozilla\/5\.0 /u);
+  });
+
   it("enforces body limits and exposes a manual fallback contract", async () => {
     const adapter = createTjAdapter({ fetcher: async () => response("x".repeat(100)), maxBodyBytes: 10 });
     const error = await adapter.search({ query: "x", searchType: "all", nation: "", page: 1, pageSize: 15 }).catch((value: unknown) => value);
