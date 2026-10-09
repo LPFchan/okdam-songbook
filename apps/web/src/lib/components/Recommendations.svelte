@@ -64,7 +64,7 @@
   function loadPage() {
     const run = generation;
     const exclude = groups.map((group) => group.name);
-    const key = `${requestKey}@${exclude.length}`;
+    const key = `${requestKey}@${exclude.join("\n")}`;
     const input = { performerIds: [...performerIds], system, exclude };
     loading = true;
     let request = cache.get(key);
@@ -83,7 +83,8 @@
     void request
       .then((page) => {
         if (run !== generation) return;
-        groups = [...groups, ...page.groups];
+        // Never twice: each group is keyed by artist name.
+        groups = [...groups, ...page.groups.filter((group) => !exclude.includes(group.name))];
         hasMore = page.hasMore;
       })
       .catch((reason: unknown) => {
