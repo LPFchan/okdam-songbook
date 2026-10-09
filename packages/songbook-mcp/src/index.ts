@@ -355,7 +355,7 @@ function registerTools(
   }, (input) => runTrackedTool(lifecycle, async () => {
     try {
       guarded(authInfo, "get_song");
-      const song = options.service.getSong(input.id);
+      const song = await options.service.getSong(input.id);
       if (!song) throw Object.assign(new Error("곡을 찾을 수 없어."), { code: "NOT_FOUND" });
       return result(song);
     } catch (error) {

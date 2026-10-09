@@ -15,12 +15,12 @@ function tjResult(query: string, searchType: "all" | "number", candidates: Await
 
 function service(): SongbookService {
   return {
-    catalog: vi.fn(() => [song]),
-    getSong: vi.fn(() => song),
-    search: vi.fn(() => [song]),
-    checkDuplicate: vi.fn(() => song),
-    // Writes resolve asynchronously like the real service, so a tool that
-    // forgets to await one would answer with empty data.
+    // Every method resolves asynchronously like the real service, so a tool
+    // that forgets to await one would answer with empty data.
+    catalog: vi.fn(async () => [song]),
+    getSong: vi.fn(async (id: string) => (id === song.id ? song : null)),
+    search: vi.fn(async () => [song]),
+    checkDuplicate: vi.fn(async () => song),
     createPerformance: vi.fn(async () => ({ id: "performance-1" })),
     cancelPerformance: vi.fn(async () => ({ id: "performance-1" })),
     createSong: vi.fn(async () => song),
@@ -131,6 +131,14 @@ describe("stateless Songbook MCP", () => {
     const denied = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 62, method: "tools/call", params: { name: "search_songs", arguments: { query: "Song" } } }), { authInfo: noRead });
     expect((await denied.json()).result.structuredContent).toMatchObject({ ok: false, error: { code: "FORBIDDEN" } });
     expect(search).not.toHaveBeenCalled();
+  });
+
+  it("returns a saved song by id and reports a missing one", async () => {
+    const handler = createSongbookMcpHandler({ service: service() });
+    const found = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 63, method: "tools/call", params: { name: "get_song", arguments: { id: song.id } } }), { authInfo });
+    expect((await found.json()).result.structuredContent).toMatchObject({ ok: true, data: { id: song.id, title: song.title } });
+    const missing = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 64, method: "tools/call", params: { name: "get_song", arguments: { id: "missing" } } }), { authInfo });
+    expect((await missing.json()).result.structuredContent).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
   });
 
   it("selects numeric TJ search and honors includeTj=false", async () => {
