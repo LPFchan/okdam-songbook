@@ -38,7 +38,7 @@ describe("recommendation people", () => {
 });
 
 describe("recommendSongs", () => {
-  it("searches TJ by each person's role and waits out the rate limit", async () => {
+  it("searches TJ by each person's role, skipping songs without a TJ number, and waits out the rate limit", async () => {
     let calls = 0;
     const search = vi.fn(async (input: { query: string }) => {
       calls += 1;
@@ -48,7 +48,7 @@ describe("recommendSongs", () => {
     const tj = { search, lookup: vi.fn() } as unknown as TjAdapter;
     const sleep = vi.fn(async () => {});
     const groups = await recommendSongs({
-      catalog: [song("1", "A"), song("2", "A"), song("3", "B", { performerIds: ["yeowool"] })],
+      catalog: [song("1", "A"), song("2", "A"), song("3", "B", { performerIds: ["yeowool"] }), song("4", "D", { tjNumber: "", damNumber: "1234-56" })],
       performerIds: ["marie"],
       system: "tj",
       credits: async () => new Map([["1", { composer: "C", lyricist: "" }]]),

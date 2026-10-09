@@ -109,8 +109,8 @@ export async function recommendSongs(options: {
   if (system === "tj" && !tj) throw new DomainError("TJ_UPSTREAM_ERROR", "TJ 연결이 설정되지 않았어.");
   if (system === "dam" && !dam) throw new DomainError("DAM_UPSTREAM_ERROR", "DAM 연결이 설정되지 않았어.");
   const sleep = options.sleep ?? defaultSleep;
-  // DAM mode only shows songs with a DAM number, so only those speak for taste there.
-  const songs = filterSongs(options.catalog, { performerIds: options.performerIds, hasDamNumber: system === "dam" || undefined });
+  // Each mode only shows songs with that system's number, so only those speak for taste there.
+  const songs = filterSongs(options.catalog, { performerIds: options.performerIds, hasTjNumber: system === "tj" || undefined, hasDamNumber: system === "dam" || undefined });
   const people = topRecommendationPeople(songs, await options.credits(songs.map((song) => song.tjNumber)));
 
   const search = async (person: RecommendationPerson): Promise<Array<TjSongCandidate | DamSongCandidate>> => {

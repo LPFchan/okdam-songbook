@@ -39,8 +39,9 @@ history.
   The MCP `search_songs` tool uses the same trimmed-length gate (at least two
   characters or all digits) and numeric queries select number search.
 - A TJ/DAM chip beside the account pill switches the catalog between karaoke
-  systems, remembered per device. DAM mode shows DAM numbers, sorts by them,
-  hides songs without one, and continues the omnibar into DAM search. While
+  systems, remembered per device. Each mode shows that system's numbers, sorts
+  by them, and hides songs without one; DAM mode also continues the omnibar
+  into DAM search. While
   search or sign-out confirmation is active, the neighbouring pills merge into
   one pill that cancels it.
 - With a performer filter and no search text, a 추천 section below the list
