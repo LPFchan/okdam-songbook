@@ -3,6 +3,7 @@ import {
   damSongCandidateSchema,
   performanceCancelRequestSchema,
   performanceCreateRequestSchema,
+  performerOrder,
   songCreateRequestSchema,
   songDeleteRequestSchema,
   songUpdateRequestSchema,
@@ -147,7 +148,7 @@ const songFieldShapes = {
   artistReadingKo: z.string().trim().max(300),
   country: z.string().trim().max(80),
   recommendedKey: recommendedKeyInput.nullable(),
-  performerIds: z.array(z.enum(["marie", "seongwook", "yeowool"])),
+  performerIds: z.array(z.enum(performerOrder)),
   memo: z.string().trim().max(4000),
   sourceType: z.string().trim().max(80),
   sourceReference: z.string().trim().max(300)

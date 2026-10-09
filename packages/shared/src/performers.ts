@@ -1,4 +1,4 @@
-export const performerOrder = ["marie", "yeowool", "seongwook"] as const;
+export const performerOrder = ["marie", "yeowool", "seongwook", "eunhu"] as const;
 
 export type PerformerId = (typeof performerOrder)[number];
 
@@ -10,6 +10,7 @@ export interface Performer {
 export const performers: Record<PerformerId, Performer> = {
   marie: { id: "marie", displayName: "마리" },
   seongwook: { id: "seongwook", displayName: "성욱" },
+  eunhu: { id: "eunhu", displayName: "은후" },
   yeowool: { id: "yeowool", displayName: "여울" }
 };
 
@@ -17,12 +18,14 @@ const performerAliasMap: Record<string, PerformerId[]> = {
   "마리": ["marie"],
   "성욱": ["seongwook"],
   "여울": ["yeowool"],
+  "은후": ["eunhu"],
   "뽀냐": ["marie", "yeowool"],
   marie: ["marie"],
   seongwook: ["seongwook"],
   seonguk: ["seongwook"],
   yeowool: ["yeowool"],
   yeoul: ["yeowool"],
+  eunhu: ["eunhu"],
   ponya: ["marie", "yeowool"]
 };
 

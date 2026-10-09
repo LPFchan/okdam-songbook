@@ -308,6 +308,7 @@
     { key: "marie", label: "마리" },
     { key: "seongwook", label: "성욱" },
     { key: "yeowool", label: "여울" },
+    { key: "eunhu", label: "은후" },
     { key: "favorite", label: "즐겨찾기" }
   ];
 
