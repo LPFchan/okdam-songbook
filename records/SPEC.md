@@ -45,9 +45,10 @@ history.
   search or sign-out confirmation is active, the neighbouring pills merge into
   one pill that cancels it.
 - With a performer filter and no search text, a 추천 section below the list
-  searches the current TJ/DAM system for the top five people (artists,
-  composers, lyricists) behind that performer's saved songs and offers the
-  songs not yet in the Songbook with inline add actions.
+  searches the current TJ/DAM system for the artists of that performer's
+  saved songs, most saved songs first, five more each time the list scrolls to
+  its end, and offers the songs not yet in the Songbook with inline add
+  actions.
 - Manage and history tools open contextually from the catalog toolbar; manual
   add remains a TJ-search fallback. `/admin` is a compatibility alias to the
   same composition, not a separate security boundary.

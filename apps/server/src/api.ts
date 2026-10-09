@@ -25,7 +25,6 @@ import type { SongbookDatabaseBase } from "@songbook/server-core";
 import {
   createSongbookService,
   DomainError,
-  readTjCredits,
   recommendSongs,
   toApiError,
   type RequestActor,
@@ -437,14 +436,12 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
   app.post("/api/recommendations", (c) => mutate(c, async () => {
     const parsed = recommendationRequestSchema.safeParse(await c.req.json());
     if (!parsed.success) throw parsed.error;
-    const groups = await recommendSongs({
+    return recommendSongs({
       ...parsed.data,
       catalog: await service.catalog(),
-      credits: (tjNumbers) => readTjCredits(options.database.sqlite, tjNumbers),
       tj: options.tj,
       dam: options.dam
     });
-    return { groups };
   }));
 
   app.all("/mcp", async (c) => {

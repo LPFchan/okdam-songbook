@@ -25,7 +25,7 @@ import {
   type FavoriteList,
   type FavoriteSetResult,
   type PublicData,
-  type RecommendationGroup,
+  type RecommendationResult,
   type RecommendationRequest,
   type Song,
   type TjAddResult,
@@ -358,21 +358,25 @@ export async function generateReading(input: { title: string; artist: string }, 
   }, (data) => readingGenerateResultSchema.parse(data));
 }
 
-export async function fetchRecommendations(input: RecommendationRequest): Promise<RecommendationGroup[]> {
+export async function fetchRecommendations(input: RecommendationRequest): Promise<RecommendationResult> {
   if (mockMode()) {
-    const artists = [...new Set(sampleSongs.filter((song) => song.performerIds.some((id) => input.performerIds.includes(id))).map((song) => song.artist))].slice(0, 5);
-    return artists.map((artist, index) => recommendationGroupSchema.parse({
-      name: artist,
-      role: index === 1 ? "composer" : "artist",
-      songCount: 5 - index,
-      candidates: [1, 2, 3].map((n) => input.system === "dam"
-        ? { damNumber: `${9000 + index}-0${n}`, title: `${artist} 추천곡 ${n}`, artist, titleYomi: "", artistYomi: "", sourceUrl: damSongUrl(`${9000 + index}-0${n}`) }
-        : { tjNumber: `${90000 + index * 10 + n}`, title: `${artist} 추천곡 ${n}`, artist, lyricist: "", composer: "", sourceUrl: "https://www.tjmedia.com/song/accompaniment_search" }),
-      error: null
-    }));
+    const artists = [...new Set(sampleSongs.filter((song) => song.performerIds.some((id) => input.performerIds.includes(id))).map((song) => song.artist))];
+    const remaining = artists.filter((artist) => !input.exclude?.includes(artist));
+    const groups = remaining.slice(0, 5).map((artist) => {
+      const index = artists.indexOf(artist);
+      return recommendationGroupSchema.parse({
+        name: artist,
+        songCount: Math.max(1, 20 - index),
+        candidates: [1, 2, 3].map((n) => input.system === "dam"
+          ? { damNumber: `${9000 + index}-0${n}`, title: `${artist} 추천곡 ${n}`, artist, titleYomi: "", artistYomi: "", sourceUrl: damSongUrl(`${9000 + index}-0${n}`) }
+          : { tjNumber: `${90000 + index * 10 + n}`, title: `${artist} 추천곡 ${n}`, artist, lyricist: "", composer: "", sourceUrl: "https://www.tjmedia.com/song/accompaniment_search" }),
+        error: null
+      });
+    });
+    return { groups, hasMore: remaining.length > 5 };
   }
   return request("/api/recommendations", {
     method: "POST",
     body: JSON.stringify(input)
-  }, (data) => recommendationResultSchema.parse(data).groups);
+  }, (data) => recommendationResultSchema.parse(data));
 }
