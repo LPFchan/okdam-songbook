@@ -12,7 +12,7 @@ export const recommendedKeySchema = z.object({
 export const songSchema = z.object({
   id: z.string().min(1),
   tjNumber: z.string().trim().regex(/^\d*$/).optional().default(""),
-  damNumber: z.string().trim().regex(/^(?:\d{1,6}-\d{2})?$/).optional().default(""),
+  damNumber: z.string().trim().regex(/^(?:\d{4}-\d{2})?$/).optional().default(""),
   title: z.string().trim().min(1).max(300),
   titleReadingKo: z.string().trim().max(300).optional().default(""),
   artist: z.string().trim().min(1).max(300),

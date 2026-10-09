@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import BetterSqlite3 from "better-sqlite3";
-import { openD1Database, type D1DatabaseLike, type D1PreparedStatementLike, type D1SongbookDatabase, type DamAdapter, type TjAdapter } from "@songbook/server-core";
+import { DomainError, openD1Database, type D1DatabaseLike, type D1PreparedStatementLike, type D1SongbookDatabase, type DamAdapter, type TjAdapter } from "@songbook/server-core";
 import { createServerApp } from "../src/api.js";
 import { createCommonAuthRoleResolver } from "../src/auth.js";
 
@@ -135,6 +135,19 @@ describe("same-origin server surface", () => {
     expect(added.data).toMatchObject({ outcome: "created", song: { damNumber: "3246-30", sourceType: "clubdam" } });
     const catalog = await (await server.request(request("/api/catalog"))).json();
     expect(catalog.data.songs[0].damNumber).toBe("3246-30");
+  });
+
+  it("answers a throttled DAM search with 429", async () => {
+    const dam: DamAdapter = { search: async () => { throw new DomainError("DAM_RATE_LIMITED", "DAM 요청이 잠시 제한되었어."); } };
+    const server = app({
+      dam,
+      sessionResolver: async () => ({ subject: "auth.lost.plus:42", email: "allowed@example.com", displayName: "Allowed" }),
+      roleResolver: createCommonAuthRoleResolver()
+    });
+    const headers = { Origin: origin, "Content-Type": "application/json", "X-Songbook-Owner-Subject": "auth.lost.plus:42" };
+    const response = await server.request(request("/api/dam/search", { method: "POST", headers, body: JSON.stringify({ query: "loser" }) }));
+    expect(response.status).toBe(429);
+    expect((await response.json()).error.code).toBe("DAM_RATE_LIMITED");
   });
 
   it("rejects a replay bound to a different Common Auth subject", async () => {

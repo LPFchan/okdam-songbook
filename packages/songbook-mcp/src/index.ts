@@ -122,7 +122,7 @@ const tjCandidateInput = z.object({
 });
 
 const damCandidateInput = z.object({
-  damNumber: z.string().regex(/^\d{1,6}-\d{2}$/u),
+  damNumber: z.string().regex(/^\d{4}-\d{2}$/u),
   title: z.string().trim().min(1).max(300),
   artist: z.string().trim().min(1).max(300),
   titleYomi: z.string().trim().max(300).default(""),
@@ -137,7 +137,7 @@ const recommendedKeyInput = z.object({
 
 const songFields = {
   tjNumber: z.string().trim().regex(/^\d*$/u).default(""),
-  damNumber: z.string().trim().regex(/^(?:\d{1,6}-\d{2})?$/u).default(""),
+  damNumber: z.string().trim().regex(/^(?:\d{4}-\d{2})?$/u).default(""),
   title: z.string().trim().min(1).max(300).optional(),
   titleReadingKo: z.string().trim().max(300).default(""),
   artist: z.string().trim().min(1).max(300).optional(),

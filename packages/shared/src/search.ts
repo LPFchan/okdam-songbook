@@ -12,9 +12,12 @@ export function isSearchableQuery(query: string): boolean {
   return trimmed.length >= 2 || /^\d+$/u.test(trimmed);
 }
 
-/** A DAM number reads as digits with an optional hyphen, e.g. "1472-59". */
-function damNumberDigits(value: string): string {
-  return value.replace(/-/gu, "");
+/**
+ * A DAM number reads as digits with an optional hyphen, e.g. "1472-59".
+ * Songs cached offline before DAM support have no damNumber at all.
+ */
+function damNumberDigits(value: string | undefined): string {
+  return (value ?? "").replace(/-/gu, "");
 }
 
 export function searchTypeForQuery(query: string): "all" | "number" {
@@ -40,7 +43,7 @@ export function primaryKey(song: Song): string {
 export function buildSearchDocument(song: Song): string {
   const fields = [
     song.tjNumber,
-    song.damNumber,
+    song.damNumber ?? "",
     song.title,
     song.titleReadingKo,
     song.artist,

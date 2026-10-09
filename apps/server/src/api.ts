@@ -197,9 +197,9 @@ function failure(c: Context, error: unknown, now: () => string, status?: number)
     : toApiError(error);
   const codeStatus: Record<string, number> = {
     BAD_REQUEST: 400, VALIDATION_ERROR: 400, UNAUTHORIZED: 401, FORBIDDEN: 403,
-    NOT_FOUND: 404, CONFLICT: 409, DUPLICATE_TJ_NUMBER: 409,
-    TJ_RATE_LIMITED: 429, RATE_LIMITED: 429,
-    AI_NOT_CONFIGURED: 503, EXTERNAL_API_ERROR: 502
+    NOT_FOUND: 404, CONFLICT: 409, DUPLICATE_TJ_NUMBER: 409, DUPLICATE_DAM_NUMBER: 409,
+    TJ_RATE_LIMITED: 429, DAM_RATE_LIMITED: 429, RATE_LIMITED: 429,
+    AI_NOT_CONFIGURED: 503, EXTERNAL_API_ERROR: 502, DAM_UPSTREAM_ERROR: 502
   };
   return c.json({ ok: false, data: null, error: mapped, requestId: requestId(c), serverTime: now() }, (status ?? codeStatus[mapped.code] ?? 500) as 500);
 }

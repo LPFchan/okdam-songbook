@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { songSchema } from "./schemas.js";
 
-export const damNumberSchema = z.string().trim().regex(/^\d{1,6}-\d{2}$/u);
+export const damNumberSchema = z.string().trim().regex(/^\d{4}-\d{2}$/u);
 
 export const damSongCandidateSchema = z.object({
   damNumber: damNumberSchema,
@@ -62,7 +62,7 @@ const DAM_CLIENT_FIELDS = {
 
 /** "1472-59", "147259" and "1472 59" all name the same DAM song. */
 export function normalizeDamNumber(value: string): string | null {
-  const digits = value.normalize("NFKC").trim().match(/^(\d{1,6})[-\s]?(\d{2})$/u);
+  const digits = value.normalize("NFKC").trim().match(/^(\d{4})[-\s]?(\d{2})$/u);
   return digits ? `${digits[1]}-${digits[2]}` : null;
 }
 

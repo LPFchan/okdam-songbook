@@ -7,6 +7,8 @@ describe("DAM numbers", () => {
     expect(normalizeDamNumber("147259")).toBe("1472-59");
     expect(normalizeDamNumber("１４７２ ５９")).toBe("1472-59");
     expect(normalizeDamNumber("フォニイ")).toBeNull();
+    // DAM numbers always have four digits before the hyphen.
+    expect(normalizeDamNumber("123-45")).toBeNull();
     expect(isDamNumberQuery("1472-59")).toBe(true);
     expect(isDamNumberQuery("52537")).toBe(false);
   });
@@ -32,6 +34,12 @@ describe("searching and sorting by DAM number", () => {
   it("finds a song by its DAM number with or without the hyphen", () => {
     expect(searchSongs(songs, "324630").map((song) => song.damNumber)).toEqual(["3246-30"]);
     expect(searchSongs(songs, "3246-30").map((song) => song.damNumber)).toEqual(["3246-30"]);
+  });
+
+  it("searches songs cached before DAM numbers existed", () => {
+    const legacy = sampleSongs.slice(0, 2).map(({ damNumber: _omitted, ...song }) => song) as typeof songs;
+    expect(() => searchSongs(legacy, "3246")).not.toThrow();
+    expect(() => searchSongs(legacy, legacy[0]!.title)).not.toThrow();
   });
 
   it("puts songs without a DAM number last", () => {
