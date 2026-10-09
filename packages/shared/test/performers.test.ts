@@ -14,6 +14,10 @@ describe("performer normalization", () => {
     expect(normalizePerformerIds("뽀냐/성욱").ids).toEqual(["marie", "yeowool", "seongwook"]);
   });
 
+  it("maps Eunhu by Korean name and id", () => {
+    expect(normalizePerformerIds("은후, eunhu, 여울").ids).toEqual(["eunhu", "yeowool"]);
+  });
+
   it("keeps input order for whitespace-separated names", () => {
     expect(normalizePerformerIds("여울 마리").ids).toEqual(["yeowool", "marie"]);
   });

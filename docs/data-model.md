@@ -4,7 +4,7 @@
 
 `id`, `tjNumber`, `title`, `titleReadingKo`, `artist`, `artistReadingKo`, `country`, `recommendedKeyJson`, `performerIdsJson`, `memo`, `sourceType`, `sourceReference`, `createdByEmail`, `createdByName`, `createdAt`, `updatedByEmail`, `updatedByName`, `updatedAt`, `deletedAt`, `deletedByEmail`, `version`.
 
-`performerIdsJson` stores structured singer assignments as user IDs, not display names. Built-in IDs are `marie`, `seongwook`, and `yeowool`; legacy `뽀냐` input migrates to `["marie", "yeowool"]`.
+`performerIdsJson` stores structured singer assignments as user IDs, not display names. Built-in IDs are `marie`, `seongwook`, `yeowool`, and `eunhu`; legacy `뽀냐` input migrates to `["marie", "yeowool"]`.
 
 `recommendedKeyJson` stores one optional recommendation: `baseMode`
 `original|male|female` plus a semitone `offset`. The web form edits it with a
