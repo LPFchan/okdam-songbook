@@ -43,4 +43,24 @@ describe("Recommendations", () => {
     expect(screen.queryByText("신재평")).toBeNull();
     expect(screen.getByText(/가수 · 저장된 곡 6곡/u)).toBeTruthy();
   });
+
+  it("shows the empty state for no people and refetches answers that held errors", async () => {
+    const props = {
+      system: "dam" as const,
+      performerIds: ["eunhu" as const],
+      enabled: true,
+      songs: [],
+      requireCredential: vi.fn().mockResolvedValue("auth.lost.plus:42"),
+      onOpenExisting: vi.fn(),
+      onSongSaved: vi.fn()
+    };
+    vi.mocked(fetchRecommendations).mockReset().mockResolvedValue([{ name: "A", role: "artist", songCount: 1, candidates: [], error: "검색하지 못했어." }]);
+    render(Recommendations, { props });
+    await waitFor(() => expect(screen.getByText("검색하지 못했어.")).toBeTruthy());
+    cleanup();
+    vi.mocked(fetchRecommendations).mockResolvedValue([]);
+    render(Recommendations, { props });
+    await waitFor(() => expect(screen.getByText("새로 찾은 곡이 없어요.")).toBeTruthy());
+    expect(fetchRecommendations).toHaveBeenCalledTimes(2);
+  });
 });

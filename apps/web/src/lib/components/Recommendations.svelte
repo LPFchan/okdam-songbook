@@ -29,6 +29,7 @@
   const roleLabels: Record<RecommendationRole, string> = { artist: "가수", composer: "작곡", lyricist: "작사" };
 
   let loading = $state(false);
+  let loaded = $state(false);
   let groups = $state<RecommendationGroup[]>([]);
   let error = $state("");
   let expanded = $state<Record<string, boolean>>({});
@@ -37,6 +38,7 @@
 
   $effect(() => {
     const key = requestKey;
+    loaded = false;
     if (!enabled || !performerIds.length) {
       loading = false;
       groups = [];
@@ -54,11 +56,20 @@
       if (!request) {
         request = requireCredential().then(() => fetchRecommendations(input));
         cache.set(key, request);
-        request.catch(() => cache.delete(key));
+        // Per-person failures arrive inside a resolved answer; drop those too
+        // so the next visit retries once TJ/DAM recovers.
+        request.then(
+          (next) => {
+            if (next.some((group) => group.error)) cache.delete(key);
+          },
+          () => cache.delete(key)
+        );
       }
       void request
         .then((next) => {
-          if (!cancelled) groups = next;
+          if (cancelled) return;
+          groups = next;
+          loaded = true;
         })
         .catch((reason: unknown) => {
           if (!cancelled) error = reason instanceof Error ? reason.message : "추천 곡을 불러오지 못했어요.";
@@ -99,7 +110,7 @@
     </header>
     {#if loading}<p class="omnibar-tj-status">추천 곡을 찾는 중…</p>{/if}
     {#if error}<p class="omnibar-tj-status error">{error}</p>{/if}
-    {#if !loading && !error && groups.length && !visibleGroups.length}
+    {#if loaded && !visibleGroups.length}
       <p class="omnibar-tj-status">새로 찾은 곡이 없어요.</p>
     {/if}
     {#each visibleGroups as group (`${group.role}:${group.name}`)}
