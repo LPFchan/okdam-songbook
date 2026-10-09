@@ -141,3 +141,24 @@ export class InMemoryTjSearchMirror implements TjSearchMirror {
 export function createInMemoryTjSearchMirror(): TjSearchMirror {
   return new InMemoryTjSearchMirror();
 }
+
+export interface TjCredits {
+  composer: string;
+  lyricist: string;
+}
+
+/**
+ * Composer and lyricist for TJ numbers the mirror has seen. Saved songs only
+ * keep their TJ number, so this is the one place those credits live.
+ */
+export async function readTjCredits(sqlite: SqlExecutor, tjNumbers: string[]): Promise<Map<string, TjCredits>> {
+  const credits = new Map<string, TjCredits>();
+  const numbers = [...new Set(tjNumbers.filter(Boolean))];
+  // D1 binds at most 100 parameters per statement.
+  for (let start = 0; start < numbers.length; start += 90) {
+    const chunk = numbers.slice(start, start + 90);
+    const rows = await sqlite.prepare(`SELECT tj_number, composer, lyricist FROM tj_mirror_songs WHERE tj_number IN (${chunk.map(() => "?").join(",")})`).all<Record<string, unknown>>(...chunk);
+    for (const row of rows) credits.set(rawString(row.tj_number), { composer: rawString(row.composer), lyricist: rawString(row.lyricist) });
+  }
+  return credits;
+}

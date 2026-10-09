@@ -122,6 +122,10 @@ mark.hit{background:transparent;color:var(--color-primary-ink);font-weight:700}
 .omnibar-tj-status.error{color:var(--color-danger)}
 .omnibar-tj-results{display:flex;flex-direction:column;gap:6px}
 .omnibar-tj-results .song-card-actions .primary-button,.omnibar-tj-results .song-card-actions .secondary-button{padding:6px 12px;font-size:13px}
+.recommendation-group{margin-top:14px}
+.recommendation-group h3{display:flex;align-items:baseline;gap:8px;margin:0 0 6px;font-size:14px}
+.recommendation-group h3 span{font-size:12px;font-weight:400;color:var(--color-muted)}
+.recommendation-more{margin-top:6px;padding:6px 12px;font-size:13px}
 .admin-surface{display:flex;flex-direction:column;gap:16px}
 .admin-panel h2{margin:0 0 8px;font-size:16px}
 .admin-form-panel{display:flex;flex-direction:column;gap:20px}

@@ -10,6 +10,7 @@
   import SongDetail from "./SongDetail.svelte";
   import SongForm, { type AdminTab } from "./SongForm.svelte";
   import KaraokeOmnibar from "./KaraokeOmnibar.svelte";
+  import Recommendations from "./Recommendations.svelte";
   import Snackbar from "./Snackbar.svelte";
   import { createPerformance, fetchFavoriteSongIds, fetchPublicData, setSongFavorite } from "../api";
   import { readCachedPublicData, saveCachedPublicData } from "../db";
@@ -628,6 +629,12 @@
     }
   }
 
+  async function requireCredential(): Promise<string> {
+    const expectedSubject = auth.user?.subject;
+    if (!expectedSubject) throw new Error("로그인이 필요해요.");
+    return (await auth.requireValidCredential(expectedSubject)).subject;
+  }
+
   function managementTitle(tab: AdminTab): string {
     if (tab === "songs") return "곡 관리";
     return editingSong ? "곡 수정" : "곡 추가";
@@ -826,16 +833,22 @@
       {query}
       enabled={Boolean(auth.user && onlineStatus.online)}
       {songs}
-      requireCredential={async () => {
-        const expectedSubject = auth.user?.subject;
-        if (!expectedSubject) throw new Error("로그인이 필요해요.");
-        return (await auth.requireValidCredential(expectedSubject)).subject;
-      }}
+      {requireCredential}
       onManualAdd={() => openManagement("add")}
       onOpenExisting={(song) => (selected = song)}
       {onSongSaved}
     />
   {/key}
+
+  <Recommendations
+    system={karaoke.system}
+    performerIds={query.trim() ? [] : filters.performerIds ?? []}
+    enabled={Boolean(auth.user && onlineStatus.online)}
+    {songs}
+    {requireCredential}
+    onOpenExisting={(song) => (selected = song)}
+    {onSongSaved}
+  />
 
   {#if selected}
     <BottomSheet title={selected.title} onClose={() => (selected = null)}>

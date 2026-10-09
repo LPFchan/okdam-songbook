@@ -29,6 +29,12 @@ The live browser path uses the `.lost.plus` shared session:
   performance mutations.
 - `POST /api/readings/generate` — protected Korean-reading candidate
   generation for a bounded title/artist pair.
+- `POST /api/recommendations` — protected. Body `{ performerIds, system }`
+  (`system` is `tj` or `dam`). Ranks the five people (artists, plus TJ
+  composers/lyricists from the mirror) behind those performers' saved songs,
+  searches each on that system, and returns `{ groups: [{ name, role,
+  songCount, candidates, error }] }`. Saved songs are not filtered out; the
+  client hides them.
 
 Browser calls use `credentials: include`, exact same-origin mutation checks,
 and JSON request bodies. There is no browser-readable bearer token in this
