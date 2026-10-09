@@ -62,6 +62,13 @@ describe("recommendSongs", () => {
     expect(groups[0]!.candidates.map((candidate) => "damNumber" in candidate && candidate.damNumber)).toEqual(["1111-01", "1111-03", "1111-04"]);
   });
 
+  it("keeps exact matches for a compound artist from DAM keyword search", async () => {
+    const hit = (damNumber: string, artist: string) => ({ damNumber, title: damNumber, artist, titleYomi: "", artistYomi: "", sourceUrl: "https://www.clubdam.com/" });
+    const dam: DamAdapter = { search: vi.fn(async () => ({ query: "DAOKO×米津玄師", searchType: "all" as const, page: 1, pageSize: 30, hasMore: false, candidates: [hit("2222-01", "DAOKO×米津玄師"), hit("2222-02", "DAOKO")] })) };
+    const { groups } = await recommendSongs({ catalog: [song("1", "DAOKO×米津玄師", { damNumber: "1234-56" })], performerIds: ["marie"], system: "dam", dam });
+    expect(groups[0]!.candidates.map((candidate) => "damNumber" in candidate && candidate.damNumber)).toEqual(["2222-01"]);
+  });
+
   it("pages through artists five at a time, skipping the ones already shown", async () => {
     const tj = { search: vi.fn(async (input: { query: string }) => tjResult(input.query)), lookup: vi.fn() } as unknown as TjAdapter;
     const catalog = ["1", "2", "3", "4", "5", "6", "7"].map((id) => song(id, `Artist ${id}`));

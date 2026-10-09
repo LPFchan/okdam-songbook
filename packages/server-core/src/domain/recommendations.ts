@@ -33,9 +33,13 @@ function withoutFeaturing(name: string): string {
   return name.replace(/\s*\((?:feat|ft)\.?[^)]*\)/giu, "").trim();
 }
 
-/** "RADWIMPS feat.Toaka" and "RADWIMPS×上白石萌音" both credit RADWIMPS. */
+/**
+ * "RADWIMPS feat.Toaka" and "RADWIMPS×上白石萌音" both credit RADWIMPS; the
+ * whole credit stays too, so a saved "DAOKO×米津玄師" still matches itself.
+ */
 function creditedArtists(name: string): Set<string> {
-  return new Set(withoutFeaturing(name).split(/\s*(?:\bfeat\.?|\bft\.|×|&|＆|,|，|、|\/)\s*/iu).map(personKey).filter(Boolean));
+  const credit = withoutFeaturing(name);
+  return new Set([credit, ...credit.split(/\s*(?:\bfeat\.?|\bft\.|×|&|＆|,|，|、|\/)\s*/iu)].map(personKey).filter(Boolean));
 }
 
 /** Every artist of these songs, most saved songs first, newest first on a tie. */
