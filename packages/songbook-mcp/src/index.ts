@@ -135,23 +135,37 @@ const recommendedKeyInput = z.object({
   offset: z.number().int().min(-12).max(12)
 });
 
-const songFields = {
-  tjNumber: z.string().trim().regex(/^\d*$/u).default(""),
-  damNumber: z.string().trim().regex(/^(?:\d{4}-\d{2})?$/u).default(""),
-  title: z.string().trim().min(1).max(300).optional(),
-  titleReadingKo: z.string().trim().max(300).default(""),
-  artist: z.string().trim().min(1).max(300).optional(),
-  artistReadingKo: z.string().trim().max(300).default(""),
-  country: z.string().trim().max(80).default(""),
-  recommendedKey: recommendedKeyInput.nullable().default(null),
-  performerIds: z.array(z.enum(["marie", "seongwook", "yeowool"])).default([]),
-  memo: z.string().trim().max(4000).default(""),
-  sourceType: z.string().trim().max(80).default(""),
-  sourceReference: z.string().trim().max(300).default("")
+// Base field shapes carry no defaults: zod v4 applies a default even inside
+// .optional(), so a shared default would make update_song blank every field
+// the caller left out.
+const songFieldShapes = {
+  tjNumber: z.string().trim().regex(/^\d*$/u),
+  damNumber: z.string().trim().regex(/^(?:\d{4}-\d{2})?$/u),
+  title: z.string().trim().min(1).max(300),
+  titleReadingKo: z.string().trim().max(300),
+  artist: z.string().trim().min(1).max(300),
+  artistReadingKo: z.string().trim().max(300),
+  country: z.string().trim().max(80),
+  recommendedKey: recommendedKeyInput.nullable(),
+  performerIds: z.array(z.enum(["marie", "seongwook", "yeowool"])),
+  memo: z.string().trim().max(4000),
+  sourceType: z.string().trim().max(80),
+  sourceReference: z.string().trim().max(300)
 };
 
 const createSongInput = z.object({
-  ...songFields,
+  tjNumber: songFieldShapes.tjNumber.default(""),
+  damNumber: songFieldShapes.damNumber.default(""),
+  title: songFieldShapes.title.optional(),
+  titleReadingKo: songFieldShapes.titleReadingKo.default(""),
+  artist: songFieldShapes.artist.optional(),
+  artistReadingKo: songFieldShapes.artistReadingKo.default(""),
+  country: songFieldShapes.country.default(""),
+  recommendedKey: songFieldShapes.recommendedKey.default(null),
+  performerIds: songFieldShapes.performerIds.default([]),
+  memo: songFieldShapes.memo.default(""),
+  sourceType: songFieldShapes.sourceType.default(""),
+  sourceReference: songFieldShapes.sourceReference.default(""),
   clientRequestId: z.string().uuid(),
   tjCandidate: tjCandidateInput.optional(),
   damCandidate: damCandidateInput.optional()
@@ -160,18 +174,7 @@ const createSongInput = z.object({
 });
 
 const updateSongInput = z.object({
-  tjNumber: songFields.tjNumber.optional(),
-  damNumber: songFields.damNumber.optional(),
-  title: songFields.title,
-  titleReadingKo: songFields.titleReadingKo.optional(),
-  artist: songFields.artist,
-  artistReadingKo: songFields.artistReadingKo.optional(),
-  country: songFields.country.optional(),
-  recommendedKey: songFields.recommendedKey.optional(),
-  performerIds: songFields.performerIds.optional(),
-  memo: songFields.memo.optional(),
-  sourceType: songFields.sourceType.optional(),
-  sourceReference: songFields.sourceReference.optional(),
+  ...z.object(songFieldShapes).partial().shape,
   id: z.string().min(1).max(200).optional(),
   songId: z.string().min(1).max(200).optional(),
   expectedVersion: z.number().int().nonnegative(),

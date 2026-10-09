@@ -152,6 +152,11 @@ describe("stateless Songbook MCP", () => {
     const update = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 11, method: "tools/call", params: { name: "update_song", arguments: { songId: "song-1", title: "Updated", expectedVersion: 1, clientRequestId: "44444444-4444-4444-8444-444444444444" } } }), { authInfo });
     expect((await update.json()).result.structuredContent.data.id).toBe(song.id);
     expect(serviceDouble.updateSong).toHaveBeenCalledWith(actor, expect.objectContaining({ id: "song-1", title: "Updated" }));
+    // A partial update must leave omitted fields undefined so the service keeps the stored values.
+    const updateInput = vi.mocked(serviceDouble.updateSong).mock.calls[0]![1] as unknown as Record<string, unknown>;
+    for (const field of ["tjNumber", "damNumber", "titleReadingKo", "artistReadingKo", "country", "recommendedKey", "performerIds", "memo", "sourceType", "sourceReference"]) {
+      expect(updateInput[field], field).toBeUndefined();
+    }
     const deletion = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 12, method: "tools/call", params: { name: "delete_song", arguments: { id: "song-1", expectedVersion: 1, clientRequestId: "55555555-5555-4555-8555-555555555555" } } }), { authInfo });
     expect((await deletion.json()).result.structuredContent.data.id).toBe(song.id);
     expect(serviceDouble.deleteSong).toHaveBeenCalledWith(actor, expect.objectContaining({ id: "song-1", expectedVersion: 1 }));
