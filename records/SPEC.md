@@ -94,7 +94,7 @@ history.
   and protected operations use the same domain services and validation as the
   browser API.
 - Songs store structured `performerIds` for who will sing the song. Built-in
-  performers are `marie`, `seongwook`, and `yeowool`; legacy `뽀냐` input maps to
+  performers are `marie`, `seongwook`, `yeowool`, and `eunhu`; legacy `뽀냐` input maps to
   `marie` plus `yeowool` and is not a stored user ID. New-song entry preselects
   the signed-in person's matching performer, including one-tap TJ adds; the
   manual form remains editable before saving.

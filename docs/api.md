@@ -81,7 +81,7 @@ restore route.
 ## Song data
 
 `Song.performerIds` is an array of user IDs. The server accepts only `marie`,
-`seongwook`, and `yeowool`, deduplicates them, and writes them to
+`seongwook`, `yeowool`, and `eunhu`, deduplicates them, and writes them to
 `performer_ids_json` in D1. `Song.recommendedKey` is either null or one
 `{ baseMode, offset }` value. Original-work context is plain memo text prefixed
 with `원작:`; aliases, romanization, YouTube metadata, and song status are not
