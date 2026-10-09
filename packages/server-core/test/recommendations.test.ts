@@ -57,9 +57,9 @@ describe("recommendSongs", () => {
 
   it("keeps only the artist's own songs, solo or credited, from DAM keyword search", async () => {
     const hit = (damNumber: string, artist: string) => ({ damNumber, title: damNumber, artist, titleYomi: "", artistYomi: "", sourceUrl: "https://www.clubdam.com/" });
-    const dam: DamAdapter = { search: vi.fn(async () => ({ query: "RADWIMPS", searchType: "all" as const, page: 1, pageSize: 30, hasMore: false, candidates: [hit("1111-01", "RADWIMPS"), hit("1111-02", "上白石萌音"), hit("1111-03", "RADWIMPS feat.Toaka"), hit("1111-04", "RADWIMPS×上白石萌音"), hit("1111-05", "RADWIMPSS")] })) };
+    const dam: DamAdapter = { search: vi.fn(async () => ({ query: "RADWIMPS", searchType: "all" as const, page: 1, pageSize: 30, hasMore: false, candidates: [hit("1111-01", "RADWIMPS"), hit("1111-02", "上白石萌音"), hit("1111-03", "RADWIMPS feat.Toaka"), hit("1111-04", "RADWIMPS×上白石萌音"), hit("1111-05", "RADWIMPSS"), hit("1111-06", "RADWIMPS ft Guest")] })) };
     const { groups } = await recommendSongs({ catalog: [song("1", "RADWIMPS", { damNumber: "1234-56" })], performerIds: ["marie"], system: "dam", dam });
-    expect(groups[0]!.candidates.map((candidate) => "damNumber" in candidate && candidate.damNumber)).toEqual(["1111-01", "1111-03", "1111-04"]);
+    expect(groups[0]!.candidates.map((candidate) => "damNumber" in candidate && candidate.damNumber)).toEqual(["1111-01", "1111-03", "1111-04", "1111-06"]);
     expect(dam.search).toHaveBeenCalledWith(expect.objectContaining({ pageSize: 100 }));
   });
 

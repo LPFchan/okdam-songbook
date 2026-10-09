@@ -40,7 +40,7 @@ function withoutFeaturing(name: string): string {
  */
 function creditedArtists(name: string): Set<string> {
   const credit = withoutFeaturing(name);
-  return new Set([credit, ...credit.split(/\s*(?:\bfeat\.?|\bft\.|×|&|＆|,|，|、|\/)\s*/iu)].map(personKey).filter(Boolean));
+  return new Set([credit, ...credit.split(/\s*(?:\b(?:feat|ft)\b\.?|×|&|＆|,|，|、|\/)\s*/iu)].map(personKey).filter(Boolean));
 }
 
 /** Every artist of these songs, most saved songs first, newest first on a tie. */
