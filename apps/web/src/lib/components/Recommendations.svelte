@@ -38,20 +38,18 @@
 
   $effect(() => {
     const key = requestKey;
+    // Clear right away: the old filter's songs must not stay clickable while
+    // the heading already describes the new one.
     loaded = false;
-    if (!enabled || !performerIds.length) {
-      loading = false;
-      groups = [];
-      error = "";
-      return;
-    }
+    loading = false;
+    groups = [];
+    error = "";
+    expanded = {};
+    if (!enabled || !performerIds.length) return;
     let cancelled = false;
     const input = { performerIds: [...performerIds], system };
     const timer = setTimeout(() => {
       loading = true;
-      error = "";
-      groups = [];
-      expanded = {};
       let request = cache.get(key);
       if (!request) {
         request = requireCredential().then(() => fetchRecommendations(input));
