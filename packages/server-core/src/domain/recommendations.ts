@@ -1,4 +1,5 @@
 import {
+  DAM_MAX_PAGE_SIZE,
   filterSongs,
   type DamSongCandidate,
   type KaraokeSystem,
@@ -101,8 +102,9 @@ export async function recommendSongs(options: {
     const query = person.name.slice(0, 120);
     return system === "tj"
       ? (await tj!.search({ query, searchType: "artist", nation: "", page: 1, pageSize: RECOMMENDATION_PAGE_SIZE })).candidates
-      // DAM keyword search also matches composers and lyricists; keep the artist's own songs.
-      : (await dam!.search({ query, page: 1, pageSize: RECOMMENDATION_PAGE_SIZE })).candidates
+      // DAM keyword search also matches titles, composers and lyricists; ask for
+      // its largest page in one request, then keep the artist's own songs.
+      : (await dam!.search({ query, page: 1, pageSize: DAM_MAX_PAGE_SIZE })).candidates
         .filter((candidate) => creditedArtists(candidate.artist).has(personKey(person.name)));
   };
 
