@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDamKeywordRequest, isDamNumberQuery, normalizeDamNumber, parseDamDetailResponse, parseDamKeywordResponse, sampleSongs, searchSongs, sortSongs } from "../src/index.js";
+import { buildDamKeywordRequest, damSearchRequestSchema, isDamNumberQuery, normalizeDamNumber, parseDamDetailResponse, parseDamKeywordResponse, sampleSongs, searchSongs, sortSongs } from "../src/index.js";
 
 describe("DAM numbers", () => {
   it("normalizes the ways people type a request number", () => {
@@ -17,6 +17,11 @@ describe("DAM numbers", () => {
     const request = buildDamKeywordRequest({ query: " loser ", page: 2, pageSize: 15 });
     expect(request.url).toMatch(/SearchVariousByKeywordApi$/);
     expect(JSON.parse(request.body)).toMatchObject({ keyword: "loser", pageNo: "2", dispCount: "15", sort: "1" });
+  });
+
+  it("accepts page sizes up to DAM's 100-song limit", () => {
+    expect(damSearchRequestSchema.parse({ query: "love", pageSize: 100 }).pageSize).toBe(100);
+    expect(damSearchRequestSchema.safeParse({ query: "love", pageSize: 101 }).success).toBe(false);
   });
 
   it("parses keyword and detail responses, and rejects unknown shapes", () => {
