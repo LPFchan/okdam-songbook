@@ -1,5 +1,6 @@
 import { createMcpHandler, McpServer, type AuthInfo, type McpRequestContext } from "@modelcontextprotocol/server";
 import {
+  DAM_MAX_PAGE_SIZE,
   damSongCandidateSchema,
   performanceCancelRequestSchema,
   performanceCreateRequestSchema,
@@ -293,7 +294,7 @@ async function damSearch(options: SongbookMcpHandlerOptions, query: string, limi
   if (!options.dam) return { state: "unavailable", candidates: [], hasMore: false, error: null };
   if (query.trim().length < 2) return { state: "skipped_short_query", candidates: [], hasMore: false, error: null };
   try {
-    const found = await options.dam.search({ query, page: 1, pageSize: Math.min(limit, 30) });
+    const found = await options.dam.search({ query, page: 1, pageSize: Math.min(limit, DAM_MAX_PAGE_SIZE) });
     const candidates = await Promise.all(found.candidates.map(async (candidate) => {
       const saved = await options.service.checkDuplicate({ damNumber: candidate.damNumber, title: candidate.title, artist: candidate.artist });
       return { ...candidate, alreadySaved: Boolean(saved?.damNumber), savedSongId: saved?.id ?? null };

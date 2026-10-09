@@ -1,4 +1,4 @@
-import type { DamSongCandidate, KaraokeSystem, Song, TjSongCandidate } from "@songbook/shared";
+import { DAM_MAX_PAGE_SIZE, type DamSongCandidate, type KaraokeSystem, type Song, type TjSongCandidate } from "@songbook/shared";
 import { addDamSong, addTjSong, searchDamSongs, searchTjSongs } from "./api";
 
 export type Candidate = TjSongCandidate | DamSongCandidate;
@@ -24,7 +24,7 @@ export const karaokeSources: Record<KaraokeSystem, KaraokeSource> = {
     label: "DAM",
     number: (candidate) => (candidate as DamSongCandidate).damNumber,
     savedNumber: (song) => song.damNumber,
-    search: async (q) => (await searchDamSongs({ query: q, page: 1, pageSize: 15 })).candidates,
+    search: async (q) => (await searchDamSongs({ query: q, page: 1, pageSize: DAM_MAX_PAGE_SIZE })).candidates,
     add: (candidate, requestId, ownerSubject) => addDamSong(candidate as DamSongCandidate, requestId, ownerSubject)
   }
 };

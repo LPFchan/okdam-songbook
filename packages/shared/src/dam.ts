@@ -12,10 +12,13 @@ export const damSongCandidateSchema = z.object({
   sourceUrl: z.string().url()
 });
 
+/** clubdam.com returns up to 100 songs per keyword search request. */
+export const DAM_MAX_PAGE_SIZE = 100;
+
 export const damSearchRequestSchema = z.object({
   query: z.string().trim().min(1).max(120),
   page: z.number().int().min(1).max(10).optional().default(1),
-  pageSize: z.number().int().min(1).max(30).optional().default(15)
+  pageSize: z.number().int().min(1).max(DAM_MAX_PAGE_SIZE).optional().default(15)
 });
 
 export const damSearchResultSchema = z.object({
