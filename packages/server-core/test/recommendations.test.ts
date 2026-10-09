@@ -31,7 +31,7 @@ describe("recommendSongs", () => {
     });
     const tj = { search, lookup: vi.fn() } as unknown as TjAdapter;
     const sleep = vi.fn(async () => {});
-    const { groups, nextOffset } = await recommendSongs({
+    const { groups, hasMore } = await recommendSongs({
       catalog: [song("1", "A"), song("2", "A"), song("3", "B", { performerIds: ["yeowool"] }), song("4", "D", { tjNumber: "", damNumber: "1234-56" })],
       performerIds: ["marie"],
       system: "tj",
@@ -39,7 +39,7 @@ describe("recommendSongs", () => {
       sleep
     });
     expect(groups.map((group) => [group.name, group.candidates.length, group.error])).toEqual([["A", 1, null]]);
-    expect(nextOffset).toBeNull();
+    expect(hasMore).toBe(false);
     expect(search).toHaveBeenCalledWith(expect.objectContaining({ query: "A", searchType: "artist", pageSize: 30 }));
     expect(sleep).toHaveBeenCalledTimes(1);
   });
@@ -55,18 +55,19 @@ describe("recommendSongs", () => {
     expect(groups).toEqual([{ name: "A", songCount: 1, candidates: [], error: "검색하지 못했어." }]);
   });
 
-  it("keeps only the artist's own songs from DAM keyword search", async () => {
+  it("keeps only the artist's own songs, solo or credited, from DAM keyword search", async () => {
     const hit = (damNumber: string, artist: string) => ({ damNumber, title: damNumber, artist, titleYomi: "", artistYomi: "", sourceUrl: "https://www.clubdam.com/" });
-    const dam: DamAdapter = { search: vi.fn(async () => ({ query: "RADWIMPS", searchType: "all" as const, page: 1, pageSize: 30, hasMore: false, candidates: [hit("1111-01", "RADWIMPS"), hit("1111-02", "上白石萌音"), hit("1111-03", "RADWIMPS feat.Toaka")] })) };
+    const dam: DamAdapter = { search: vi.fn(async () => ({ query: "RADWIMPS", searchType: "all" as const, page: 1, pageSize: 30, hasMore: false, candidates: [hit("1111-01", "RADWIMPS"), hit("1111-02", "上白石萌音"), hit("1111-03", "RADWIMPS feat.Toaka"), hit("1111-04", "RADWIMPS×上白石萌音"), hit("1111-05", "RADWIMPSS")] })) };
     const { groups } = await recommendSongs({ catalog: [song("1", "RADWIMPS", { damNumber: "1234-56" })], performerIds: ["marie"], system: "dam", dam });
-    expect(groups[0]!.candidates.map((candidate) => "damNumber" in candidate && candidate.damNumber)).toEqual(["1111-01", "1111-03"]);
+    expect(groups[0]!.candidates.map((candidate) => "damNumber" in candidate && candidate.damNumber)).toEqual(["1111-01", "1111-03", "1111-04"]);
   });
 
-  it("pages through artists five at a time", async () => {
+  it("pages through artists five at a time, skipping the ones already shown", async () => {
     const tj = { search: vi.fn(async (input: { query: string }) => tjResult(input.query)), lookup: vi.fn() } as unknown as TjAdapter;
     const catalog = ["1", "2", "3", "4", "5", "6", "7"].map((id) => song(id, `Artist ${id}`));
     const first = await recommendSongs({ catalog, performerIds: ["marie"], system: "tj", tj });
-    const second = await recommendSongs({ catalog, performerIds: ["marie"], system: "tj", offset: first.nextOffset!, tj });
-    expect([first.groups.length, first.nextOffset, second.groups.length, second.nextOffset]).toEqual([5, 5, 2, null]);
+    // Artist 7 leaving the catalog between pages must not push Artist 2 out of reach.
+    const second = await recommendSongs({ catalog: catalog.filter((entry) => entry.id !== "7"), performerIds: ["marie"], system: "tj", exclude: first.groups.map((group) => group.name), tj });
+    expect([first.groups.length, first.hasMore, second.groups.map((group) => group.name), second.hasMore]).toEqual([5, true, ["Artist 2", "Artist 1"], false]);
   });
 });

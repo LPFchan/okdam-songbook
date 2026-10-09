@@ -33,6 +33,11 @@ function withoutFeaturing(name: string): string {
   return name.replace(/\s*\((?:feat|ft)\.?[^)]*\)/giu, "").trim();
 }
 
+/** "RADWIMPS feat.Toaka" and "RADWIMPS×上白石萌音" both credit RADWIMPS. */
+function creditedArtists(name: string): Set<string> {
+  return new Set(withoutFeaturing(name).split(/\s*(?:\bfeat\.?|\bft\.|×|&|＆|,|，|、|\/)\s*/iu).map(personKey).filter(Boolean));
+}
+
 /** Every artist of these songs, most saved songs first, newest first on a tie. */
 export function topRecommendationPeople(songs: Song[]): RecommendationPerson[] {
   const people = new Map<string, { spellings: Map<string, number>; songCount: number; latest: string }>();
@@ -71,7 +76,7 @@ export async function recommendSongs(options: {
   catalog: Song[];
   performerIds: PerformerId[];
   system: KaraokeSystem;
-  offset?: number;
+  exclude?: string[];
   tj?: TjAdapter;
   dam?: DamAdapter;
   sleep?(ms: number): Promise<void>;
@@ -83,9 +88,10 @@ export async function recommendSongs(options: {
   // Each mode only shows songs with that system's number, so only those speak for taste there.
   const songs = filterSongs(options.catalog, { performerIds: options.performerIds, hasTjNumber: system === "tj" || undefined, hasDamNumber: system === "dam" || undefined });
   const ranked = topRecommendationPeople(songs);
-  const offset = options.offset ?? 0;
-  const people = ranked.slice(offset, offset + RECOMMENDATION_PAGE_PEOPLE);
-  const nextOffset = offset + RECOMMENDATION_PAGE_PEOPLE < ranked.length ? offset + RECOMMENDATION_PAGE_PEOPLE : null;
+  const shown = new Set((options.exclude ?? []).map(personKey));
+  const remaining = ranked.filter((person) => !shown.has(personKey(person.name)));
+  const people = remaining.slice(0, RECOMMENDATION_PAGE_PEOPLE);
+  const hasMore = remaining.length > RECOMMENDATION_PAGE_PEOPLE;
 
   const search = async (person: RecommendationPerson): Promise<Array<TjSongCandidate | DamSongCandidate>> => {
     const query = person.name.slice(0, 120);
@@ -93,7 +99,7 @@ export async function recommendSongs(options: {
       ? (await tj!.search({ query, searchType: "artist", nation: "", page: 1, pageSize: RECOMMENDATION_PAGE_SIZE })).candidates
       // DAM keyword search also matches composers and lyricists; keep the artist's own songs.
       : (await dam!.search({ query, page: 1, pageSize: RECOMMENDATION_PAGE_SIZE })).candidates
-        .filter((candidate) => personKey(candidate.artist).includes(personKey(person.name)));
+        .filter((candidate) => creditedArtists(candidate.artist).has(personKey(person.name)));
   };
 
   const groups: RecommendationGroup[] = [];
@@ -112,5 +118,5 @@ export async function recommendSongs(options: {
       }
     }
   }
-  return { groups, nextOffset };
+  return { groups, hasMore };
 }

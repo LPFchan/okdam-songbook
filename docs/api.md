@@ -30,12 +30,12 @@ The live browser path uses the `.lost.plus` shared session:
 - `POST /api/readings/generate` — protected Korean-reading candidate
   generation for a bounded title/artist pair.
 - `POST /api/recommendations` — protected. Body `{ performerIds, system,
-  offset? }` (`system` is `tj` or `dam`). Ranks the artists of those
-  performers' saved songs, searches the five from `offset` on that system (TJ
-  artist search; DAM keyword search kept to that artist's songs), and returns
-  `{ groups: [{ name, songCount, candidates, error }], nextOffset }`;
-  `nextOffset` is null after the last artist. Saved songs are not filtered
-  out; the client hides them.
+  exclude? }` (`system` is `tj` or `dam`). Ranks the artists of those
+  performers' saved songs, skips the names in `exclude` (the artists the
+  client already shows), searches the next five on that system (TJ artist
+  search; DAM keyword search kept to songs crediting that artist), and returns
+  `{ groups: [{ name, songCount, candidates, error }], hasMore }`. Saved songs
+  are not filtered out; the client hides them.
 
 Browser calls use `credentials: include`, exact same-origin mutation checks,
 and JSON request bodies. There is no browser-readable bearer token in this

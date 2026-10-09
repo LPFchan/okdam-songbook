@@ -24,7 +24,7 @@ describe("Recommendations", () => {
       { name: "페퍼톤스", songCount: 6, candidates: [candidate("1", "Saved", "페퍼톤스"), candidate("2", "New Hit", "페퍼톤스")], error: null },
       { name: "Other Artist", songCount: 3, candidates: [candidate("2", "New Hit", "페퍼톤스")], error: null }
     ];
-    vi.mocked(fetchRecommendations).mockResolvedValue({ groups, nextOffset: null });
+    vi.mocked(fetchRecommendations).mockResolvedValue({ groups, hasMore: false });
     render(Recommendations, {
       props: {
         system: "tj",
@@ -37,7 +37,7 @@ describe("Recommendations", () => {
       }
     });
     await waitFor(() => expect(screen.getByText("New Hit")).toBeTruthy());
-    expect(fetchRecommendations).toHaveBeenCalledWith({ performerIds: ["marie"], system: "tj", offset: 0 });
+    expect(fetchRecommendations).toHaveBeenCalledWith({ performerIds: ["marie"], system: "tj", exclude: [] });
     expect(screen.queryByText("Saved")).toBeNull();
     expect(screen.getAllByText("New Hit")).toHaveLength(1);
     expect(screen.queryByText("Other Artist")).toBeNull();
@@ -54,11 +54,11 @@ describe("Recommendations", () => {
       onOpenExisting: vi.fn(),
       onSongSaved: vi.fn()
     };
-    vi.mocked(fetchRecommendations).mockReset().mockResolvedValue({ groups: [{ name: "A", songCount: 1, candidates: [], error: "검색하지 못했어." }], nextOffset: null });
+    vi.mocked(fetchRecommendations).mockReset().mockResolvedValue({ groups: [{ name: "A", songCount: 1, candidates: [], error: "검색하지 못했어." }], hasMore: false });
     render(Recommendations, { props });
     await waitFor(() => expect(screen.getByText("검색하지 못했어.")).toBeTruthy());
     cleanup();
-    vi.mocked(fetchRecommendations).mockResolvedValue({ groups: [], nextOffset: null });
+    vi.mocked(fetchRecommendations).mockResolvedValue({ groups: [], hasMore: false });
     render(Recommendations, { props });
     await waitFor(() => expect(screen.getByText("새로 찾은 곡이 없어요.")).toBeTruthy());
     expect(fetchRecommendations).toHaveBeenCalledTimes(2);
@@ -70,9 +70,9 @@ describe("Recommendations", () => {
       observe() { this.callback([{ isIntersecting: true }]); }
       disconnect() {}
     });
-    vi.mocked(fetchRecommendations).mockReset().mockImplementation(async ({ offset }) => offset
-      ? { groups: [{ name: "Second", songCount: 1, candidates: [candidate("20", "Later Song", "Second")], error: null }], nextOffset: null }
-      : { groups: [{ name: "First", songCount: 2, candidates: [candidate("10", "Early Song", "First")], error: null }], nextOffset: 5 });
+    vi.mocked(fetchRecommendations).mockReset().mockImplementation(async ({ exclude }) => exclude?.length
+      ? { groups: [{ name: "Second", songCount: 1, candidates: [candidate("20", "Later Song", "Second")], error: null }], hasMore: false }
+      : { groups: [{ name: "First", songCount: 2, candidates: [candidate("10", "Early Song", "First")], error: null }], hasMore: true });
     render(Recommendations, {
       props: {
         system: "tj",
@@ -86,7 +86,7 @@ describe("Recommendations", () => {
     });
     await waitFor(() => expect(screen.getByText("Later Song")).toBeTruthy());
     expect(screen.getByText("Early Song")).toBeTruthy();
-    expect(fetchRecommendations).toHaveBeenCalledWith({ performerIds: ["seongwook"], system: "tj", offset: 5 });
+    expect(fetchRecommendations).toHaveBeenCalledWith({ performerIds: ["seongwook"], system: "tj", exclude: ["First"] });
     vi.unstubAllGlobals();
   });
 });

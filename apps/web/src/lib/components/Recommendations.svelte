@@ -31,7 +31,7 @@
   let ready = $state(false);
   let loading = $state(false);
   let groups = $state<RecommendationGroup[]>([]);
-  let nextOffset = $state<number | null>(0);
+  let hasMore = $state(true);
   let error = $state("");
   let expanded = $state<Record<string, boolean>>({});
   let bottomVisible = $state(false);
@@ -48,7 +48,7 @@
     ready = false;
     loading = false;
     groups = [];
-    nextOffset = 0;
+    hasMore = true;
     error = "";
     expanded = {};
     if (!enabled || !performerIds.length) return;
@@ -58,14 +58,14 @@
 
   // The first page loads on its own; later pages load as the bottom scrolls into view.
   $effect(() => {
-    if (ready && !loading && !error && nextOffset !== null && (nextOffset === 0 || bottomVisible)) untrack(loadPage);
+    if (ready && !loading && !error && hasMore && (!groups.length || bottomVisible)) untrack(loadPage);
   });
 
   function loadPage() {
     const run = generation;
-    const offset = nextOffset ?? 0;
-    const key = `${requestKey}@${offset}`;
-    const input = { performerIds: [...performerIds], system, offset };
+    const exclude = groups.map((group) => group.name);
+    const key = `${requestKey}@${exclude.length}`;
+    const input = { performerIds: [...performerIds], system, exclude };
     loading = true;
     let request = cache.get(key);
     if (!request) {
@@ -84,7 +84,7 @@
       .then((page) => {
         if (run !== generation) return;
         groups = [...groups, ...page.groups];
-        nextOffset = page.nextOffset;
+        hasMore = page.hasMore;
       })
       .catch((reason: unknown) => {
         if (run === generation) error = reason instanceof Error ? reason.message : "추천 곡을 불러오지 못했어요.";
@@ -156,11 +156,14 @@
       </div>
     {/each}
     {#if loading}<p class="omnibar-tj-status">추천 곡을 찾는 중…</p>{/if}
-    {#if error}<p class="omnibar-tj-status error">{error}</p>{/if}
-    {#if nextOffset === null && !visibleGroups.length}
+    {#if error}
+      <p class="omnibar-tj-status error">{error}</p>
+      <button type="button" class="secondary-button recommendation-more" onclick={() => (error = "")}>다시 시도</button>
+    {/if}
+    {#if !hasMore && !visibleGroups.length}
       <p class="omnibar-tj-status">새로 찾은 곡이 없어요.</p>
     {/if}
-    {#if nextOffset !== null}
+    {#if hasMore}
       <!-- Re-observe after each page so the next one waits for a fresh measurement. -->
       {#key groups.length}<div class="recommendation-bottom" use:watchBottom></div>{/key}
     {/if}

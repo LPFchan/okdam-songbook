@@ -361,9 +361,9 @@ export async function generateReading(input: { title: string; artist: string }, 
 export async function fetchRecommendations(input: RecommendationRequest): Promise<RecommendationResult> {
   if (mockMode()) {
     const artists = [...new Set(sampleSongs.filter((song) => song.performerIds.some((id) => input.performerIds.includes(id))).map((song) => song.artist))];
-    const offset = input.offset ?? 0;
-    const groups = artists.slice(offset, offset + 5).map((artist, i) => {
-      const index = offset + i;
+    const remaining = artists.filter((artist) => !input.exclude?.includes(artist));
+    const groups = remaining.slice(0, 5).map((artist) => {
+      const index = artists.indexOf(artist);
       return recommendationGroupSchema.parse({
         name: artist,
         songCount: Math.max(1, 20 - index),
@@ -373,7 +373,7 @@ export async function fetchRecommendations(input: RecommendationRequest): Promis
         error: null
       });
     });
-    return { groups, nextOffset: offset + 5 < artists.length ? offset + 5 : null };
+    return { groups, hasMore: remaining.length > 5 };
   }
   return request("/api/recommendations", {
     method: "POST",
