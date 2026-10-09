@@ -265,7 +265,7 @@
 
   // DAM mode hides songs DAM has no number for; they cannot be sung there.
   const visibleSongs = $derived(
-    sortSongs(searchSongs(filterSongs(songs, { ...filters, hasDamNumber: karaoke.system === "dam" || undefined }), query), sortKey)
+    sortSongs(searchSongs(filterSongs(songs, { ...filters, hasTjNumber: karaoke.system === "tj" || undefined, hasDamNumber: karaoke.system === "dam" || undefined }), query), sortKey)
       .filter((song) => !favoriteOnly || favoriteSongIds.includes(song.id))
   );
 
