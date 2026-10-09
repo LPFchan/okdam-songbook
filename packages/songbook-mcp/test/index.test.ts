@@ -19,13 +19,16 @@ function service(): SongbookService {
     getSong: vi.fn(() => song),
     search: vi.fn(() => [song]),
     checkDuplicate: vi.fn(() => song),
-    createPerformance: vi.fn(() => ({ id: "performance-1" })),
-    cancelPerformance: vi.fn(() => ({ id: "performance-1" })),
-    createSong: vi.fn(() => song),
-    createSongOutcome: vi.fn(() => ({ outcome: "created", song, existing: null, duplicateKind: null, canRestore: false, canOpen: true })),
-    createTjSong: vi.fn(() => ({ outcome: "created", song, existing: null, duplicateKind: null, canRestore: false, canOpen: true })),
-    updateSong: vi.fn(() => song),
-    deleteSong: vi.fn(() => song),
+    // Writes resolve asynchronously like the real service, so a tool that
+    // forgets to await one would answer with empty data.
+    createPerformance: vi.fn(async () => ({ id: "performance-1" })),
+    cancelPerformance: vi.fn(async () => ({ id: "performance-1" })),
+    createSong: vi.fn(async () => song),
+    createSongOutcome: vi.fn(async () => ({ outcome: "created", song, existing: null, duplicateKind: null, canRestore: false, canOpen: true })),
+    createTjSong: vi.fn(async () => ({ outcome: "created", song, existing: null, duplicateKind: null, canRestore: false, canOpen: true })),
+    createDamSong: vi.fn(async () => ({ outcome: "linked", song, existing: null, duplicateKind: null, canRestore: false, canOpen: true })),
+    updateSong: vi.fn(async () => song),
+    deleteSong: vi.fn(async () => song),
     performanceStats: vi.fn(() => ({ count: 0, lastPerformedAt: "" }))
   } as unknown as SongbookService;
 }
@@ -145,19 +148,22 @@ describe("stateless Songbook MCP", () => {
     const serviceDouble = service();
     const handler = createSongbookMcpHandler({ service: serviceDouble });
     const response = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 10, method: "tools/call", params: { name: "record_performance", arguments: { songId: "song-1", keySelection: { baseMode: "original", offset: 0 }, clientRequestId: "33333333-3333-4333-8333-333333333333" } } }), { authInfo });
-    expect((await response.json()).result.structuredContent.ok).toBe(true);
+    expect((await response.json()).result.structuredContent.data).toEqual({ id: "performance-1" });
     const update = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 11, method: "tools/call", params: { name: "update_song", arguments: { songId: "song-1", title: "Updated", expectedVersion: 1, clientRequestId: "44444444-4444-4444-8444-444444444444" } } }), { authInfo });
-    expect((await update.json()).result.structuredContent.ok).toBe(true);
+    expect((await update.json()).result.structuredContent.data.id).toBe(song.id);
     expect(serviceDouble.updateSong).toHaveBeenCalledWith(actor, expect.objectContaining({ id: "song-1", title: "Updated" }));
     const deletion = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 12, method: "tools/call", params: { name: "delete_song", arguments: { id: "song-1", expectedVersion: 1, clientRequestId: "55555555-5555-4555-8555-555555555555" } } }), { authInfo });
-    expect((await deletion.json()).result.structuredContent.ok).toBe(true);
+    expect((await deletion.json()).result.structuredContent.data.id).toBe(song.id);
     expect(serviceDouble.deleteSong).toHaveBeenCalledWith(actor, expect.objectContaining({ id: "song-1", expectedVersion: 1 }));
     const manual = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 13, method: "tools/call", params: { name: "create_song", arguments: { title: "Manual", artist: "Artist", clientRequestId: "66666666-6666-4666-8666-666666666666" } } }), { authInfo });
-    expect((await manual.json()).result.structuredContent.ok).toBe(true);
+    expect((await manual.json()).result.structuredContent.data.outcome).toBe("created");
     expect(serviceDouble.createSongOutcome).toHaveBeenCalledWith(actor, expect.objectContaining({ title: "Manual", artist: "Artist" }));
     const fromTj = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 14, method: "tools/call", params: { name: "create_song", arguments: { tjCandidate: { tjNumber: "777", title: "TJ song", artist: "TJ artist", sourceUrl: "https://tj.example/777" }, clientRequestId: "77777777-7777-4777-8777-777777777777" } } }), { authInfo });
-    expect((await fromTj.json()).result.structuredContent.ok).toBe(true);
+    expect((await fromTj.json()).result.structuredContent.data.outcome).toBe("created");
     expect(serviceDouble.createTjSong).toHaveBeenCalledWith(actor, expect.objectContaining({ tjNumber: "777" }), "77777777-7777-4777-8777-777777777777");
+    const fromDam = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 15, method: "tools/call", params: { name: "create_song", arguments: { damCandidate: { damNumber: "1472-59", title: "DAM song", artist: "DAM artist", sourceUrl: "https://dam.example/1472-59" }, clientRequestId: "99999999-9999-4999-8999-999999999999" } } }), { authInfo });
+    expect((await fromDam.json()).result.structuredContent.data.outcome).toBe("linked");
+    expect(serviceDouble.createDamSong).toHaveBeenCalledWith(actor, expect.objectContaining({ damNumber: "1472-59" }), "99999999-9999-4999-8999-999999999999");
     const invalid = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 16, method: "tools/call", params: { name: "create_song", arguments: { title: "Missing artist", clientRequestId: "88888888-8888-4888-8888-888888888888" } } }), { authInfo });
     expect((await invalid.json()).result.isError).toBe(true);
   });

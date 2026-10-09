@@ -43,6 +43,19 @@ describe("adding songs from DAM", () => {
     expect(await service.catalog()).toHaveLength(1);
   });
 
+  it("replays a linked add when its response was lost", async () => {
+    await service.createSong(allowed, {
+      tjNumber: "52537", title: "フォニイ", titleReadingKo: "", artist: "ツミキ", artistReadingKo: "", country: "일본",
+      recommendedKey: null, performerIds: [], memo: "", sourceType: "tjmedia", sourceReference: "", createdByName: "", updatedByName: "",
+      clientRequestId: crypto.randomUUID()
+    });
+    const key = crypto.randomUUID();
+    const first = await service.createDamSong(allowed, candidate(), key);
+    const retry = await service.createDamSong(allowed, candidate(), key);
+    expect(retry).toEqual(first);
+    expect(retry.outcome).toBe("linked");
+  });
+
   it("reports a DAM number that is already saved", async () => {
     await service.createDamSong(allowed, candidate(), crypto.randomUUID());
     const result = await service.createDamSong(allowed, candidate({ title: "Other", artist: "Someone" }), crypto.randomUUID());

@@ -193,7 +193,7 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
     throw new DomainError(kind === "tjNumber" ? "DUPLICATE_TJ_NUMBER" : "CONFLICT", "같은 TJ 번호 또는 곡명/아티스트가 이미 등록되어 있어.", { duplicateId: duplicate.id });
   };
 
-  const createSongOutcome = (actor: RequestActor, input: SongMutation): Promise<SongCreateOutcome> => withMutation(actor, "song:create", "song.create", input.clientRequestId, input, async (resolved) => {
+  const createOutcome = async (resolved: ResolvedActor, input: SongMutation): Promise<SongCreateOutcome> => {
     const duplicate = await songs.findDuplicate(input, undefined, { includeDeleted: true });
     if (duplicate) {
       return {
@@ -225,9 +225,12 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
         canOpen: !isDeletedSong(raced)
       } satisfies SongCreateOutcome;
     }
-  });
+  };
 
-  const updateSong = (actor: RequestActor, input: SongUpdate): Promise<Song> => withMutation(actor, "song:update", "song.update", input.clientRequestId, input, async (resolved) => {
+  const createSongOutcome = (actor: RequestActor, input: SongMutation): Promise<SongCreateOutcome> =>
+    withMutation(actor, "song:create", "song.create", input.clientRequestId, input, (resolved) => createOutcome(resolved, input));
+
+  const applyUpdate = async (resolved: ResolvedActor, input: SongUpdate): Promise<Song> => {
     const before = await songs.get(input.id);
     if (!before || before.deletedAt) throw new DomainError("NOT_FOUND", "곡을 찾을 수 없어.");
     const next = songFromUpdate(before, input, now());
@@ -236,7 +239,10 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
     const after = (await songs.get(input.id))!;
     await appendAudit(resolved, "song", input.id, "update", before, after, input.clientRequestId, before.version, after.version);
     return after;
-  });
+  };
+
+  const updateSong = (actor: RequestActor, input: SongUpdate): Promise<Song> =>
+    withMutation(actor, "song:update", "song.update", input.clientRequestId, input, (resolved) => applyUpdate(resolved, input));
 
   return {
     catalog: async () => filterSongs(await songs.list(), {}),
@@ -285,17 +291,18 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
         canOpen: outcome.canOpen
       };
     },
-    createDamSong: async (actor, candidate, clientRequestId) => {
-      const resolved = actorFor(actor);
+    // One idempotency key covers the whole add, so a retry replays the first
+    // answer even though linking changed the song it would now look at.
+    createDamSong: (actor, candidate, clientRequestId) => withMutation(actor, "song:create", "song.damAdd", clientRequestId, candidate, async (resolved): Promise<DamAddResult> => {
       // Most DAM picks are songs already saved from TJ. When the name matches a
       // saved song that has no DAM number yet, give it this one instead of
       // reporting a duplicate.
       const sameName = await songs.findDuplicate({ title: candidate.title, artist: candidate.artist });
-      if (sameName && !sameName.damNumber && !(await songs.getByDamNumber(candidate.damNumber))) {
-        const linked = await updateSong(actor, { id: sameName.id, expectedVersion: sameName.version, damNumber: candidate.damNumber, updatedByName: resolved.displayName, clientRequestId });
+      if (sameName && !sameName.damNumber && can(resolved.role, "song:update") && !(await songs.getByDamNumber(candidate.damNumber))) {
+        const linked = await applyUpdate(resolved, { id: sameName.id, expectedVersion: sameName.version, damNumber: candidate.damNumber, updatedByName: resolved.displayName, clientRequestId });
         return { outcome: "linked", song: linked, existing: null, duplicateKind: null, canRestore: false, canOpen: true };
       }
-      const outcome = await createSongOutcome(actor, {
+      const outcome = await createOutcome(resolved, {
         tjNumber: "",
         damNumber: candidate.damNumber,
         title: candidate.title,
@@ -320,7 +327,7 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
         canRestore: outcome.canRestore,
         canOpen: outcome.canOpen
       };
-    },
+    }),
     updateSong,
     deleteSong: (actor, input) => withMutation(actor, "song:delete", "song.delete", input.clientRequestId, input, async (resolved) => {
       const before = await songs.get(input.id);

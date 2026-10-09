@@ -368,7 +368,7 @@ function registerTools(
     try {
       const principal = guarded(authInfo, "record_performance");
       const parsed = sharedParse(performanceCreateRequestSchema, { ...input, keySelection: input.keySelection });
-      return result(options.service.createPerformance(principal.actor, {
+      return result(await options.service.createPerformance(principal.actor, {
         songId: parsed.songId,
         performedAt: parsed.performedAt,
         keySelection: parsed.keySelection,
@@ -388,7 +388,7 @@ function registerTools(
     try {
       const principal = guarded(authInfo, "cancel_performance");
       const parsed = sharedParse(performanceCancelRequestSchema, input);
-      return result(options.service.cancelPerformance(principal.actor, {
+      return result(await options.service.cancelPerformance(principal.actor, {
         performanceId: parsed.performanceId,
         expectedVersion: parsed.expectedVersion ?? 1,
         clientRequestId: parsed.clientRequestId
@@ -407,11 +407,11 @@ function registerTools(
       const principal = guarded(authInfo, "create_song");
       if (input.damCandidate) {
         const candidate = sharedParse(damSongCandidateSchema, input.damCandidate);
-        return result(options.service.createDamSong(principal.actor, candidate, input.clientRequestId));
+        return result(await options.service.createDamSong(principal.actor, candidate, input.clientRequestId));
       }
       if (input.tjCandidate) {
         const candidate = sharedParse(tjSongCandidateSchema, input.tjCandidate);
-        return result(options.service.createTjSong(principal.actor, candidate, input.clientRequestId));
+        return result(await options.service.createTjSong(principal.actor, candidate, input.clientRequestId));
       }
       const parsed = sharedParse(songCreateRequestSchema, {
         ...input,
@@ -421,7 +421,7 @@ function registerTools(
         createdByName: principal.actor.displayName ?? principal.actor.email,
         updatedByName: principal.actor.displayName ?? principal.actor.email
       });
-      return result(options.service.createSongOutcome(principal.actor, parsed));
+      return result(await options.service.createSongOutcome(principal.actor, parsed));
     } catch (error) {
       return failure(error);
     }
@@ -441,7 +441,7 @@ function registerTools(
         clientRequestId: input.clientRequestId,
         updatedByName: principal.actor.displayName ?? principal.actor.email
       });
-      return result(options.service.updateSong(principal.actor, parsed));
+      return result(await options.service.updateSong(principal.actor, parsed));
     } catch (error) {
       return failure(error);
     }
@@ -460,7 +460,7 @@ function registerTools(
         expectedVersion: inputParsed.expectedVersion,
         clientRequestId: inputParsed.clientRequestId
       });
-      return result(options.service.deleteSong(principal.actor, {
+      return result(await options.service.deleteSong(principal.actor, {
         id: parsed.songId,
         expectedVersion: parsed.expectedVersion,
         clientRequestId: parsed.clientRequestId
