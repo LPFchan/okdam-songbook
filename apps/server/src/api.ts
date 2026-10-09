@@ -12,6 +12,7 @@ import {
   performanceCreateRequestSchema,
   publicDataSchema,
   readingGenerateInputSchema,
+  recommendationRequestSchema,
   songCreateRequestSchema,
   songDeleteRequestSchema,
   songUpdateRequestSchema,
@@ -24,6 +25,8 @@ import type { SongbookDatabaseBase } from "@songbook/server-core";
 import {
   createSongbookService,
   DomainError,
+  readTjCredits,
+  recommendSongs,
   toApiError,
   type RequestActor,
   type RoleResolver,
@@ -430,6 +433,19 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     if (!parsed.success) throw parsed.error;
     return await service.createDamSong(actor, parsed.data.candidate, parsed.data.clientRequestId);
   }, true));
+
+  app.post("/api/recommendations", (c) => mutate(c, async () => {
+    const parsed = recommendationRequestSchema.safeParse(await c.req.json());
+    if (!parsed.success) throw parsed.error;
+    const groups = await recommendSongs({
+      ...parsed.data,
+      catalog: await service.catalog(),
+      credits: (tjNumbers) => readTjCredits(options.database.sqlite, tjNumbers),
+      tj: options.tj,
+      dam: options.dam
+    });
+    return { groups };
+  }));
 
   app.all("/mcp", async (c) => {
     const request = c.req.raw;

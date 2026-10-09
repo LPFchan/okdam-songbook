@@ -5,3 +5,4 @@ export * from "./services.js";
 export * from "./search.js";
 export * from "./tj.js";
 export * from "./dam.js";
+export * from "./recommendations.js";

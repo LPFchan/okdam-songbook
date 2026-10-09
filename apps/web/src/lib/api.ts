@@ -10,6 +10,8 @@ import {
   favoriteSetResultSchema,
   publicDataSchema,
   readingGenerateResultSchema,
+  recommendationGroupSchema,
+  recommendationResultSchema,
   sampleSongs,
   songSchema,
   tjAddResultSchema,
@@ -23,6 +25,8 @@ import {
   type FavoriteList,
   type FavoriteSetResult,
   type PublicData,
+  type RecommendationGroup,
+  type RecommendationRequest,
   type Song,
   type TjAddResult,
   type TjSongCandidate,
@@ -352,4 +356,23 @@ export async function generateReading(input: { title: string; artist: string }, 
     headers: { "X-Songbook-Owner-Subject": ownerSubject },
     body: JSON.stringify(input)
   }, (data) => readingGenerateResultSchema.parse(data));
+}
+
+export async function fetchRecommendations(input: RecommendationRequest): Promise<RecommendationGroup[]> {
+  if (mockMode()) {
+    const artists = [...new Set(sampleSongs.filter((song) => song.performerIds.some((id) => input.performerIds.includes(id))).map((song) => song.artist))].slice(0, 5);
+    return artists.map((artist, index) => recommendationGroupSchema.parse({
+      name: artist,
+      role: index === 1 ? "composer" : "artist",
+      songCount: 5 - index,
+      candidates: [1, 2, 3].map((n) => input.system === "dam"
+        ? { damNumber: `${9000 + index}-0${n}`, title: `${artist} 추천곡 ${n}`, artist, titleYomi: "", artistYomi: "", sourceUrl: damSongUrl(`${9000 + index}-0${n}`) }
+        : { tjNumber: `${90000 + index * 10 + n}`, title: `${artist} 추천곡 ${n}`, artist, lyricist: "", composer: "", sourceUrl: "https://www.tjmedia.com/song/accompaniment_search" }),
+      error: null
+    }));
+  }
+  return request("/api/recommendations", {
+    method: "POST",
+    body: JSON.stringify(input)
+  }, (data) => recommendationResultSchema.parse(data).groups);
 }

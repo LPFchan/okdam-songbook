@@ -9,3 +9,4 @@ export * from "./country.js";
 export * from "./tj.js";
 export * from "./dam.js";
 export * from "./contracts.js";
+export * from "./recommendations.js";
