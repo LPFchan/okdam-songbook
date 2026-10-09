@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PerformerId, Song } from "@songbook/shared";
-  import { can, normalizePerformerIds, performerOrder, performers } from "@songbook/shared";
+  import { can, normalizeDamNumber, normalizePerformerIds, performerOrder, performers } from "@songbook/shared";
   import { Pencil, Trash2, Wand2 } from "@lucide/svelte";
   import {
     deleteSong,
@@ -30,7 +30,7 @@
 
   function emptyDraft(): Partial<Song> {
     const performerIds = auth.user ? normalizePerformerIds([auth.user.displayName]).ids : [];
-    return { title: "", artist: "", tjNumber: "", country: "일본", performerIds };
+    return { title: "", artist: "", tjNumber: "", damNumber: "", country: "일본", performerIds };
   }
 
   const countryOptions = ["일본", "미국", "한국", "그 외"] as const;
@@ -128,7 +128,9 @@
     const ownerSubject = await requireWriteCredential();
     if (!ownerSubject) return;
     try {
-      const saved = await upsertSong(draft, crypto.randomUUID(), ownerSubject);
+      // Accept "147259" and "1472 59" as well as DAM's own "1472-59".
+      const damNumber = draft.damNumber ? (normalizeDamNumber(draft.damNumber) ?? draft.damNumber) : "";
+      const saved = await upsertSong({ ...draft, damNumber }, crypto.randomUUID(), ownerSubject);
       onSongSaved(saved);
       resetDraft();
       onClose();
@@ -240,6 +242,10 @@
         <label>
           TJ 번호
           <input bind:value={draft.tjNumber} inputmode="numeric" placeholder="TJ 번호" />
+        </label>
+        <label>
+          DAM 번호
+          <input bind:value={draft.damNumber} inputmode="numeric" placeholder="0000-00" />
         </label>
       </div>
     </section>

@@ -3,7 +3,8 @@
   import Highlight from "./Highlight.svelte";
 
   interface Props {
-    tjNumber: string;
+    /** The karaoke number shown in the left column (TJ or DAM). */
+    number: string;
     title: string;
     titleReadingKo?: string;
     artist: string;
@@ -14,7 +15,7 @@
     meta?: Snippet;
   }
 
-  const { tjNumber, title, titleReadingKo, artist, artistReadingKo, query = "", onOpen, actions, meta }: Props = $props();
+  const { number, title, titleReadingKo, artist, artistReadingKo, query = "", onOpen, actions, meta }: Props = $props();
 
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === "Enter" || event.key === " ") {
@@ -31,7 +32,7 @@
   snippet renders buttons, and interactive elements do not nest.
 -->
 {#snippet body()}
-  <span class="tj-number">{tjNumber || "—"}</span>
+  <span class="song-number">{number || "—"}</span>
   <span class="song-content">
     <span class="song-title-line">
       <strong><Highlight text={title} {query} /></strong>

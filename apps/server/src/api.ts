@@ -3,6 +3,8 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import {
   currentUserSchema,
+  damSearchRequestSchema,
+  damSongCandidateSchema,
   favoriteListSchema,
   favoriteSetRequestSchema,
   favoriteSetResultSchema,
@@ -25,6 +27,7 @@ import {
   toApiError,
   type RequestActor,
   type RoleResolver,
+  type DamAdapter,
   type SongbookService,
   type TjAdapter
 } from "@songbook/server-core";
@@ -53,6 +56,7 @@ export interface ServerAppOptions {
   roleResolver?: RoleResolver;
   sessionResolver?: BrowserSessionResolver;
   tj?: TjAdapter;
+  dam?: DamAdapter;
   readingGenerator?: ReadingGenerator;
   mcpAuth?: McpAuthAdapter;
   mcpMaxBodyBytes?: number;
@@ -193,9 +197,9 @@ function failure(c: Context, error: unknown, now: () => string, status?: number)
     : toApiError(error);
   const codeStatus: Record<string, number> = {
     BAD_REQUEST: 400, VALIDATION_ERROR: 400, UNAUTHORIZED: 401, FORBIDDEN: 403,
-    NOT_FOUND: 404, CONFLICT: 409, DUPLICATE_TJ_NUMBER: 409,
-    TJ_RATE_LIMITED: 429, RATE_LIMITED: 429,
-    AI_NOT_CONFIGURED: 503, EXTERNAL_API_ERROR: 502
+    NOT_FOUND: 404, CONFLICT: 409, DUPLICATE_TJ_NUMBER: 409, DUPLICATE_DAM_NUMBER: 409,
+    TJ_RATE_LIMITED: 429, DAM_RATE_LIMITED: 429, RATE_LIMITED: 429,
+    AI_NOT_CONFIGURED: 503, EXTERNAL_API_ERROR: 502, DAM_UPSTREAM_ERROR: 502
   };
   return c.json({ ok: false, data: null, error: mapped, requestId: requestId(c), serverTime: now() }, (status ?? codeStatus[mapped.code] ?? 500) as 500);
 }
@@ -272,7 +276,7 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
   const mcpMaxBodyBytes = positiveInteger(options.mcpMaxBodyBytes, DEFAULT_MCP_MAX_BODY_BYTES, "MCP body limit");
   const mcpBodyTimeoutMs = positiveInteger(options.mcpBodyTimeoutMs, DEFAULT_MCP_BODY_TIMEOUT_MS, "MCP body timeout");
   const mcpBodyGate = new McpBodyGate(positiveInteger(options.mcpMaxInflightBodies, DEFAULT_MCP_MAX_INFLIGHT_BODIES, "MCP body concurrency"));
-  const mcpHandler = createSongbookMcpHandler({ service, tj: options.tj });
+  const mcpHandler = createSongbookMcpHandler({ service, tj: options.tj, dam: options.dam });
   const app = new Hono();
 
   const protectBrowser = async (c: Context): Promise<BrowserPrincipal | Response> => {
@@ -413,6 +417,18 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
     const candidate = tjSongCandidateSchema.safeParse(parsed.data.candidate);
     if (!candidate.success) throw candidate.error;
     return await service.createTjSong(actor, candidate.data, parsed.data.clientRequestId);
+  }, true));
+
+  app.post("/api/dam/search", (c) => mutate(c, async () => {
+    if (!options.dam) throw new DomainError("DAM_UPSTREAM_ERROR", "DAM 연결이 설정되지 않았어.");
+    const parsed = damSearchRequestSchema.safeParse(await c.req.json());
+    if (!parsed.success) throw parsed.error;
+    return options.dam.search(parsed.data);
+  }));
+  app.post("/api/dam/add", (c) => mutate(c, async (actor) => {
+    const parsed = z.object({ candidate: damSongCandidateSchema, clientRequestId: z.string().uuid() }).safeParse(await c.req.json());
+    if (!parsed.success) throw parsed.error;
+    return await service.createDamSong(actor, parsed.data.candidate, parsed.data.clientRequestId);
   }, true));
 
   app.all("/mcp", async (c) => {

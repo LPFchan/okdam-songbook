@@ -7,4 +7,5 @@ export * from "./schemas.js";
 export * from "./search.js";
 export * from "./country.js";
 export * from "./tj.js";
+export * from "./dam.js";
 export * from "./contracts.js";

@@ -1,4 +1,4 @@
-import type { FavoriteSetResult, Performance, Song, TjAddResult, TjSongCandidate } from "@songbook/shared";
+import type { DamAddResult, DamSongCandidate, FavoriteSetResult, Performance, Song, TjAddResult, TjSongCandidate } from "@songbook/shared";
 import { can, detectSongCountry, filterSongs, normalizePerformerIds, searchSongs, sortSongs, type PermissionAction, type SongFilters, type SortKey } from "@songbook/shared";
 import type { SongbookDatabaseBase } from "../db/sql.js";
 import { createAuditRepository, createFavoriteRepository, createPerformanceRepository, createSongRepository, type AuditRepository, type FavoriteRepository, type PerformanceRepository, type SongRepository } from "../db/repositories.js";
@@ -18,7 +18,8 @@ export interface ServiceOptions {
   idempotencyRepository?: IdempotencyRepository;
 }
 
-export interface SongMutation extends Omit<Song, "id" | "createdAt" | "updatedAt" | "deletedAt" | "version" | "lastPerformedAt" | "lastPerformedByName" | "performanceCount"> {
+export interface SongMutation extends Omit<Song, "id" | "damNumber" | "createdAt" | "updatedAt" | "deletedAt" | "version" | "lastPerformedAt" | "lastPerformedByName" | "performanceCount"> {
+  damNumber?: string;
   clientRequestId: string;
 }
 
@@ -51,7 +52,7 @@ export interface SongCreateOutcome {
   outcome: "created" | "duplicate" | "deleted";
   song: Song | null;
   existing: Song | null;
-  duplicateKind: "tjNumber" | "titleArtist" | null;
+  duplicateKind: "tjNumber" | "damNumber" | "titleArtist" | null;
   canRestore: boolean;
   canOpen: boolean;
 }
@@ -63,6 +64,7 @@ export interface SongbookService {
   createSong(actor: RequestActor, input: SongMutation): Promise<Song>;
   createSongOutcome(actor: RequestActor, input: SongMutation): Promise<SongCreateOutcome>;
   createTjSong(actor: RequestActor, candidate: TjSongCandidate, clientRequestId: string): Promise<TjAddResult>;
+  createDamSong(actor: RequestActor, candidate: DamSongCandidate, clientRequestId: string): Promise<DamAddResult>;
   updateSong(actor: RequestActor, input: SongUpdate): Promise<Song>;
   deleteSong(actor: RequestActor, input: { id: string; expectedVersion: number; clientRequestId: string }): Promise<Song>;
   createPerformance(actor: RequestActor, input: PerformanceCreate): Promise<Performance>;
@@ -70,7 +72,7 @@ export interface SongbookService {
   favoriteSongIds(actor: RequestActor): Promise<string[]>;
   setFavorite(actor: RequestActor, input: { songId: string; favorite: boolean; clientRequestId: string }): Promise<FavoriteSetResult>;
   performanceStats(songId: string): Promise<PerformanceStats>;
-  checkDuplicate(input: { tjNumber?: string | null; title: string; artist: string }, excludeId?: string): Promise<Song | null>;
+  checkDuplicate(input: { tjNumber?: string | null; damNumber?: string | null; title: string; artist: string }, excludeId?: string): Promise<Song | null>;
 }
 
 function json<T>(value: T): string { return JSON.stringify(value); }
@@ -89,7 +91,7 @@ function normalizeMutationResult<T>(operation: string, value: T): T {
 
 function songFromCreate(input: SongMutation, id: string, timestamp: string): Song {
   return {
-    id, tjNumber: input.tjNumber, title: input.title, titleReadingKo: input.titleReadingKo,
+    id, tjNumber: input.tjNumber, damNumber: input.damNumber ?? "", title: input.title, titleReadingKo: input.titleReadingKo,
     artist: input.artist, artistReadingKo: input.artistReadingKo, country: input.country,
     recommendedKey: input.recommendedKey, performerIds: input.performerIds, memo: input.memo, sourceType: input.sourceType,
     sourceReference: input.sourceReference, createdByName: input.createdByName, createdAt: timestamp,
@@ -99,7 +101,7 @@ function songFromCreate(input: SongMutation, id: string, timestamp: string): Son
 
 function songFromUpdate(before: Song, input: SongUpdate, timestamp: string): Song {
   return {
-    ...before, tjNumber: input.tjNumber ?? before.tjNumber, title: input.title ?? before.title,
+    ...before, tjNumber: input.tjNumber ?? before.tjNumber, damNumber: input.damNumber ?? before.damNumber, title: input.title ?? before.title,
     titleReadingKo: input.titleReadingKo ?? before.titleReadingKo, artist: input.artist ?? before.artist,
     artistReadingKo: input.artistReadingKo ?? before.artistReadingKo, country: input.country ?? before.country,
     recommendedKey: input.recommendedKey === undefined ? before.recommendedKey : input.recommendedKey,
@@ -110,8 +112,10 @@ function songFromUpdate(before: Song, input: SongUpdate, timestamp: string): Son
   };
 }
 
-function duplicateKind(input: { tjNumber?: string | null }, duplicate: Song): "tjNumber" | "titleArtist" {
-  return input.tjNumber && duplicate.tjNumber === input.tjNumber ? "tjNumber" : "titleArtist";
+function duplicateKind(input: { tjNumber?: string | null; damNumber?: string | null }, duplicate: Song): "tjNumber" | "damNumber" | "titleArtist" {
+  if (input.tjNumber && duplicate.tjNumber === input.tjNumber) return "tjNumber";
+  if (input.damNumber && duplicate.damNumber === input.damNumber) return "damNumber";
+  return "titleArtist";
 }
 
 function isDeletedSong(song: Song): boolean {
@@ -181,12 +185,15 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
     return audit.append({ entityType, entityId, action, beforeJson: before === null ? null : json(before), afterJson: after === null ? null : json(after), actorEmail: resolved.email, actorName: resolved.displayName, actorRole: resolved.role, createdAt: now(), clientRequestId, entityVersionBefore: beforeVersion, entityVersionAfter: afterVersion });
   };
 
-  const ensureDuplicateFree = async (input: { tjNumber?: string | null; title: string; artist: string }, excludeId?: string) => {
+  const ensureDuplicateFree = async (input: { tjNumber?: string | null; damNumber?: string | null; title: string; artist: string }, excludeId?: string) => {
     const duplicate = await songs.findDuplicate(input, excludeId);
-    if (duplicate) throw new DomainError(input.tjNumber && duplicate.tjNumber === input.tjNumber ? "DUPLICATE_TJ_NUMBER" : "CONFLICT", "같은 TJ 번호 또는 곡명/아티스트가 이미 등록되어 있어.", { duplicateId: duplicate.id });
+    if (!duplicate) return;
+    const kind = duplicateKind(input, duplicate);
+    if (kind === "damNumber") throw new DomainError("DUPLICATE_DAM_NUMBER", "같은 DAM 번호가 이미 등록되어 있어.", { duplicateId: duplicate.id });
+    throw new DomainError(kind === "tjNumber" ? "DUPLICATE_TJ_NUMBER" : "CONFLICT", "같은 TJ 번호 또는 곡명/아티스트가 이미 등록되어 있어.", { duplicateId: duplicate.id });
   };
 
-  const createSongOutcome = (actor: RequestActor, input: SongMutation): Promise<SongCreateOutcome> => withMutation(actor, "song:create", "song.create", input.clientRequestId, input, async (resolved) => {
+  const createOutcome = async (resolved: ResolvedActor, input: SongMutation): Promise<SongCreateOutcome> => {
     const duplicate = await songs.findDuplicate(input, undefined, { includeDeleted: true });
     if (duplicate) {
       return {
@@ -218,7 +225,24 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
         canOpen: !isDeletedSong(raced)
       } satisfies SongCreateOutcome;
     }
-  });
+  };
+
+  const createSongOutcome = (actor: RequestActor, input: SongMutation): Promise<SongCreateOutcome> =>
+    withMutation(actor, "song:create", "song.create", input.clientRequestId, input, (resolved) => createOutcome(resolved, input));
+
+  const applyUpdate = async (resolved: ResolvedActor, input: SongUpdate): Promise<Song> => {
+    const before = await songs.get(input.id);
+    if (!before || before.deletedAt) throw new DomainError("NOT_FOUND", "곡을 찾을 수 없어.");
+    const next = songFromUpdate(before, input, now());
+    await ensureDuplicateFree(next, before.id);
+    if (!(await songs.update({ ...next, updatedByEmail: resolved.email }, input.expectedVersion))) throw new DomainError("VERSION_MISMATCH", "곡이 다른 곳에서 바뀌었어.", { currentVersion: (await songs.get(input.id))?.version, requestVersion: input.expectedVersion });
+    const after = (await songs.get(input.id))!;
+    await appendAudit(resolved, "song", input.id, "update", before, after, input.clientRequestId, before.version, after.version);
+    return after;
+  };
+
+  const updateSong = (actor: RequestActor, input: SongUpdate): Promise<Song> =>
+    withMutation(actor, "song:update", "song.update", input.clientRequestId, input, (resolved) => applyUpdate(resolved, input));
 
   return {
     catalog: async () => filterSongs(await songs.list(), {}),
@@ -261,21 +285,50 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
         outcome: outcome.outcome,
         song: outcome.song,
         existing: outcome.existing,
-        duplicateKind: outcome.duplicateKind,
+        // A TJ candidate carries no DAM number, so it can only collide by TJ number or name.
+        duplicateKind: outcome.duplicateKind === "damNumber" ? "titleArtist" : outcome.duplicateKind,
         canRestore: outcome.canRestore,
         canOpen: outcome.canOpen
       };
     },
-    updateSong: (actor, input) => withMutation(actor, "song:update", "song.update", input.clientRequestId, input, async (resolved) => {
-      const before = await songs.get(input.id);
-      if (!before || before.deletedAt) throw new DomainError("NOT_FOUND", "곡을 찾을 수 없어.");
-      const next = songFromUpdate(before, input, now());
-      await ensureDuplicateFree(next, before.id);
-      if (!(await songs.update({ ...next, updatedByEmail: resolved.email }, input.expectedVersion))) throw new DomainError("VERSION_MISMATCH", "곡이 다른 곳에서 바뀌었어.", { currentVersion: (await songs.get(input.id))?.version, requestVersion: input.expectedVersion });
-      const after = (await songs.get(input.id))!;
-      await appendAudit(resolved, "song", input.id, "update", before, after, input.clientRequestId, before.version, after.version);
-      return after;
+    // One idempotency key covers the whole add, so a retry replays the first
+    // answer even though linking changed the song it would now look at.
+    createDamSong: (actor, candidate, clientRequestId) => withMutation(actor, "song:create", "song.damAdd", clientRequestId, candidate, async (resolved): Promise<DamAddResult> => {
+      // Most DAM picks are songs already saved from TJ. When the name matches a
+      // saved song that has no DAM number yet, give it this one instead of
+      // reporting a duplicate.
+      const sameName = await songs.findDuplicate({ title: candidate.title, artist: candidate.artist });
+      if (sameName && !sameName.damNumber && can(resolved.role, "song:update") && !(await songs.getByDamNumber(candidate.damNumber))) {
+        const linked = await applyUpdate(resolved, { id: sameName.id, expectedVersion: sameName.version, damNumber: candidate.damNumber, updatedByName: resolved.displayName, clientRequestId });
+        return { outcome: "linked", song: linked, existing: null, duplicateKind: null, canRestore: false, canOpen: true };
+      }
+      const outcome = await createOutcome(resolved, {
+        tjNumber: "",
+        damNumber: candidate.damNumber,
+        title: candidate.title,
+        titleReadingKo: "",
+        artist: candidate.artist,
+        artistReadingKo: "",
+        country: detectSongCountry(candidate.title, candidate.artist, await songs.list()),
+        recommendedKey: null,
+        performerIds: normalizePerformerIds([resolved.displayName]).ids,
+        memo: "",
+        sourceType: "clubdam",
+        sourceReference: candidate.sourceUrl,
+        createdByName: resolved.displayName,
+        updatedByName: resolved.displayName,
+        clientRequestId
+      });
+      return {
+        outcome: outcome.outcome,
+        song: outcome.song,
+        existing: outcome.existing,
+        duplicateKind: outcome.duplicateKind === "tjNumber" ? "titleArtist" : outcome.duplicateKind,
+        canRestore: outcome.canRestore,
+        canOpen: outcome.canOpen
+      };
     }),
+    updateSong,
     deleteSong: (actor, input) => withMutation(actor, "song:delete", "song.delete", input.clientRequestId, input, async (resolved) => {
       const before = await songs.get(input.id);
       if (!before || before.deletedAt) throw new DomainError("NOT_FOUND", "곡을 찾을 수 없어.");

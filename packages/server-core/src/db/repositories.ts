@@ -33,7 +33,7 @@ export function songFromRow(row: RawSong, displayNameForEmail: (email: string) =
   const lastPerformedByEmail = String(row.last_performed_by_email ?? "");
   const lastPerformedByName = String(row.last_performed_by_name ?? "");
   return {
-    id: String(row.id), tjNumber: nullableString(row.tj_number) ?? "", title: String(row.title),
+    id: String(row.id), tjNumber: nullableString(row.tj_number) ?? "", damNumber: nullableString(row.dam_number) ?? "", title: String(row.title),
     titleReadingKo: String(row.title_reading_ko ?? ""), artist: String(row.artist),
     artistReadingKo: String(row.artist_reading_ko ?? ""), country: String(row.country ?? ""),
     recommendedKey: parseJson<RecommendedKey | null>(row.recommended_key_json, null), performerIds: parseJson<Song["performerIds"]>(row.performer_ids_json, []),
@@ -60,15 +60,16 @@ export interface SongRepository {
   list(options?: { includeDeleted?: boolean }): Promise<Song[]>;
   get(id: string): Promise<Song | null>;
   getByTjNumber(tjNumber: string): Promise<Song | null>;
-  findDuplicate(input: { tjNumber?: string | null; title: string; artist: string }, excludeId?: string, options?: { includeDeleted?: boolean }): Promise<Song | null>;
+  getByDamNumber(damNumber: string): Promise<Song | null>;
+  findDuplicate(input: { tjNumber?: string | null; damNumber?: string | null; title: string; artist: string }, excludeId?: string, options?: { includeDeleted?: boolean }): Promise<Song | null>;
   insert(song: Song & { createdByEmail?: string; updatedByEmail?: string; deletedByEmail?: string | null }): Promise<void>;
   update(song: Song & { createdByEmail?: string; updatedByEmail?: string; deletedByEmail?: string | null }, expectedVersion: number): Promise<boolean>;
   remove(id: string, expectedVersion: number): Promise<boolean>;
 }
 
 const SONG_SELECT = "SELECT s.*, (SELECT COUNT(*) FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL) AS performance_count, (SELECT MAX(p.performed_at) FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL) AS last_performed_at, (SELECT p.created_by_email FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL ORDER BY p.performed_at DESC, p.created_at DESC, p.id DESC LIMIT 1) AS last_performed_by_email, (SELECT p.created_by_name FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL ORDER BY p.performed_at DESC, p.created_at DESC, p.id DESC LIMIT 1) AS last_performed_by_name FROM songs s";
-const SONG_INSERT_SQL = "INSERT INTO songs (id,tj_number,title,title_reading_ko,artist,artist_reading_ko,country,recommended_key_json,performer_ids_json,memo,source_type,source_reference,created_by_email,created_by_name,created_at,updated_by_email,updated_by_name,updated_at,deleted_at,deleted_by_email,version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-const SONG_UPDATE_SQL = "UPDATE songs SET tj_number=?,title=?,title_reading_ko=?,artist=?,artist_reading_ko=?,country=?,recommended_key_json=?,performer_ids_json=?,memo=?,source_type=?,source_reference=?,updated_by_email=?,updated_by_name=?,updated_at=?,deleted_at=?,deleted_by_email=?,version=version+1 WHERE id=? AND version=?";
+const SONG_INSERT_SQL = "INSERT INTO songs (id,tj_number,dam_number,title,title_reading_ko,artist,artist_reading_ko,country,recommended_key_json,performer_ids_json,memo,source_type,source_reference,created_by_email,created_by_name,created_at,updated_by_email,updated_by_name,updated_at,deleted_at,deleted_by_email,version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+const SONG_UPDATE_SQL = "UPDATE songs SET tj_number=?,dam_number=?,title=?,title_reading_ko=?,artist=?,artist_reading_ko=?,country=?,recommended_key_json=?,performer_ids_json=?,memo=?,source_type=?,source_reference=?,updated_by_email=?,updated_by_name=?,updated_at=?,deleted_at=?,deleted_by_email=?,version=version+1 WHERE id=? AND version=?";
 
 export function createSongRepository(sqlite: SqlExecutor, displayNameForEmail: (email: string) => string = () => ""): SongRepository {
   const select = SONG_SELECT;
@@ -77,10 +78,12 @@ export function createSongRepository(sqlite: SqlExecutor, displayNameForEmail: (
     list: async (options = {}) => (await sqlite.prepare(select + " " + (options.includeDeleted ? "" : "WHERE s.deleted_at IS NULL ") + "ORDER BY s.updated_at DESC").all<RawSong>()).map(map),
     get: async (id) => { const row = await sqlite.prepare(select + " WHERE s.id=?").get<RawSong>(id); return row ? map(row) : null; },
     getByTjNumber: async (tjNumber) => { const row = await sqlite.prepare(select + " WHERE s.tj_number=?").get<RawSong>(tjNumber); return row ? map(row) : null; },
+    getByDamNumber: async (damNumber) => { const row = await sqlite.prepare(select + " WHERE s.dam_number=?").get<RawSong>(damNumber); return row ? map(row) : null; },
     findDuplicate: async (input, excludeId, options = {}) => {
       const values: unknown[] = [];
       const clauses: string[] = [];
       if (input.tjNumber) { clauses.push("s.tj_number=?"); values.push(input.tjNumber); }
+      if (input.damNumber) { clauses.push("s.dam_number=?"); values.push(input.damNumber); }
       clauses.push("(lower(s.title)=lower(?) AND lower(s.artist)=lower(?))"); values.push(input.title, input.artist);
       const exclusion = excludeId ? " AND s.id<>?" : "";
       if (excludeId) values.push(excludeId);
@@ -90,7 +93,7 @@ export function createSongRepository(sqlite: SqlExecutor, displayNameForEmail: (
     },
     insert: async (song) => { await sqlite.prepare(SONG_INSERT_SQL).run(...songValues(song)); },
     update: async (song, expectedVersion) => {
-      const result = await sqlite.prepare(SONG_UPDATE_SQL).run(song.tjNumber || null, song.title, song.titleReadingKo, song.artist, song.artistReadingKo, song.country, song.recommendedKey ? JSON.stringify(song.recommendedKey) : null, JSON.stringify(song.performerIds), song.memo, song.sourceType, song.sourceReference, song.updatedByEmail || "", song.updatedByName, song.updatedAt, song.deletedAt || null, song.deletedByEmail || null, song.id, expectedVersion);
+      const result = await sqlite.prepare(SONG_UPDATE_SQL).run(song.tjNumber || null, song.damNumber || null, song.title, song.titleReadingKo, song.artist, song.artistReadingKo, song.country, song.recommendedKey ? JSON.stringify(song.recommendedKey) : null, JSON.stringify(song.performerIds), song.memo, song.sourceType, song.sourceReference, song.updatedByEmail || "", song.updatedByName, song.updatedAt, song.deletedAt || null, song.deletedByEmail || null, song.id, expectedVersion);
       return result.changes === 1;
     },
     remove: async (id, expectedVersion) => (await sqlite.prepare("DELETE FROM songs WHERE id=? AND version=? AND deleted_at IS NULL").run(id, expectedVersion)).changes === 1
@@ -98,7 +101,7 @@ export function createSongRepository(sqlite: SqlExecutor, displayNameForEmail: (
 }
 
 function songValues(song: Song & { createdByEmail?: string; updatedByEmail?: string; deletedByEmail?: string | null }): unknown[] {
-  return [song.id, song.tjNumber || null, song.title, song.titleReadingKo, song.artist, song.artistReadingKo, song.country, song.recommendedKey ? JSON.stringify(song.recommendedKey) : null, JSON.stringify(song.performerIds), song.memo, song.sourceType, song.sourceReference, song.createdByEmail || "", song.createdByName, song.createdAt, song.updatedByEmail || "", song.updatedByName, song.updatedAt, song.deletedAt || null, song.deletedByEmail || null, song.version];
+  return [song.id, song.tjNumber || null, song.damNumber || null, song.title, song.titleReadingKo, song.artist, song.artistReadingKo, song.country, song.recommendedKey ? JSON.stringify(song.recommendedKey) : null, JSON.stringify(song.performerIds), song.memo, song.sourceType, song.sourceReference, song.createdByEmail || "", song.createdByName, song.createdAt, song.updatedByEmail || "", song.updatedByName, song.updatedAt, song.deletedAt || null, song.deletedByEmail || null, song.version];
 }
 
 export interface PerformanceRepository {

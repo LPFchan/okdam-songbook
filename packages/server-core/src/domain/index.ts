@@ -4,3 +4,4 @@ export * from "./hash.js";
 export * from "./services.js";
 export * from "./search.js";
 export * from "./tj.js";
+export * from "./dam.js";

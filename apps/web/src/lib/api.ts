@@ -1,6 +1,11 @@
 import {
   apiFailureSchema,
   currentUserSchema,
+  damAddResultSchema,
+  damSearchResultSchema,
+  damSongUrl,
+  isDamNumberQuery,
+  normalizeDamNumber,
   favoriteListSchema,
   favoriteSetResultSchema,
   publicDataSchema,
@@ -11,6 +16,10 @@ import {
   tjLookupResultSchema,
   tjSearchResultSchema,
   type CurrentUser,
+  type DamAddResult,
+  type DamSearchRequest,
+  type DamSearchResult,
+  type DamSongCandidate,
   type FavoriteList,
   type FavoriteSetResult,
   type PublicData,
@@ -24,6 +33,7 @@ import {
 } from "@songbook/shared";
 
 const mockTjAdds = new Map<string, TjAddResult>();
+const mockDamAdds = new Map<string, DamAddResult>();
 const mockFavoriteSongIds = new Set<string>();
 
 function normalizeTjDuplicateText(value: string): string {
@@ -266,6 +276,59 @@ export async function addTjSong(candidate: TjSongCandidate, clientRequestId: str
     headers: { "X-Songbook-Owner-Subject": ownerSubject },
     body: JSON.stringify({ candidate, clientRequestId })
   }, (data) => tjAddResultSchema.parse(data));
+}
+
+/** Mock-mode DAM songs that are not in the sample catalog, so "바로 추가" has something to add. */
+const mockDamExtras: DamSongCandidate[] = [
+  ["1278-49", "アイドル", "YOASOBI"],
+  ["1278-53", "アイドル(【推しの子】アニメバージョン)", "YOASOBI"],
+  ["1278-68", "Adventure", "YOASOBI"]
+].map(([damNumber, title, artist]) => ({ damNumber: damNumber!, title: title!, artist: artist!, titleYomi: "", artistYomi: "", sourceUrl: damSongUrl(damNumber!) }));
+
+export async function searchDamSongs(input: DamSearchRequest): Promise<DamSearchResult> {
+  if (mockMode()) {
+    const number = isDamNumberQuery(input.query) ? normalizeDamNumber(input.query) : null;
+    const query = normalizeTjDuplicateText(input.query);
+    const fromSamples = sampleSongs
+      .filter((song) => song.damNumber)
+      .map((song) => ({ damNumber: song.damNumber, title: song.title, artist: song.artist, titleYomi: "", artistYomi: "", sourceUrl: damSongUrl(song.damNumber) }));
+    const candidates = [...mockDamExtras, ...fromSamples].filter((candidate) => number
+      ? candidate.damNumber === number
+      : normalizeTjDuplicateText(`${candidate.title}${candidate.artist}`).includes(query));
+    return damSearchResultSchema.parse({ query: input.query, searchType: number ? "number" : "all", page: input.page ?? 1, pageSize: input.pageSize ?? 15, hasMore: false, candidates });
+  }
+  return request("/api/dam/search", {
+    method: "POST",
+    body: JSON.stringify(input)
+  }, (data) => damSearchResultSchema.parse(data));
+}
+
+export async function addDamSong(candidate: DamSongCandidate, clientRequestId: string, ownerSubject: string): Promise<DamAddResult> {
+  if (mockMode()) {
+    const replay = mockDamAdds.get(clientRequestId);
+    if (replay) return replay;
+    const duplicate = sampleSongs.find((song) => song.damNumber === candidate.damNumber);
+    const song = duplicate ? null : await upsertSong({
+      damNumber: candidate.damNumber,
+      tjNumber: "",
+      title: candidate.title,
+      artist: candidate.artist,
+      country: "일본",
+      performerIds: [],
+      sourceType: "clubdam",
+      sourceReference: candidate.sourceUrl
+    }, clientRequestId, ownerSubject);
+    const result = damAddResultSchema.parse(duplicate
+      ? { outcome: "duplicate", song: null, existing: duplicate, duplicateKind: "damNumber", canRestore: false, canOpen: true }
+      : { outcome: "created", song, existing: null, duplicateKind: null, canRestore: false, canOpen: true });
+    mockDamAdds.set(clientRequestId, result);
+    return result;
+  }
+  return request("/api/dam/add", {
+    method: "POST",
+    headers: { "X-Songbook-Owner-Subject": ownerSubject },
+    body: JSON.stringify({ candidate, clientRequestId })
+  }, (data) => damAddResultSchema.parse(data));
 }
 
 export async function deleteSong(song: Pick<Song, "id" | "version">, clientRequestId: string, ownerSubject: string): Promise<Song> {

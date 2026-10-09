@@ -1,11 +1,14 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 import type { D1DatabaseLike, D1PreparedStatementLike } from "@songbook/server-core";
 import worker, { type Env } from "../src/index.js";
 
-const schemaSql = readFileSync(fileURLToPath(new URL("../migrations/0001_init.sql", import.meta.url)), "utf8");
+const migrationsDir = fileURLToPath(new URL("../migrations/", import.meta.url));
+const schemaSql = readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort()
+  .map((file) => readFileSync(join(migrationsDir, file), "utf8")).join("\n");
 const origin = "https://okdam.example";
 
 /**
