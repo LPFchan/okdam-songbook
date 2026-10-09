@@ -12,11 +12,16 @@ export function isSearchableQuery(query: string): boolean {
   return trimmed.length >= 2 || /^\d+$/u.test(trimmed);
 }
 
+/** A DAM number reads as digits with an optional hyphen, e.g. "1472-59". */
+function damNumberDigits(value: string): string {
+  return value.replace(/-/gu, "");
+}
+
 export function searchTypeForQuery(query: string): "all" | "number" {
   return /^\d+$/u.test(normalizedSearchQuery(query)) ? "number" : "all";
 }
 
-export type SortKey = "title" | "tjNumber" | "recentAdded" | "recentUpdated" | "recentPerformed" | "performanceCount";
+export type SortKey = "title" | "tjNumber" | "damNumber" | "recentAdded" | "recentUpdated" | "recentPerformed" | "performanceCount";
 
 export interface SongFilters {
   country?: string;
@@ -25,6 +30,7 @@ export interface SongFilters {
   createdByName?: string;
   performerIds?: PerformerId[];
   hasTjNumber?: boolean;
+  hasDamNumber?: boolean;
 }
 
 export function primaryKey(song: Song): string {
@@ -34,6 +40,7 @@ export function primaryKey(song: Song): string {
 export function buildSearchDocument(song: Song): string {
   const fields = [
     song.tjNumber,
+    song.damNumber,
     song.title,
     song.titleReadingKo,
     song.artist,
@@ -53,10 +60,14 @@ export function searchSongs(songs: Song[], query: string): Song[] {
   const numeric = normalizeNumber(trimmed);
   const matches = songs.filter((song) => {
     if (numeric && song.tjNumber.includes(numeric)) return true;
+    if (numeric && damNumberDigits(song.damNumber).includes(numeric)) return true;
     return includesAllTokens(buildSearchDocument(song), trimmed);
   });
   return matches.sort((a, b) => {
-    if (numeric) return Number(b.tjNumber.startsWith(numeric)) - Number(a.tjNumber.startsWith(numeric));
+    if (numeric) {
+      const starts = (song: Song) => Number(song.tjNumber.startsWith(numeric) || damNumberDigits(song.damNumber).startsWith(numeric));
+      return starts(b) - starts(a);
+    }
     return 0;
   });
 }
@@ -69,6 +80,7 @@ export function filterSongs(songs: Song[], filters: SongFilters): Song[] {
     if (filters.createdByName && song.createdByName !== filters.createdByName) return false;
     if (filters.performerIds?.length && !filters.performerIds.some((id) => song.performerIds.includes(id))) return false;
     if (filters.hasTjNumber && !song.tjNumber) return false;
+    if (filters.hasDamNumber && !song.damNumber) return false;
     return true;
   });
 }
@@ -80,6 +92,8 @@ export function sortSongs(songs: Song[], sortKey: SortKey): Song[] {
     switch (sortKey) {
       case "tjNumber":
         return collator.compare(a.tjNumber || "999999", b.tjNumber || "999999");
+      case "damNumber":
+        return collator.compare(a.damNumber || "999999-99", b.damNumber || "999999-99");
       case "recentAdded":
         return (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0);
       case "recentUpdated":

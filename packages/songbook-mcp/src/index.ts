@@ -1,5 +1,6 @@
 import { createMcpHandler, McpServer, type AuthInfo, type McpRequestContext } from "@modelcontextprotocol/server";
 import {
+  damSongCandidateSchema,
   performanceCancelRequestSchema,
   performanceCreateRequestSchema,
   songCreateRequestSchema,
@@ -10,7 +11,7 @@ import {
   type McpProtocolRevision,
   type RequiredBearerMcpMountOptions
 } from "@songbook/shared";
-import type { RequestActor, SongbookService, TjAdapter } from "@songbook/server-core";
+import type { DamAdapter, RequestActor, SongbookService, TjAdapter } from "@songbook/server-core";
 import { combinedSongSearch } from "@songbook/server-core";
 import { z } from "zod/v4";
 
@@ -29,6 +30,7 @@ export interface McpVerifiedPrincipal {
 export interface SongbookMcpHandlerOptions {
   service: SongbookService;
   tj?: TjAdapter;
+  dam?: DamAdapter;
 }
 
 export type McpToolAccess = "read" | "write";
@@ -85,7 +87,8 @@ const catalogInput = z.object({
 const searchInput = z.object({
   query: z.string().max(200).default(""),
   limit: z.number().int().positive().max(100).default(25),
-  includeTj: z.boolean().default(true)
+  includeTj: z.boolean().default(true),
+  includeDam: z.boolean().default(false)
 });
 
 const getSongInput = z.object({ id: z.string().min(1).max(200) });
@@ -118,6 +121,15 @@ const tjCandidateInput = z.object({
   sourceUrl: z.string().url()
 });
 
+const damCandidateInput = z.object({
+  damNumber: z.string().regex(/^\d{1,6}-\d{2}$/u),
+  title: z.string().trim().min(1).max(300),
+  artist: z.string().trim().min(1).max(300),
+  titleYomi: z.string().trim().max(300).default(""),
+  artistYomi: z.string().trim().max(300).default(""),
+  sourceUrl: z.string().url()
+});
+
 const recommendedKeyInput = z.object({
   baseMode: z.enum(["original", "male", "female"]),
   offset: z.number().int().min(-12).max(12)
@@ -125,6 +137,7 @@ const recommendedKeyInput = z.object({
 
 const songFields = {
   tjNumber: z.string().trim().regex(/^\d*$/u).default(""),
+  damNumber: z.string().trim().regex(/^(?:\d{1,6}-\d{2})?$/u).default(""),
   title: z.string().trim().min(1).max(300).optional(),
   titleReadingKo: z.string().trim().max(300).default(""),
   artist: z.string().trim().min(1).max(300).optional(),
@@ -140,13 +153,15 @@ const songFields = {
 const createSongInput = z.object({
   ...songFields,
   clientRequestId: z.string().uuid(),
-  tjCandidate: tjCandidateInput.optional()
-}).refine((value) => Boolean(value.tjCandidate || (value.title && value.artist)), {
-  message: "title and artist are required unless tjCandidate is supplied"
+  tjCandidate: tjCandidateInput.optional(),
+  damCandidate: damCandidateInput.optional()
+}).refine((value) => Boolean(value.tjCandidate || value.damCandidate || (value.title && value.artist)), {
+  message: "title and artist are required unless tjCandidate or damCandidate is supplied"
 });
 
 const updateSongInput = z.object({
   tjNumber: songFields.tjNumber.optional(),
+  damNumber: songFields.damNumber.optional(),
   title: songFields.title,
   titleReadingKo: songFields.titleReadingKo.optional(),
   artist: songFields.artist,
@@ -270,6 +285,22 @@ function runTrackedTool<T>(lifecycle: ToolLifecycle | undefined, task: () => Pro
   return lifecycle ? lifecycle.run(task) : task();
 }
 
+async function damSearch(options: SongbookMcpHandlerOptions, query: string, limit: number) {
+  if (!options.dam) return { state: "unavailable", candidates: [], hasMore: false, error: null };
+  if (query.trim().length < 2) return { state: "skipped_short_query", candidates: [], hasMore: false, error: null };
+  try {
+    const found = await options.dam.search({ query, page: 1, pageSize: Math.min(limit, 30) });
+    const candidates = await Promise.all(found.candidates.map(async (candidate) => {
+      const saved = await options.service.checkDuplicate({ damNumber: candidate.damNumber, title: candidate.title, artist: candidate.artist });
+      return { ...candidate, alreadySaved: Boolean(saved?.damNumber), savedSongId: saved?.id ?? null };
+    }));
+    return { state: "searched", candidates, hasMore: found.hasMore, error: null };
+  } catch (error) {
+    const code = (error as { code?: unknown }).code === "DAM_RATE_LIMITED" ? "DAM_RATE_LIMITED" : "DAM_UPSTREAM_ERROR";
+    return { state: "failed", candidates: [], hasMore: false, error: { code, retryable: true } };
+  }
+}
+
 function registerTools(
   server: McpServer,
   options: SongbookMcpHandlerOptions,
@@ -294,19 +325,21 @@ function registerTools(
 
   server.registerTool("search_songs", {
     title: "Search songs",
-    description: "Search saved songs and, for eligible authenticated queries, continue through TJ.",
+    description: "Search saved songs and, for eligible authenticated queries, continue through TJ. Set includeDam to also search DAM (Japanese karaoke).",
     inputSchema: searchInput
   }, (input) => runTrackedTool(lifecycle, async () => {
     try {
       guarded(authInfo, "search_songs");
-      return result(await combinedSongSearch({
+      const combined = await combinedSongSearch({
         service: options.service,
         tj: options.tj,
         query: input.query,
         limit: input.limit,
         includeTj: input.includeTj,
         authenticated: true
-      }));
+      });
+      if (!input.includeDam) return result(combined);
+      return result({ ...combined, dam: await damSearch(options, input.query, input.limit) });
     } catch (error) {
       return failure(error);
     }
@@ -367,11 +400,15 @@ function registerTools(
 
   server.registerTool("create_song", {
     title: "Create song",
-    description: "Create a manual song or add a TJ candidate with a structured duplicate outcome.",
+    description: "Create a manual song or add a TJ or DAM candidate with a structured duplicate outcome. A DAM candidate whose name matches a saved song without a DAM number is linked to that song.",
     inputSchema: createSongInput
   }, (input) => runTrackedTool(lifecycle, async () => {
     try {
       const principal = guarded(authInfo, "create_song");
+      if (input.damCandidate) {
+        const candidate = sharedParse(damSongCandidateSchema, input.damCandidate);
+        return result(options.service.createDamSong(principal.actor, candidate, input.clientRequestId));
+      }
       if (input.tjCandidate) {
         const candidate = sharedParse(tjSongCandidateSchema, input.tjCandidate);
         return result(options.service.createTjSong(principal.actor, candidate, input.clientRequestId));

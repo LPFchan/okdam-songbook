@@ -12,6 +12,7 @@ export const recommendedKeySchema = z.object({
 export const songSchema = z.object({
   id: z.string().min(1),
   tjNumber: z.string().trim().regex(/^\d*$/).optional().default(""),
+  damNumber: z.string().trim().regex(/^(?:\d{1,6}-\d{2})?$/).optional().default(""),
   title: z.string().trim().min(1).max(300),
   titleReadingKo: z.string().trim().max(300).optional().default(""),
   artist: z.string().trim().min(1).max(300),
@@ -84,6 +85,7 @@ export const apiErrorSchema = z.object({
     "NOT_FOUND",
     "CONFLICT",
     "DUPLICATE_TJ_NUMBER",
+    "DUPLICATE_DAM_NUMBER",
     "VALIDATION_ERROR",
     "RATE_LIMITED",
     "AI_NOT_CONFIGURED",
@@ -91,6 +93,8 @@ export const apiErrorSchema = z.object({
     "TJ_UPSTREAM_ERROR",
     "TJ_PARSER_ERROR",
     "TJ_RATE_LIMITED",
+    "DAM_UPSTREAM_ERROR",
+    "DAM_RATE_LIMITED",
     "SHEET_SCHEMA_ERROR",
     "INTERNAL_ERROR"
   ]),

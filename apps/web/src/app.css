@@ -11,10 +11,20 @@ button:disabled{cursor:not-allowed;opacity:.55}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 .app-frame{max-width:760px;margin:0 auto;min-height:100dvh;padding-bottom:calc(96px + env(safe-area-inset-bottom))}
 .topbar{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;z-index:20;background:var(--color-bg);border-bottom:1px solid var(--color-line);padding:12px 16px 10px;padding-top:calc(12px + env(safe-area-inset-top));display:flex;flex-direction:column;gap:10px;max-width:760px;will-change:transform}
-.topline{display:flex;align-items:stretch;gap:8px}
-.account-button{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--color-line);background:var(--color-surface);color:var(--color-ink);border-radius:999px;padding:7px 14px;font-size:14px;font-weight:600;white-space:nowrap;flex-shrink:0;transition:background 200ms ease,color 200ms ease,border-color 200ms ease,padding 200ms ease}
-.account-button[data-authenticated=true]{background:var(--color-surface-strong)}
-.account-button[data-confirm=true]{background:var(--color-danger);border-color:var(--color-danger);color:oklch(1 0 0);padding:7px 18px}
+/* Topline pills. --merge-left (search + mode chip) and --merge-right (mode chip + account) are springs from 0 to 1 set by pillMorph; at 1 the gap closes, the facing corners square off and the inner borders fade, so two pills read as one. */
+.topline{display:flex;align-items:stretch;--pill-h:44px;--pill-r:22px;--merge-left:0;--merge-right:0;--acct-bg:var(--color-surface)}
+.topline[data-authenticated=true]{--acct-bg:var(--color-surface-strong)}
+.pill-label{display:inline-block;overflow:hidden;white-space:nowrap;vertical-align:middle}
+.pill-label>span{display:inline-block}
+.search-box.pill{position:relative;height:var(--pill-h);padding:0 14px;border-radius:var(--pill-r) max(0px,calc(var(--pill-r)*(1 - var(--merge-left)))) max(0px,calc(var(--pill-r)*(1 - var(--merge-left)))) var(--pill-r);margin-right:calc(8px*(1 - var(--merge-left)));border-right-color:color-mix(in oklch,var(--color-line) clamp(0%,calc((1 - var(--merge-left))*100%),100%),transparent)}
+.pill-cancel{position:absolute;inset:-1px;border:0;padding:0;background:transparent;border-radius:inherit}
+.mode-chip{position:relative;display:inline-flex;align-items:center;justify-content:center;height:var(--pill-h);min-width:64px;padding:0 20px;flex-shrink:0;font-size:14px;font-weight:800;letter-spacing:.02em;color:var(--color-primary-ink);background:color-mix(in oklch,var(--color-surface) clamp(0%,calc((1 - var(--merge-right))*100%),100%),var(--acct-bg));border:1px solid var(--color-line);border-left-color:color-mix(in oklch,var(--color-line) clamp(0%,calc((1 - var(--merge-left))*100%),100%),transparent);border-right-color:color-mix(in oklch,var(--color-line) clamp(0%,calc((1 - var(--merge-right))*100%),100%),transparent);border-radius:max(0px,calc(var(--pill-r)*(1 - var(--merge-left)))) max(0px,calc(var(--pill-r)*(1 - var(--merge-right)))) max(0px,calc(var(--pill-r)*(1 - var(--merge-right)))) max(0px,calc(var(--pill-r)*(1 - var(--merge-left))));margin-right:calc(8px*(1 - var(--merge-right)))}
+.mode-chip::before,.mode-chip::after{content:"";position:absolute;top:12px;bottom:12px;width:1px;background:var(--color-line);pointer-events:none}
+.mode-chip::before{left:-1px;opacity:var(--merge-left)}
+.mode-chip::after{right:-1px;opacity:var(--merge-right)}
+.account-button{display:inline-flex;align-items:center;height:var(--pill-h);border:1px solid var(--color-line);border-left-color:color-mix(in oklch,var(--color-line) clamp(0%,calc((1 - var(--merge-right))*100%),100%),transparent);background:var(--acct-bg);color:var(--color-ink);border-radius:max(0px,calc(var(--pill-r)*(1 - var(--merge-right)))) var(--pill-r) var(--pill-r) max(0px,calc(var(--pill-r)*(1 - var(--merge-right))));padding:0 14px;font-size:14px;font-weight:600;white-space:nowrap;flex-shrink:0;transition:background 200ms ease,color 200ms ease}
+.account-button .pill-label>span{padding-left:6px}
+.account-button[data-confirm=true]{background:var(--color-danger);border-color:var(--color-danger);color:oklch(1 0 0)}
 .search-box{display:flex;align-items:center;gap:8px;background:var(--color-surface);border:1px solid var(--color-line);border-radius:var(--radius);padding:10px 12px;flex:1;min-width:0}
 .search-box:focus-within{border-color:var(--color-primary-ink)}
 .search-box svg{color:var(--color-muted);flex-shrink:0}
@@ -45,9 +55,10 @@ button:disabled{cursor:not-allowed;opacity:.55}
 .result-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 10px}.result-count{margin:0;font-size:13px;color:var(--color-muted);font-variant-numeric:tabular-nums}
 .song-list{display:flex;flex-direction:column;padding:8px 12px;gap:6px;transition:opacity 140ms ease}
 .song-list.list-faded{opacity:0.25}
-.song-card{display:grid;grid-template-columns:5.5ch 1fr auto;grid-template-areas:"number content actions" "number meta meta";column-gap:12px;row-gap:4px;padding:10px 12px;border-radius:var(--radius);background:var(--color-surface);border:1px solid transparent;text-align:left;width:100%;transition:background 160ms ease,transform 120ms ease}
+[data-karaoke=dam]{--number-column:7.2ch}
+.song-card{display:grid;grid-template-columns:var(--number-column,5.5ch) 1fr auto;grid-template-areas:"number content actions" "number meta meta";column-gap:12px;row-gap:4px;padding:10px 12px;border-radius:var(--radius);background:var(--color-surface);border:1px solid transparent;text-align:left;width:100%;transition:background 160ms ease,transform 120ms ease}
 .song-card:active{background:var(--color-surface-strong);transform:scale(0.99)}
-.tj-number{grid-area:number;align-self:start;font-variant-numeric:tabular-nums;font-weight:700;color:var(--color-primary-ink);font-size:15px;padding-top:1px;text-align:right}
+.song-number{grid-area:number;align-self:start;font-variant-numeric:tabular-nums;font-weight:700;color:var(--color-primary-ink);font-size:15px;padding-top:1px;text-align:right}
 .song-content{grid-area:content;min-width:0;display:flex;flex-direction:column}
 .song-title-line,.song-artist-line{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .song-title-line strong{font-size:16px}

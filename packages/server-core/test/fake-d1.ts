@@ -1,13 +1,13 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 import { openD1Database, type D1DatabaseLike, type D1PreparedStatementLike, type D1SongbookDatabase } from "../src/db/d1.js";
 
-/** The schema D1 was given at cutover; the only one production has ever run. */
-export const initSql = readFileSync(
-  fileURLToPath(new URL("../../../apps/worker/migrations/0001_init.sql", import.meta.url)),
-  "utf8"
-);
+const migrationsDir = fileURLToPath(new URL("../../../apps/worker/migrations/", import.meta.url));
+/** Every D1 migration production has run, applied in order. */
+export const initSql = readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort()
+  .map((file) => readFileSync(join(migrationsDir, file), "utf8")).join("\n");
 
 /**
  * A D1 binding backed by better-sqlite3, so the storage code can be tested

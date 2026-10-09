@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { ReadableStream } from "node:stream/web";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import BetterSqlite3 from "better-sqlite3";
-import { openD1Database, type D1DatabaseLike, type D1PreparedStatementLike, type D1SongbookDatabase, type TjAdapter } from "@songbook/server-core";
+import { openD1Database, type D1DatabaseLike, type D1PreparedStatementLike, type D1SongbookDatabase, type DamAdapter, type TjAdapter } from "@songbook/server-core";
 import { createServerApp } from "../src/api.js";
 import { createCommonAuthRoleResolver } from "../src/auth.js";
 
 const origin = "https://songbook.example";
-const schemaSql = readFileSync(fileURLToPath(new URL("../../worker/migrations/0001_init.sql", import.meta.url)), "utf8");
+const migrationsDir = fileURLToPath(new URL("../../worker/migrations/", import.meta.url));
+const schemaSql = readdirSync(migrationsDir).filter((file) => file.endsWith(".sql")).sort()
+  .map((file) => readFileSync(join(migrationsDir, file), "utf8")).join("\n");
 
 /** better-sqlite3 behind the D1 binding shape, as in the Worker and server-core suites. */
 function fakeD1(): D1DatabaseLike {
@@ -117,6 +120,23 @@ describe("same-origin server surface", () => {
     expect((await (await server.request(request("/api/favorites"))).json()).data.songIds).toEqual([]);
   });
 
+  it("searches DAM and adds a pick to the catalog", async () => {
+    const candidate = { damNumber: "3246-30", title: "LOSER", artist: "米津玄師", titleYomi: "", artistYomi: "", sourceUrl: "https://www.clubdam.com/karaokesearch/songleaf.html?requestNo=3246-30" };
+    const dam: DamAdapter = { search: async (input) => ({ query: input.query, searchType: "all", page: 1, pageSize: 15, hasMore: false, candidates: [candidate] }) };
+    const server = app({
+      dam,
+      sessionResolver: async () => ({ subject: "auth.lost.plus:42", email: "allowed@example.com", displayName: "Allowed" }),
+      roleResolver: createCommonAuthRoleResolver()
+    });
+    const headers = { Origin: origin, "Content-Type": "application/json", "X-Songbook-Owner-Subject": "auth.lost.plus:42" };
+    const found = await (await server.request(request("/api/dam/search", { method: "POST", headers, body: JSON.stringify({ query: "loser" }) }))).json();
+    expect(found.data.candidates).toEqual([candidate]);
+    const added = await (await server.request(request("/api/dam/add", { method: "POST", headers, body: JSON.stringify({ candidate, clientRequestId: crypto.randomUUID() }) }))).json();
+    expect(added.data).toMatchObject({ outcome: "created", song: { damNumber: "3246-30", sourceType: "clubdam" } });
+    const catalog = await (await server.request(request("/api/catalog"))).json();
+    expect(catalog.data.songs[0].damNumber).toBe("3246-30");
+  });
+
   it("rejects a replay bound to a different Common Auth subject", async () => {
     const server = app({
       sessionResolver: async () => ({ subject: "auth.lost.plus:99", email: "new@example.com", displayName: "New" }),
@@ -149,7 +169,8 @@ describe("same-origin server surface", () => {
       ["PATCH", "/api/songs/song-1"],
       ["DELETE", "/api/songs/song-1/delete"],
       ["POST", "/api/readings/generate"],
-      ["POST", "/api/tj/add"]
+      ["POST", "/api/tj/add"],
+      ["POST", "/api/dam/add"]
     ] as const) {
       const response = await server.request(request(path, { method, headers, body: "{}" }));
       expect(response.status, `${method} ${path}`).toBe(403);

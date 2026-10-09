@@ -19,7 +19,7 @@ beforeEach(() => {
 
 function song(overrides: Partial<Song> = {}): Song {
   return {
-    id: "song-1", tjNumber: "12345", title: "Title", titleReadingKo: "",
+    id: "song-1", tjNumber: "12345", damNumber: "", title: "Title", titleReadingKo: "",
     artist: "Artist", artistReadingKo: "", country: "", recommendedKey: null,
     performerIds: [], memo: "",
     sourceType: "test", sourceReference: "", createdByName: "Tester", createdAt: "2026-08-13T00:00:00.000Z",

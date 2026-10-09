@@ -6,6 +6,7 @@ export const domainErrorCodes = [
   "NOT_FOUND",
   "CONFLICT",
   "DUPLICATE_TJ_NUMBER",
+  "DUPLICATE_DAM_NUMBER",
   "VERSION_MISMATCH",
   "IDEMPOTENCY_MISMATCH",
   "VALIDATION_ERROR",
@@ -16,7 +17,9 @@ export const domainErrorCodes = [
   "TJ_RATE_LIMITED",
   "TJ_CIRCUIT_OPEN",
   "TJ_UPSTREAM_ERROR",
-  "TJ_PARSER_ERROR"
+  "TJ_PARSER_ERROR",
+  "DAM_RATE_LIMITED",
+  "DAM_UPSTREAM_ERROR"
 ] as const;
 
 export type DomainErrorCode = typeof domainErrorCodes[number];
@@ -32,6 +35,7 @@ export const domainErrorCodeToApiErrorCode = {
   NOT_FOUND: "NOT_FOUND",
   CONFLICT: "CONFLICT",
   DUPLICATE_TJ_NUMBER: "DUPLICATE_TJ_NUMBER",
+  DUPLICATE_DAM_NUMBER: "DUPLICATE_DAM_NUMBER",
   VERSION_MISMATCH: "CONFLICT",
   IDEMPOTENCY_MISMATCH: "CONFLICT",
   VALIDATION_ERROR: "VALIDATION_ERROR",
@@ -42,7 +46,9 @@ export const domainErrorCodeToApiErrorCode = {
   TJ_RATE_LIMITED: "TJ_RATE_LIMITED",
   TJ_CIRCUIT_OPEN: "TJ_UPSTREAM_ERROR",
   TJ_UPSTREAM_ERROR: "TJ_UPSTREAM_ERROR",
-  TJ_PARSER_ERROR: "TJ_PARSER_ERROR"
+  TJ_PARSER_ERROR: "TJ_PARSER_ERROR",
+  DAM_RATE_LIMITED: "DAM_RATE_LIMITED",
+  DAM_UPSTREAM_ERROR: "DAM_UPSTREAM_ERROR"
 } satisfies Record<DomainErrorCode, ApiErrorCode>;
 
 export class DomainError extends Error {

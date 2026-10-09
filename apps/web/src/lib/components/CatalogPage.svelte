@@ -9,7 +9,7 @@
   import SongCard from "./SongCard.svelte";
   import SongDetail from "./SongDetail.svelte";
   import SongForm, { type AdminTab } from "./SongForm.svelte";
-  import TjOmnibar from "./TjOmnibar.svelte";
+  import KaraokeOmnibar from "./KaraokeOmnibar.svelte";
   import Snackbar from "./Snackbar.svelte";
   import { createPerformance, fetchFavoriteSongIds, fetchPublicData, setSongFavorite } from "../api";
   import { readCachedPublicData, saveCachedPublicData } from "../db";
@@ -35,6 +35,8 @@
   import { createSpring, GENTLE } from "../spring";
   import { chipStagger } from "../chipStagger";
   import { chipsHeight } from "../chipsHeight";
+  import { karaoke } from "../karaoke.svelte";
+  import { mergeSpring, springWidth } from "../pillMorph";
 
   type QueueItem = Awaited<ReturnType<typeof queueItems>>[number];
 
@@ -54,6 +56,10 @@
   let chipsScrollerEl = $state<HTMLElement | null>(null);
   let editingSong = $state<Song | null>(null);
   let confirmSignOut = $state(false);
+  let confirmSignOutTimer: ReturnType<typeof setTimeout> | undefined;
+  let searchInputEl = $state<HTMLInputElement | null>(null);
+  let searchFocused = $state(false);
+  let narrowTopbar = $state(false);
   // Pixels the topbar is currently pushed off-screen (0 = fully visible).
   let topbarShift = $state(0);
   let topbarEl = $state<HTMLElement | null>(null);
@@ -72,6 +78,11 @@
   onMount(() => {
     query = window.localStorage.getItem("songbook:query") ?? "";
     sortKey = (window.localStorage.getItem("songbook:sort") as SortKey | null) ?? "recentAdded";
+    karaoke.load();
+    const narrowQuery = window.matchMedia("(max-width: 480px)");
+    narrowTopbar = narrowQuery.matches;
+    const onNarrowChange = () => (narrowTopbar = narrowQuery.matches);
+    narrowQuery.addEventListener("change", onNarrowChange);
 
     const stopOnline = onlineStatus.start();
     void auth.initialize();
@@ -199,6 +210,7 @@
       window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("scroll", onScroll);
+      narrowQuery.removeEventListener("change", onNarrowChange);
       topbarSpring.stop();
       observer.disconnect();
     };
@@ -212,6 +224,13 @@
   $effect(() => {
     const stored = (window.localStorage.getItem("songbook:sort") as SortKey | null) ?? "recentAdded";
     if (sortKey !== stored) window.localStorage.setItem("songbook:sort", sortKey);
+  });
+
+  // The number sort follows the karaoke system: one option, whose value is
+  // whichever number the catalog is currently showing.
+  const numberSortKey = $derived<SortKey>(karaoke.system === "dam" ? "damNumber" : "tjNumber");
+  $effect(() => {
+    if ((sortKey === "tjNumber" || sortKey === "damNumber") && sortKey !== numberSortKey) sortKey = numberSortKey;
   });
 
   // Drain the offline queue whenever authentication is (re)established.
@@ -243,7 +262,11 @@
     }
   });
 
-  const visibleSongs = $derived(sortSongs(searchSongs(filterSongs(songs, filters), query), sortKey).filter((song) => !favoriteOnly || favoriteSongIds.includes(song.id)));
+  // DAM mode hides songs DAM has no number for; they cannot be sung there.
+  const visibleSongs = $derived(
+    sortSongs(searchSongs(filterSongs(songs, { ...filters, hasDamNumber: karaoke.system === "dam" || undefined }), query), sortKey)
+      .filter((song) => !favoriteOnly || favoriteSongIds.includes(song.id))
+  );
 
   // Briefly fade the list out and back in whenever the visible set changes
   // order or membership, instead of animating each card's position.
@@ -460,19 +483,53 @@
     }
   }
 
+  // While one pill is active the pills beside it merge into a single pill
+  // that cancels it: searching merges the mode chip into the account pill,
+  // and confirming sign-out merges the search pill into the mode chip.
+  const searching = $derived(searchFocused || query.length > 0);
+  const mergeLeft = $derived(confirmSignOut);
+  const mergeRight = $derived(searching && !confirmSignOut);
+
+  function cancelSearch() {
+    query = "";
+    searchInputEl?.blur();
+  }
+
+  function cancelSignOut() {
+    clearTimeout(confirmSignOutTimer);
+    confirmSignOut = false;
+  }
+
+  // Pressing a merged pill would blur the search box before the click lands,
+  // un-merging it, so the click would act as the pill's normal action instead
+  // of cancel. Keep focus where it is; cancelSearch blurs on purpose.
+  function keepSearchFocus(event: MouseEvent) {
+    if (mergeRight) event.preventDefault();
+  }
+
+  function onModeClick() {
+    if (mergeLeft) cancelSignOut();
+    else if (mergeRight) cancelSearch();
+    else karaoke.toggle();
+  }
+
   function onAccountClick() {
+    if (mergeRight) {
+      cancelSearch();
+      return;
+    }
     if (!auth.user) {
       void loginWithGoogle();
       return;
     }
     if (!confirmSignOut) {
       confirmSignOut = true;
-      setTimeout(() => {
+      confirmSignOutTimer = setTimeout(() => {
         confirmSignOut = false;
       }, 3000);
       return;
     }
-    confirmSignOut = false;
+    cancelSignOut();
     auth.signOut();
     snackbar.show("로그아웃했어요.");
   }
@@ -576,36 +633,59 @@
   }
 </script>
 
-<main class="app-frame" style:padding-top={topbarHeight ? `calc(${topbarHeight}px + env(safe-area-inset-top, 0px))` : undefined}>
+<main class="app-frame" data-karaoke={karaoke.system} style:padding-top={topbarHeight ? `calc(${topbarHeight}px + env(safe-area-inset-top, 0px))` : undefined}>
   <header
     class="topbar"
     bind:this={topbarEl}
     style:transform={`translate(-50%, -${topbarShift}px)`}
   >
-    <div class="topline">
-      <label class="search-box">
+    <div
+      class="topline"
+      data-authenticated={auth.user ? "true" : undefined}
+      use:mergeSpring={{ name: "--merge-left", merged: mergeLeft }}
+      use:mergeSpring={{ name: "--merge-right", merged: mergeRight }}
+    >
+      <label class="search-box pill">
         <Search size={18} />
-        <input bind:value={query} placeholder="곡명, 가수, TJ 번호 검색" />
+        <input
+          bind:this={searchInputEl}
+          bind:value={query}
+          onfocus={() => (searchFocused = true)}
+          onblur={() => (searchFocused = false)}
+          placeholder={narrowTopbar ? "검색" : `곡명, 가수, ${karaoke.system === "dam" ? "DAM" : "TJ"} 번호 검색`}
+        />
         {#if query}
           <button type="button" class="search-clear" aria-label="검색어 지우기" onclick={() => (query = "")}>
             <X size={16} />
           </button>
         {/if}
+        {#if mergeLeft}
+          <!-- Merged into the cancel pill: the whole search pill cancels sign-out. -->
+          <button type="button" class="pill-cancel" aria-label="로그아웃 취소" onclick={cancelSignOut}></button>
+        {/if}
       </label>
       <button
         type="button"
+        class="mode-chip"
+        aria-label={mergeLeft ? "로그아웃 취소" : mergeRight ? "검색 취소" : `${karaoke.system === "dam" ? "TJ" : "DAM"} 번호로 보기`}
+        onmousedown={keepSearchFocus}
+        onclick={onModeClick}
+      >
+        <span class="pill-label" use:springWidth><span>{karaoke.system === "dam" ? "DAM" : "TJ"}</span></span>
+      </button>
+      <button
+        type="button"
         class="account-button"
+        aria-label={mergeRight ? "검색 취소" : undefined}
         data-authenticated={auth.user ? "true" : undefined}
         data-confirm={confirmSignOut ? "true" : undefined}
+        onmousedown={keepSearchFocus}
         onclick={onAccountClick}
       >
-        {#if auth.user}
-          <LogOut size={16} />
-          {confirmSignOut ? "로그아웃" : auth.user.displayName}
-        {:else}
-          <LogIn size={16} />
-          로그인
-        {/if}
+        {#if auth.user}<LogOut size={16} />{:else}<LogIn size={16} />{/if}
+        <span class="pill-label" use:springWidth={{ collapsed: mergeRight }}>
+          <span>{auth.user ? (confirmSignOut ? "로그아웃" : auth.user.displayName) : "로그인"}</span>
+        </span>
       </button>
     </div>
     <div class="controls-bar" use:chipsHeight={{ expanded: chipsExpanded, scroller: chipsScrollerEl }}>
@@ -613,7 +693,7 @@
         <SlidersHorizontal size={15} />
         <select bind:value={sortKey}>
           <option value="title">가나다순</option>
-          <option value="tjNumber">TJ 번호순</option>
+          <option value={numberSortKey}>{karaoke.system === "dam" ? "DAM" : "TJ"} 번호순</option>
           <option value="recentAdded">최근 추가순</option>
           <option value="recentUpdated">최근 수정순</option>
           <option value="recentPerformed">최근 부른 순</option>
@@ -730,7 +810,7 @@
   <section class="song-list" class:list-faded={listFaded} aria-label="곡 목록">
     {#if visibleSongs.length > 0}
       {#each visibleSongs as song (song.id)}
-        <SongCard {song} {query} favorite={favoriteSongIds.includes(song.id)} favoritePending={pendingFavoriteSongIds.includes(song.id)} onOpen={(next) => (selected = next)} onFavoriteClick={(next) => void handleFavorite(next)} />
+        <SongCard {song} system={karaoke.system} {query} favorite={favoriteSongIds.includes(song.id)} favoritePending={pendingFavoriteSongIds.includes(song.id)} onOpen={(next) => (selected = next)} onFavoriteClick={(next) => void handleFavorite(next)} />
       {/each}
     {:else}
       <div class="empty-state">
@@ -739,8 +819,9 @@
     {/if}
   </section>
 
-  {#key catalogVersion}
-    <TjOmnibar
+  {#key `${catalogVersion}:${karaoke.system}`}
+    <KaraokeOmnibar
+      system={karaoke.system}
       {query}
       enabled={Boolean(auth.user && onlineStatus.online)}
       {songs}

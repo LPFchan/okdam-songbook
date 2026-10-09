@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import {
+  createDamAdapter,
   createTjAdapter,
   createTjSearchMirror,
   openD1Database
@@ -63,6 +64,7 @@ export function createWorkerApp(env: Env): Hono {
       mirror: createTjSearchMirror(database.sqlite),
       onWarn: (warning) => console.warn(JSON.stringify({ event: "tj_adapter_warning", ...warning }))
     }),
+    dam: createDamAdapter(),
     readingGenerator: readingGeneratorFromEnvironment({ AI_ENDPOINT: env.AI_ENDPOINT, CLOUDFLARE_AI_API_TOKEN: env.CLOUDFLARE_AI_API_TOKEN, AI_MODEL: env.AI_MODEL })
     // assetsRoot intentionally omitted: the Worker serves statics itself.
   });

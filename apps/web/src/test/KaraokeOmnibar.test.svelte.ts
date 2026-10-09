@@ -1,12 +1,14 @@
 import { act, cleanup, render, screen, waitFor } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { TjSongCandidate } from "@songbook/shared";
-import TjOmnibar from "../lib/components/TjOmnibar.svelte";
-import { addTjSong, searchTjSongs } from "../lib/api";
+import type { DamSongCandidate, TjSongCandidate } from "@songbook/shared";
+import KaraokeOmnibar from "../lib/components/KaraokeOmnibar.svelte";
+import { addDamSong, addTjSong, searchDamSongs, searchTjSongs } from "../lib/api";
 
 vi.mock("../lib/api", () => ({
   addTjSong: vi.fn(),
-  searchTjSongs: vi.fn()
+  searchTjSongs: vi.fn(),
+  addDamSong: vi.fn(),
+  searchDamSongs: vi.fn()
 }));
 
 const candidate: TjSongCandidate = {
@@ -18,8 +20,17 @@ const candidate: TjSongCandidate = {
   sourceUrl: "https://www.tjmedia.com/song/accompaniment_search?searchTxt=68058"
 };
 
+const damCandidate: DamSongCandidate = {
+  damNumber: "4415-89",
+  title: "Pretender",
+  artist: "Official髭男dism",
+  titleYomi: "",
+  artistYomi: "",
+  sourceUrl: "https://www.clubdam.com/karaokesearch/songleaf.html?requestNo=4415-89"
+};
+
 function renderOmnibar(props: Partial<Parameters<typeof render>[1]> = {}) {
-  return render(TjOmnibar, {
+  return render(KaraokeOmnibar, {
     props: {
       query: "Pretender",
       enabled: true,
@@ -33,7 +44,7 @@ function renderOmnibar(props: Partial<Parameters<typeof render>[1]> = {}) {
   });
 }
 
-describe("TjOmnibar", () => {
+describe("KaraokeOmnibar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(searchTjSongs).mockResolvedValue({
@@ -66,7 +77,7 @@ describe("TjOmnibar", () => {
   });
 
   it("hides the TJ section when TJ search is disabled", async () => {
-    render(TjOmnibar, {
+    render(KaraokeOmnibar, {
       props: {
         query: "Pretender",
         enabled: false,
@@ -92,7 +103,7 @@ describe("TjOmnibar", () => {
       canRestore: false,
       canOpen: true
     } as never);
-    render(TjOmnibar, {
+    render(KaraokeOmnibar, {
       props: {
         query: "Pretender",
         enabled: true,
@@ -108,5 +119,45 @@ describe("TjOmnibar", () => {
     await waitFor(() => expect(addTjSong).toHaveBeenCalledTimes(1));
     expect(addTjSong).toHaveBeenCalledWith(candidate, expect.any(String), "auth.lost.plus:42");
     expect(onSongSaved).toHaveBeenCalledWith(expect.objectContaining({ id: "song-1" }));
+  });
+
+  it("searches DAM and links a DAM number to a saved song with the same name", async () => {
+    vi.mocked(searchDamSongs).mockResolvedValue({
+      query: "Pretender",
+      searchType: "all",
+      page: 1,
+      pageSize: 15,
+      hasMore: false,
+      candidates: [damCandidate]
+    });
+    vi.mocked(addDamSong).mockResolvedValue({
+      outcome: "linked",
+      song: { id: "song-1", title: "Pretender", damNumber: "4415-89" },
+      existing: null,
+      duplicateKind: null,
+      canRestore: false,
+      canOpen: true
+    } as never);
+    const onSongSaved = vi.fn();
+    const saved = { id: "song-1", title: "Pretender", artist: "Official髭男dism", tjNumber: "68058", damNumber: "", deletedAt: null };
+    render(KaraokeOmnibar, {
+      props: {
+        system: "dam",
+        query: "Pretender",
+        enabled: true,
+        songs: [saved as never],
+        requireCredential: vi.fn().mockResolvedValue("auth.lost.plus:42"),
+        onManualAdd: vi.fn(),
+        onOpenExisting: vi.fn(),
+        onSongSaved
+      }
+    });
+    expect(await screen.findByText("DAM에서 더 찾기")).toBeInTheDocument();
+    expect(await screen.findByText("4415-89")).toBeInTheDocument();
+    expect(searchTjSongs).not.toHaveBeenCalled();
+    const button = screen.getByRole("button", { name: "바로 추가" });
+    await button.click();
+    await waitFor(() => expect(addDamSong).toHaveBeenCalledWith(damCandidate, expect.any(String), "auth.lost.plus:42"));
+    expect(onSongSaved).toHaveBeenCalledWith(expect.objectContaining({ damNumber: "4415-89" }));
   });
 });

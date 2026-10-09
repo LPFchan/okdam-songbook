@@ -14,6 +14,7 @@ import {
   tjSearchResultSchema,
   tjSongCandidateSchema
 } from "./tj.js";
+import { damSearchRequestSchema, damSongCandidateSchema } from "./dam.js";
 
 /** The public-read policy for the single-origin application. */
 export const publicReadPolicy = "anonymous" as const;
@@ -25,12 +26,15 @@ export const apiErrorCodeSchema = z.enum([
   "NOT_FOUND",
   "CONFLICT",
   "DUPLICATE_TJ_NUMBER",
+  "DUPLICATE_DAM_NUMBER",
   "VALIDATION_ERROR",
   "RATE_LIMITED",
   "EXTERNAL_API_ERROR",
   "TJ_UPSTREAM_ERROR",
   "TJ_PARSER_ERROR",
   "TJ_RATE_LIMITED",
+  "DAM_UPSTREAM_ERROR",
+  "DAM_RATE_LIMITED",
   "AI_NOT_CONFIGURED",
   "SHEET_SCHEMA_ERROR",
   "INTERNAL_ERROR"
@@ -199,6 +203,18 @@ export const tjAddRouteSchema = z.object({
   authentication: protectedBrowserRoute
 });
 
+export const damSearchRouteSchema = z.object({
+  method: z.literal("POST"),
+  path: z.literal("/api/dam/search"),
+  authentication: protectedBrowserRoute
+});
+
+export const damAddRouteSchema = z.object({
+  method: z.literal("POST"),
+  path: z.literal("/api/dam/add"),
+  authentication: protectedBrowserRoute
+});
+
 export const apiRouteContractSchema = z.discriminatedUnion("path", [
   catalogRouteSchema,
   currentUserRouteSchema,
@@ -210,7 +226,9 @@ export const apiRouteContractSchema = z.discriminatedUnion("path", [
   readingGenerateRouteSchema,
   tjLookupRouteSchema,
   tjSearchRouteSchema,
-  tjAddRouteSchema
+  tjAddRouteSchema,
+  damSearchRouteSchema,
+  damAddRouteSchema
 ]);
 
 export const apiActionContractSchema = z.object({
@@ -224,6 +242,11 @@ export const apiActionContractSchema = z.object({
   tjSearch: tjSearchRequestSchema,
   tjAdd: z.object({
     candidate: tjSongCandidateSchema,
+    clientRequestId: z.string().uuid()
+  }),
+  damSearch: damSearchRequestSchema,
+  damAdd: z.object({
+    candidate: damSongCandidateSchema,
     clientRequestId: z.string().uuid()
   })
 });

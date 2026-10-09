@@ -1,11 +1,12 @@
 <script lang="ts">
-  import type { Song } from "@songbook/shared";
+  import type { KaraokeSystem, Song } from "@songbook/shared";
   import { formatPerformerNames, primaryKey } from "@songbook/shared";
   import { Heart, Users } from "@lucide/svelte";
   import SongRow from "./SongRow.svelte";
 
   interface Props {
     song: Song;
+    system?: KaraokeSystem;
     query: string;
     favorite: boolean;
     favoritePending?: boolean;
@@ -13,14 +14,14 @@
     onFavoriteClick(song: Song): void;
   }
 
-  const { song, query, favorite, favoritePending = false, onOpen, onFavoriteClick }: Props = $props();
+  const { song, system = "tj", query, favorite, favoritePending = false, onOpen, onFavoriteClick }: Props = $props();
 
   const keyLabel = $derived(primaryKey(song));
   const performerLabel = $derived(formatPerformerNames(song.performerIds, true));
 </script>
 
 <SongRow
-  tjNumber={song.tjNumber}
+  number={system === "dam" ? song.damNumber : song.tjNumber}
   title={song.title}
   titleReadingKo={song.titleReadingKo}
   artist={song.artist}

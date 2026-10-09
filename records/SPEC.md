@@ -38,6 +38,11 @@ history.
   authenticated debounced TJ matches continue below with inline add actions.
   The MCP `search_songs` tool uses the same trimmed-length gate (at least two
   characters or all digits) and numeric queries select number search.
+- A TJ/DAM chip beside the account pill switches the catalog between karaoke
+  systems, remembered per device. DAM mode shows DAM numbers, sorts by them,
+  hides songs without one, and continues the omnibar into DAM search. While
+  search or sign-out confirmation is active, the neighbouring pills merge into
+  one pill that cancels it.
 - Manage and history tools open contextually from the catalog toolbar; manual
   add remains a TJ-search fallback. `/admin` is a compatibility alias to the
   same composition, not a separate security boundary.
@@ -137,6 +142,11 @@ history.
 - TJ candidates remain editable, attributed input until an authenticated
   D1 write succeeds. TJ outages or parser drift never remove manual entry
   or public catalog access.
+- DAM (clubdam.com) is searched live through its JSON search API with a
+  small in-memory cache and throttle; there is no DAM mirror in D1. Adding a
+  DAM candidate attaches its number to a saved song with the same title and
+  artist when that song has none, and creates a new song otherwise. One DAM
+  number belongs to at most one song.
 - The TJ mirror stores normalized songs plus exact query/page memberships in
   D1. Each canonical query is fresh for 24 hours; stale refreshes wait for
   TJ, retain the prior snapshot on failure, and emit operational failure

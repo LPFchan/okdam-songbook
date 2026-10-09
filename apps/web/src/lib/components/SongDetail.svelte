@@ -39,6 +39,12 @@
     <span class="detail-label">TJ 번호</span>
     <strong>{song.tjNumber || "없음"}</strong>
   </div>
+  {#if song.damNumber}
+    <div>
+      <span class="detail-label">DAM 번호</span>
+      <strong>{song.damNumber}</strong>
+    </div>
+  {/if}
   <div>
     <span class="detail-label">추천 키</span>
     <strong>{primaryKey(song) || "미입력"}</strong>
