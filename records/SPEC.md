@@ -41,7 +41,10 @@ history.
 - A TJ/DAM chip beside the account pill switches the catalog between karaoke
   systems, remembered per device. Each mode shows that system's numbers, sorts
   by them, and hides songs without one; DAM mode also continues the omnibar
-  into DAM search. While
+  into DAM search, in DAM's popularity order with title and artist matches
+  ahead of lyric and composer matches. Finished TJ/DAM searches are kept for
+  an hour per query, and stay on screen while the session is re-checked on
+  return to the app; they are dropped on sign-out or an account change. While
   search or sign-out confirmation is active, the neighbouring pills merge into
   one pill that cancels it.
 - With a performer filter and no search text, a 추천 section below the list
