@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { describe, expect, it } from "vitest";
 
@@ -6,7 +7,7 @@ describe("worker bundle", () => {
   // only works when every module shares one copy of server-core.
   it("bundles server-core from its build output only", async () => {
     const result = await build({
-      entryPoints: [new URL("../src/index.ts", import.meta.url).pathname],
+      entryPoints: [fileURLToPath(new URL("../src/index.ts", import.meta.url))],
       bundle: true,
       write: false,
       metafile: true,
