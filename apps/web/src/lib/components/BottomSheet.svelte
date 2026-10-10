@@ -246,6 +246,7 @@
     }
     motion.entrance = null;
     motion.drag = null;
+    motion.settle = null;
     startInline("dismiss", liveOffset, velocityPxPerMs * 1000, dismissDistance());
   }
 
