@@ -23,7 +23,8 @@ flowchart LR
 - `CatalogPage.svelte` is the catalog-first primary surface: search, quick
   filters, account/session state, theme, sync details, and contextual entry to
   role-aware management sheets. It is the app's only route. Over the network,
-  paths without a static file (such as `/no-such-page`) are redirected to it;
+  extensionless paths without a static file (such as `/no-such-page`) are
+  redirected to it;
   inside an installed app the service worker shows the not-found page for them.
 - `vite-plugin-pwa` generates the service worker and manifest.
 - Dexie stores public snapshots, the offline performance queue, and a day of

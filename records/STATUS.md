@@ -53,7 +53,7 @@ Recorded by agent: codex-orchestrator
   returns saved songs first and debounced TJ candidates second. Manage/history
   remain contextual utilities. `/admin` was removed on 2026-10-10
   (DEC-20261010-001). Over the network it is redirected to `/` like any other
-  unknown path; inside an installed app the service worker shows the
+  unknown extensionless path; inside an installed app the service worker shows the
   not-found page instead.
 
 ## Production Deployment
@@ -65,8 +65,9 @@ Recorded by agent: codex-orchestrator
   route-less; the gateway holds the zone route.
 - Assets: `[assets]` with `run_worker_first = true`, so every request passes
   through the Worker and HTML responses carry the frame-denial headers.
-  Unknown non-server paths fall back to `index.html`; `/api`, `/mcp` and
-  `/.well-known` never do.
+  Unknown extensionless non-server paths fall back to `index.html`; missing
+  paths with a file extension get a 404, and `/api`, `/mcp` and
+  `/.well-known` never fall back.
 - Database: D1 `okdam-songbook`. No interactive transactions: statements run
   immediately and `transaction()` is a pass-through. A mutation that throws
   releases its idempotency claim by hand so a retry reruns rather than
