@@ -200,7 +200,10 @@
             // the settled value so the sheet never lingers a fraction of a
             // pixel off its rest position.
             motion[inline.kind ?? "entrance"] = null;
-            if (inline.kind !== "dismiss") {
+            // The sheet is off-screen: unmount now, or its invisible backdrop
+            // keeps swallowing taps until the fallback timer fires.
+            if (inline.kind === "dismiss") detach();
+            else {
               liveOffset = inline.target;
               offset = inline.target;
               backdropOpacity = Math.max(0, 1 - inline.target / 400);
@@ -231,6 +234,7 @@
 
   function dismiss(velocityPxPerMs: number) {
     closing = true;
+    // Fallback in case the dismiss spring never finishes (e.g. no frames).
     if (detachTimer === 0) {
       detachTimer = window.setTimeout(detach, 1400);
     }
