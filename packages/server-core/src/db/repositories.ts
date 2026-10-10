@@ -96,12 +96,7 @@ export function createSongRepository(sqlite: SqlExecutor, displayNameForEmail: (
       const result = await sqlite.prepare(SONG_UPDATE_SQL).run(song.tjNumber || null, song.damNumber || null, song.title, song.titleReadingKo, song.artist, song.artistReadingKo, song.country, song.recommendedKey ? JSON.stringify(song.recommendedKey) : null, JSON.stringify(song.performerIds), song.memo, song.sourceType, song.sourceReference, song.updatedByEmail || "", song.updatedByName, song.updatedAt, song.deletedAt || null, song.deletedByEmail || null, song.id, expectedVersion);
       return result.changes === 1;
     },
-    remove: async (id, expectedVersion) => {
-      // performances restricts song deletion, so a song's plays go first. The
-      // version guard keeps a stale delete from wiping plays it will not remove.
-      await sqlite.prepare("DELETE FROM performances WHERE song_id=? AND EXISTS (SELECT 1 FROM songs WHERE id=? AND version=? AND deleted_at IS NULL)").run(id, id, expectedVersion);
-      return (await sqlite.prepare("DELETE FROM songs WHERE id=? AND version=? AND deleted_at IS NULL").run(id, expectedVersion)).changes === 1;
-    }
+    remove: async (id, expectedVersion) => (await sqlite.prepare("DELETE FROM songs WHERE id=? AND version=? AND deleted_at IS NULL").run(id, expectedVersion)).changes === 1
   };
 }
 
