@@ -84,7 +84,7 @@
 </script>
 
 {#if searchable}
-  {#if enabled || results.length}
+  {#if enabled || completedQuery === trimmedQuery}
     <section class="omnibar-tj" aria-label="{source.label} 검색 결과" aria-live="polite">
       <header class="omnibar-tj-heading">
         <div>
