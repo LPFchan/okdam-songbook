@@ -105,6 +105,7 @@ describe("KaraokeOmnibar", () => {
     await view.rerender({ enabled: false, subject: null });
     expect(screen.getByText("Pretender")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "직접 입력" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "바로 추가" })).toBeDisabled();
     view.unmount();
     renderOmnibar({ props: { query: "Subtitle" } } as never);
     expect(await screen.findByText("Pretender")).toBeInTheDocument();

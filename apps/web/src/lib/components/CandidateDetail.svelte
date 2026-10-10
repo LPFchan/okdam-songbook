@@ -7,11 +7,12 @@
     system: KaraokeSystem;
     candidate: Candidate;
     pending: boolean;
+    paused?: boolean;
     onAdd(): void;
     registerActions?: (content: import("svelte").Snippet) => void;
   }
 
-  const { system, candidate, pending, onAdd, registerActions }: Props = $props();
+  const { system, candidate, pending, paused = false, onAdd, registerActions }: Props = $props();
 
   const source = $derived(karaokeSources[system]);
   // Credits TJ and DAM list beyond title and artist; blank ones are left out.
@@ -45,7 +46,7 @@
 </div>
 
 {#snippet detailActions()}
-  <button type="button" class="primary-button" disabled={pending} onclick={onAdd}>
+  <button type="button" class="primary-button" disabled={pending || paused} onclick={onAdd}>
     <Plus size={18} />
     {pending ? "추가 중…" : "Songbook에 추가"}
   </button>

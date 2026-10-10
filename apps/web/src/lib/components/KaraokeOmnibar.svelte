@@ -114,7 +114,7 @@
         <p class="omnibar-tj-status">{source.label}에도 검색 결과가 없어요.</p>
       {/if}
       {#if results.length}
-        <CandidateList {system} candidates={results} {songs} {requireCredential} {onOpenExisting} {onSongSaved} />
+        <CandidateList {system} candidates={results} {songs} paused={!enabled} {requireCredential} {onOpenExisting} {onSongSaved} />
       {/if}
     </section>
   {/if}

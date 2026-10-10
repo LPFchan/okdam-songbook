@@ -10,12 +10,14 @@
     system: KaraokeSystem;
     candidates: Candidate[];
     songs: Song[];
+    /** Adding waits while this holds; saved songs still open. */
+    paused?: boolean;
     requireCredential(): Promise<string>;
     onOpenExisting(song: Song): void;
     onSongSaved(song: Song): void;
   }
 
-  const { system, candidates, songs, requireCredential, onOpenExisting, onSongSaved }: Props = $props();
+  const { system, candidates, songs, paused = false, requireCredential, onOpenExisting, onSongSaved }: Props = $props();
 
   const source = $derived(karaokeSources[system]);
 
@@ -41,6 +43,7 @@
       onOpenExisting(existing);
       return;
     }
+    if (paused) return;
     let requestId = requestIds.get(key);
     if (!requestId) {
       requestId = crypto.randomUUID();
@@ -92,7 +95,7 @@
         <button
           type="button"
           class={existing ? "secondary-button" : "primary-button"}
-          disabled={Boolean(pending[key])}
+          disabled={Boolean(pending[key]) || (paused && !existing)}
           onclick={(event) => {
             event.stopPropagation();
             void addCandidate(candidate);
@@ -113,6 +116,7 @@
         {system}
         {candidate}
         pending={Boolean(pending[candidateKey(system, candidate)])}
+        {paused}
         onAdd={() => void addPreviewed(candidate)}
         {registerActions}
       />
