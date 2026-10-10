@@ -82,9 +82,9 @@ Recorded by agent: codex-orchestrator
    `infra` / `CF_MASTER_TOKEN`). Expect `No targets deployed` — that is the
    route-less shape.
 4. Verify through the public hostname (see `docs/deployment.md` for the
-   commands): `/healthz`, `/api/catalog`, `/` with frame headers,
-   `/api/me` 401, `/mcp` initialize with an `okdam-mcp` token, bogus bearer
-   401.
+   commands): `/healthz`, `/api/catalog`, `/` with frame headers, an unknown
+   path redirected to `/`, `/api/me` 401, `/mcp` initialize with an
+   `okdam-mcp` token, bogus bearer 401.
 
 ### Rollback
 

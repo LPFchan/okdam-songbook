@@ -12,8 +12,8 @@ Recorded by agent: claude-code
 
 ## Decision
 
-The SvelteKit app has one route, `/`. The `/admin` route is removed. Requests for
-`/admin`, like any other unknown path, fall back to the main surface.
+The SvelteKit app has one route, `/`. The `/admin` route is removed and no
+alias replaces it: `/admin` is an unknown path like any other.
 
 The rest of DEC-20260813-002 (one catalog-first surface with contextual,
 server-protected management tools) stands.
@@ -39,5 +39,8 @@ the same page that docs and deploy checks have to keep describing.
 ## Consequences
 
 - `apps/web/src/routes/admin` is deleted.
-- Post-deploy checks probe `/` instead of `/admin`.
-- Old `/admin` bookmarks still open the app.
+- Post-deploy checks probe `/` and an unknown path instead of `/admin`.
+- Over the network an `/admin` bookmark is redirected to `/` by the Assets
+  fallback. An installed app whose service worker answers the navigation
+  itself shows the not-found page instead; nobody is known to rely on the
+  bookmark.
