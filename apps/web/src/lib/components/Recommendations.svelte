@@ -2,7 +2,7 @@
   import { untrack } from "svelte";
   import { formatPerformerNames, type KaraokeSystem, type PerformerId, type Song } from "@songbook/shared";
   import { findSavedSong, karaokeSources } from "../karaokeSources";
-  import { recommendationFeed } from "../recommendationFeed.svelte";
+  import { recommendationFeed, type RecommendationFeed } from "../recommendationFeed.svelte";
   import CandidateList from "./CandidateList.svelte";
 
   interface Props {
@@ -41,11 +41,14 @@
     return () => clearTimeout(timer);
   });
 
-  // The first page loads on its own; later ones while the bottom is near.
-  const wanted = () => Boolean(ready && enabled && feed && feed.key === requestKey && (!feed.groups.length || bottomNear));
+  // The first page loads on its own; later ones while the bottom is near. A
+  // feed the reader has switched away from is never wanted again.
+  const wanted = (target: RecommendationFeed) =>
+    Boolean(ready && enabled && feed === target && target.key === requestKey && (!target.groups.length || bottomNear));
 
   $effect(() => {
-    if (feed && wanted()) untrack(() => void feed.pump(wanted, requireCredential));
+    const current = feed;
+    if (current && wanted(current)) untrack(() => void current.pump(() => wanted(current), requireCredential));
   });
 
   function watchBottom(node: HTMLElement) {
@@ -109,7 +112,7 @@
     {/each}
     {#if feed.failed}
       <p class="omnibar-tj-status error">추천 곡을 불러오지 못했어요.</p>
-      <button type="button" class="secondary-button recommendation-more" onclick={() => feed.retry(wanted, requireCredential)}>다시 시도</button>
+      <button type="button" class="secondary-button recommendation-more" onclick={() => { const current = feed; current.retry(() => wanted(current), requireCredential); }}>다시 시도</button>
     {:else if feed.loading || (feed.hasMore && enabled && !visibleGroups.length)}
       <p class="omnibar-tj-status">추천 곡을 찾는 중…</p>
     {:else if !feed.hasMore && !visibleGroups.length}

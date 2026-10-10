@@ -107,6 +107,20 @@ describe("Recommendations", () => {
     await waitFor(() => expect(screen.getByText("Back Song")).toBeTruthy());
   });
 
+  it("stops loading a performer's pages once the filter moves on", async () => {
+    stubBottomInView();
+    vi.mocked(fetchRecommendations).mockImplementation(async ({ performerIds, exclude }) => ({
+      groups: [group(`${performerIds[0]}-${exclude?.length ?? 0}`, [candidate(`${performerIds[0]}${exclude?.length ?? 0}`, "Song", "A")])],
+      hasMore: true
+    }));
+    const view = render(Recommendations, { props: props(["marie"]) });
+    await waitFor(() => expect(fetchRecommendations).toHaveBeenCalledTimes(1));
+    await view.rerender(props(["eunhu"]));
+    await new Promise((resolve) => setTimeout(resolve, 2_500));
+    const marieCalls = vi.mocked(fetchRecommendations).mock.calls.filter(([input]) => input.performerIds[0] === "marie");
+    expect(marieCalls).toHaveLength(1);
+  }, 10_000);
+
   it("keeps what it loaded while the session is re-checked", async () => {
     vi.mocked(fetchRecommendations).mockResolvedValue({ groups: [group("Kept", [candidate("4", "Kept Song", "Kept")])], hasMore: false });
     const view = render(Recommendations, { props: props(["yeowool"]) });
