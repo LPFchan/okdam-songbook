@@ -78,7 +78,7 @@ async function envelopeData<T>(response: Response): Promise<T> {
 describe("okdam-songbook Worker", () => {
   it("serves the SPA shell for deep links and denies framing on every HTML response", async () => {
     const workerEnv = env();
-    for (const path of ["/", "/index.html", "/admin", "/songs/abc"]) {
+    for (const path of ["/", "/index.html", "/songs/abc"]) {
       const response = await fetchWorker(get(path), workerEnv);
       expect(response.status, path).toBe(200);
       expect(await response.text()).toContain("shell");

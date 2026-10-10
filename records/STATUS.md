@@ -51,8 +51,10 @@ Recorded by agent: codex-orchestrator
   against that static file. See "OCI leftovers" below.
 - Current product shape: one catalog-first main surface whose search input
   returns saved songs first and debounced TJ candidates second. Manage/history
-  remain contextual utilities; `/admin` is a compatibility alias served by
-  the SPA fallback.
+  remain contextual utilities. `/admin` was removed on 2026-10-10
+  (DEC-20261010-001). Over the network it is redirected to `/` like any other
+  unknown extensionless path; inside an installed app the service worker shows the
+  not-found page instead.
 
 ## Production Deployment
 
@@ -63,8 +65,9 @@ Recorded by agent: codex-orchestrator
   route-less; the gateway holds the zone route.
 - Assets: `[assets]` with `run_worker_first = true`, so every request passes
   through the Worker and HTML responses carry the frame-denial headers.
-  Unknown non-server paths fall back to `index.html`; `/api`, `/mcp` and
-  `/.well-known` never do.
+  Unknown extensionless non-server paths fall back to `index.html`; missing
+  paths with a file extension get a 404, and `/api`, `/mcp` and
+  `/.well-known` never fall back.
 - Database: D1 `okdam-songbook`. No interactive transactions: statements run
   immediately and `transaction()` is a pass-through. A mutation that throws
   releases its idempotency claim by hand so a retry reruns rather than
@@ -82,9 +85,9 @@ Recorded by agent: codex-orchestrator
    `infra` / `CF_MASTER_TOKEN`). Expect `No targets deployed` — that is the
    route-less shape.
 4. Verify through the public hostname (see `docs/deployment.md` for the
-   commands): `/healthz`, `/api/catalog`, `/admin` with frame headers,
-   `/api/me` 401, `/mcp` initialize with an `okdam-mcp` token, bogus bearer
-   401.
+   commands): `/healthz`, `/api/catalog`, `/` with frame headers, an unknown
+   path redirected to `/`, `/api/me` 401, `/mcp` initialize with an
+   `okdam-mcp` token, bogus bearer 401.
 
 ### Rollback
 
@@ -120,8 +123,6 @@ Recorded by agent: codex-orchestrator
   contextual management sheets (`BottomSheet.svelte` with spring-driven drag).
 - `apps/web/src/lib/components/TjOmnibar.svelte` owns the debounced TJ
   continuation, local duplicate resolution, and inline immediate add state.
-- `/admin` supplies add/manage/history content to the main surface as a
-  compatibility alias rather than a separate page composition.
 - The song form generates schema-checked Korean-reading candidates for the
   title and artist, leaves them editable, and requires a separate save action.
 - `오늘 불렀어요!` attributes one performance to the signed-in account. The

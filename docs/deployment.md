@@ -70,7 +70,8 @@ From anywhere on the internet, with `$TOKEN` an `okdam-mcp` machine token
 ```
 H=https://okdam.lost.plus
 curl -s -o /dev/null -w '%{http_code}\n' $H/healthz                           # 200
-curl -s -o /dev/null -w '%{http_code} %{content_type}\n' $H/admin             # 200 text/html
+curl -s -o /dev/null -w '%{http_code} %{content_type}\n' $H/                  # 200 text/html
+curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' $H/no-such-page      # 307 to / (SPA fallback)
 curl -s -D - -o /dev/null $H/ | grep -i x-frame-options                       # DENY
 curl -s -o /dev/null -w '%{http_code}\n' $H/api/catalog                       # 200
 curl -s -o /dev/null -w '%{http_code}\n' $H/api/me                            # 401
