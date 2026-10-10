@@ -33,6 +33,7 @@ function renderOmnibar(props: Partial<Parameters<typeof render>[1]> = {}) {
   return render(KaraokeOmnibar, {
     props: {
       query: "Pretender",
+      visible: true,
       enabled: true,
       songs: [],
       requireCredential: vi.fn().mockResolvedValue("auth.lost.plus:42"),
@@ -80,6 +81,7 @@ describe("KaraokeOmnibar", () => {
     render(KaraokeOmnibar, {
       props: {
         query: "Pretender",
+        visible: false,
         enabled: false,
         songs: [],
         requireCredential: vi.fn(),
@@ -91,6 +93,20 @@ describe("KaraokeOmnibar", () => {
     await act(() => new Promise((resolve) => setTimeout(resolve, 600)));
     expect(screen.queryByText(/TJ/)).not.toBeInTheDocument();
     expect(searchTjSongs).not.toHaveBeenCalled();
+  });
+
+  it("keeps results through a session re-check and does not search again on remount", async () => {
+    const view = renderOmnibar({ props: { query: "Subtitle" } } as never);
+    await screen.findByText("Pretender");
+    expect(searchTjSongs).toHaveBeenCalledTimes(1);
+    // Returning to the app re-checks the session: search is paused, results stay.
+    await view.rerender({ enabled: false });
+    expect(screen.getByText("Pretender")).toBeInTheDocument();
+    view.unmount();
+    renderOmnibar({ props: { query: "Subtitle" } } as never);
+    expect(await screen.findByText("Pretender")).toBeInTheDocument();
+    await act(() => new Promise((resolve) => setTimeout(resolve, 600)));
+    expect(searchTjSongs).toHaveBeenCalledTimes(1);
   });
 
   it("adds a candidate once and reports the saved song", async () => {
@@ -107,6 +123,7 @@ describe("KaraokeOmnibar", () => {
     render(KaraokeOmnibar, {
       props: {
         query: "Pretender",
+        visible: true,
         enabled: true,
         songs: [],
         requireCredential: vi.fn().mockResolvedValue("auth.lost.plus:42"),
@@ -176,6 +193,7 @@ describe("KaraokeOmnibar", () => {
       props: {
         system: "dam",
         query: "Pretender",
+        visible: true,
         enabled: true,
         songs: [saved as never],
         requireCredential: vi.fn().mockResolvedValue("auth.lost.plus:42"),

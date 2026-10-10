@@ -1,11 +1,23 @@
+<script module lang="ts">
+  import type { Candidate } from "../karaokeSources";
+
+  // Finished searches by system and query, so a return to the app or a
+  // catalog refresh shows the same list instead of searching again.
+  const answers = new Map<string, Candidate[]>();
+  const ANSWER_LIMIT = 50;
+</script>
+
 <script lang="ts">
   import { isSearchableQuery, type KaraokeSystem, type Song } from "@songbook/shared";
-  import { karaokeSources, type Candidate } from "../karaokeSources";
+  import { karaokeSources } from "../karaokeSources";
   import CandidateList from "./CandidateList.svelte";
 
   interface Props {
     system?: KaraokeSystem;
     query: string;
+    /** Results already found stay on screen while this holds. */
+    visible: boolean;
+    /** New searches run only while this holds. */
     enabled: boolean;
     songs: Song[];
     requireCredential(): Promise<string>;
@@ -14,7 +26,7 @@
     onSongSaved(song: Song): void;
   }
 
-  const { system = "tj", query, enabled, songs, requireCredential, onManualAdd, onOpenExisting, onSongSaved }: Props = $props();
+  const { system = "tj", query, visible, enabled, songs, requireCredential, onManualAdd, onOpenExisting, onSongSaved }: Props = $props();
 
   const source = $derived(karaokeSources[system]);
 
@@ -29,15 +41,17 @@
   let completedQuery = $state("");
 
   $effect(() => {
-    if (!enabled || !searchable) {
+    const q = trimmedQuery;
+    const key = `${system}:${q}`;
+    const known = searchable && visible ? answers.get(key) : undefined;
+    if (known || !enabled || !searchable) {
       loading = false;
-      results = [];
+      results = known ?? [];
       error = "";
-      completedQuery = "";
+      completedQuery = known ? q : "";
       return;
     }
     let cancelled = false;
-    const q = trimmedQuery;
     const { search, label } = source;
     const timer = setTimeout(() => {
       loading = true;
@@ -45,6 +59,9 @@
       void requireCredential()
         .then(() => search(q))
         .then((candidates) => {
+          answers.delete(key);
+          answers.set(key, candidates);
+          if (answers.size > ANSWER_LIMIT) answers.delete(answers.keys().next().value!);
           if (cancelled) return;
           results = candidates;
           completedQuery = q;
@@ -67,7 +84,7 @@
 </script>
 
 {#if searchable}
-  {#if enabled}
+  {#if enabled || results.length}
     <section class="omnibar-tj" aria-label="{source.label} 검색 결과" aria-live="polite">
       <header class="omnibar-tj-heading">
         <div>

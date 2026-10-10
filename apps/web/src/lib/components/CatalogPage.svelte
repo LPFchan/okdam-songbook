@@ -831,6 +831,7 @@
     <KaraokeOmnibar
       system={karaoke.system}
       {query}
+      visible={Boolean(auth.user) || auth.status === "unknown"}
       enabled={Boolean(auth.user && onlineStatus.online)}
       {songs}
       {requireCredential}
