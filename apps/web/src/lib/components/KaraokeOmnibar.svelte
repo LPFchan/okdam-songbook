@@ -3,8 +3,9 @@
 
   // Finished searches by system and query, so a return to the app or a
   // catalog refresh shows the same list instead of searching again. Dropped
-  // after an hour, and all at once whenever the section is hidden (signed out).
+  // after an hour, and all at once on sign-out or when another account is seen.
   const answers = new Map<string, { at: number; candidates: Candidate[] }>();
+  let answersOwner: string | null = null;
   const ANSWER_LIMIT = 50;
   const ANSWER_MS = 60 * 60 * 1_000;
 
@@ -28,6 +29,8 @@
     visible: boolean;
     /** New searches run only while this holds. */
     enabled: boolean;
+    /** The signed-in account, or null while the session is being checked. */
+    subject: string | null;
     songs: Song[];
     requireCredential(): Promise<string>;
     onManualAdd(): void;
@@ -35,7 +38,7 @@
     onSongSaved(song: Song): void;
   }
 
-  const { system = "tj", query, visible, enabled, songs, requireCredential, onManualAdd, onOpenExisting, onSongSaved }: Props = $props();
+  const { system = "tj", query, visible, enabled, subject, songs, requireCredential, onManualAdd, onOpenExisting, onSongSaved }: Props = $props();
 
   const source = $derived(karaokeSources[system]);
 
@@ -52,7 +55,10 @@
   $effect(() => {
     const q = trimmedQuery;
     const key = `${system}:${q}`;
-    if (!visible) answers.clear();
+    if (!visible || (subject && subject !== answersOwner)) {
+      answers.clear();
+      answersOwner = subject;
+    }
     const known = searchable && visible ? remembered(key) : undefined;
     if (known || !enabled || !searchable) {
       loading = false;
