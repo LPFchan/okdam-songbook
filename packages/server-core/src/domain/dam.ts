@@ -5,6 +5,7 @@ import {
   normalizeDamNumber,
   parseDamDetailResponse,
   parseDamKeywordResponse,
+  rankDamCandidates,
   type DamSearchRequest,
   type DamSearchResult
 } from "@songbook/shared";
@@ -81,7 +82,7 @@ export function createDamAdapter(options: DamAdapterOptions = {}): DamAdapter {
         return { ...base, searchType: "number", hasMore: false, candidates: candidate ? [candidate] : [] };
       }
       const { candidates, hasMore } = parseDamKeywordResponse(await post(buildDamKeywordRequest(request)));
-      return { ...base, searchType: "all", hasMore, candidates };
+      return { ...base, searchType: "all", hasMore, candidates: rankDamCandidates(request.query, candidates) };
     } catch (error) {
       if (error instanceof DomainError) throw error;
       throw new DomainError("DAM_UPSTREAM_ERROR", "DAM 검색 결과 형식을 읽지 못했어.");

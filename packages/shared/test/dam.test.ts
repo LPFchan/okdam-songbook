@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDamKeywordRequest, damSearchRequestSchema, isDamNumberQuery, normalizeDamNumber, parseDamDetailResponse, parseDamKeywordResponse, sampleSongs, searchSongs, sortSongs } from "../src/index.js";
+import { buildDamKeywordRequest, damSearchRequestSchema, rankDamCandidates, isDamNumberQuery, normalizeDamNumber, parseDamDetailResponse, parseDamKeywordResponse, sampleSongs, searchSongs, sortSongs } from "../src/index.js";
 
 describe("DAM numbers", () => {
   it("normalizes the ways people type a request number", () => {
@@ -16,7 +16,19 @@ describe("DAM numbers", () => {
   it("builds the keyword request DAM's own page sends", () => {
     const request = buildDamKeywordRequest({ query: " loser ", page: 2, pageSize: 15 });
     expect(request.url).toMatch(/SearchVariousByKeywordApi$/);
-    expect(JSON.parse(request.body)).toMatchObject({ keyword: "loser", pageNo: "2", dispCount: "15", sort: "1" });
+    expect(JSON.parse(request.body)).toMatchObject({ keyword: "loser", pageNo: "2", dispCount: "15", sort: "2" });
+  });
+
+  it("puts title and artist matches ahead of lyric and composer matches", () => {
+    const song = (damNumber: string, title: string, artist: string, artistYomi = "") =>
+      ({ damNumber, title, artist, titleYomi: "", artistYomi, sourceUrl: `https://example.com/${damNumber}` });
+    const ranked = rankDamCandidates("tak", [
+      song("4332-95", "ultra soul", "B'z"),
+      song("6540-80", "愛執～あいしゅう", "TAKAKO"),
+      song("1465-67", "I Want You Back - From THE FIRST TAKE", "BE:FIRST"),
+      song("2030-03", "I wish you were here", "TMG")
+    ]);
+    expect(ranked.map((candidate) => candidate.damNumber)).toEqual(["6540-80", "1465-67", "4332-95", "2030-03"]);
   });
 
   it("accepts page sizes up to DAM's 100-song limit", () => {

@@ -84,7 +84,8 @@ export function buildDamKeywordRequest(input: DamSearchRequest): { url: string; 
     body: JSON.stringify({
       ...DAM_CLIENT_FIELDS,
       keyword: input.query.trim(),
-      sort: "1",
+      // Popularity, as DAM's own search page does. "1" is kana order.
+      sort: "2",
       dispCount: String(input.pageSize ?? 15),
       pageNo: String(input.page ?? 1)
     })
@@ -153,6 +154,23 @@ export function parseDamKeywordResponse(json: unknown): { candidates: DamSongCan
     return [candidate];
   });
   return { candidates, hasMore: parsed.data.data.hasNext === "1" };
+}
+
+function folded(value: string): string {
+  return value.normalize("NFKC").toLocaleLowerCase().replace(/[\s\p{P}\p{S}]+/gu, "");
+}
+
+/**
+ * DAM's keyword search also matches lyrics, lyricists and composers. Songs
+ * whose title or artist contains the query come first; DAM's order is kept
+ * within each group.
+ */
+export function rankDamCandidates(query: string, candidates: DamSongCandidate[]): DamSongCandidate[] {
+  const needle = folded(query);
+  if (!needle) return candidates;
+  const named = (candidate: DamSongCandidate) =>
+    [candidate.title, candidate.artist, candidate.titleYomi, candidate.artistYomi].some((field) => folded(field).includes(needle));
+  return [...candidates.filter(named), ...candidates.filter((candidate) => !named(candidate))];
 }
 
 /** Parse a number lookup. DAM answers an unknown number with a bare requestNo. */
