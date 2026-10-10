@@ -35,6 +35,10 @@
 </script>
 
 <div class="detail-grid">
+  <div class="detail-wide">
+    <span class="detail-label">아티스트</span>
+    <strong>{song.artist}</strong>
+  </div>
   <div>
     <span class="detail-label">TJ 번호</span>
     <strong>{song.tjNumber || "없음"}</strong>
