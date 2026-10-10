@@ -11,7 +11,7 @@ Recorded by agent: codex-orchestrator
 - Main catalog owns account, filters, theme, sync, and the local-first search
   omnibar. TJ candidates follow saved matches after a 450 ms debounce and can
   be added inline. Manage/history remain contextual toolbar utilities.
-- There is no `/admin` route; paths without a static file fall back to the main surface.
+- There is no `/admin` route; over the network, paths without a static file are redirected to the main surface (inside an installed app they show the not-found page).
 - Related ids: DEC-20260813-002, DEC-20260813-004, DEC-20261010-001.
 
 ### TJ-assisted discovery and entry

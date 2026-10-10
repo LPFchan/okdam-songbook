@@ -52,7 +52,9 @@ Recorded by agent: codex-orchestrator
 - Current product shape: one catalog-first main surface whose search input
   returns saved songs first and debounced TJ candidates second. Manage/history
   remain contextual utilities. `/admin` was removed on 2026-10-10
-  (DEC-20261010-001); it falls back to the main surface like any other path.
+  (DEC-20261010-001). Over the network it is redirected to `/` like any other
+  unknown path; inside an installed app the service worker shows the
+  not-found page instead.
 
 ## Production Deployment
 
