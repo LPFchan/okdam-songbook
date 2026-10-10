@@ -145,7 +145,7 @@ describe("Recommendations", () => {
     render(Recommendations, { props: props(["yeowool"]) });
     await waitFor(() => expect(screen.getByText("Daily Song")).toBeTruthy());
     vi.setSystemTime(Date.now() + 25 * 60 * 60 * 1_000);
-    document.dispatchEvent(new Event("visibilitychange"));
+    document.dispatchEvent(new window.Event("visibilitychange"));
     await waitFor(() => expect(fetchRecommendations).toHaveBeenCalledTimes(2));
     vi.useRealTimers();
   });
