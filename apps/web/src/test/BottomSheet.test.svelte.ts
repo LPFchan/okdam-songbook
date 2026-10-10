@@ -20,18 +20,6 @@ beforeAll(() => {
     Element.prototype.setPointerCapture = () => {};
     Element.prototype.releasePointerCapture = () => {};
   }
-  if (!window.matchMedia) {
-    window.matchMedia = ((query: string) => ({
-      matches: false,
-      media: query,
-      addEventListener() {},
-      removeEventListener() {},
-      addListener() {},
-      removeListener() {},
-      onchange: null,
-      dispatchEvent: () => false
-    })) as typeof window.matchMedia;
-  }
 });
 
 const body = createRawSnippet(() => ({ render: () => "<p>body</p>" }));

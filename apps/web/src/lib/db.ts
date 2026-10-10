@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie";
-import type { PublicData } from "@songbook/shared";
+import type { PublicData, RecommendationGroup } from "@songbook/shared";
 
 export interface CachedSnapshot {
   id: "public";
@@ -25,9 +25,18 @@ export interface OfflineQueueItem {
   errorMessage?: string;
 }
 
+export interface CachedRecommendations {
+  /** System and sorted performer ids, e.g. "dam:eunhu,yeowool". */
+  key: string;
+  startedAt: number;
+  groups: RecommendationGroup[];
+  hasMore: boolean;
+}
+
 class SongbookDatabase extends Dexie {
   snapshots!: Table<CachedSnapshot, string>;
   queue!: Table<OfflineQueueItem, string>;
+  recommendations!: Table<CachedRecommendations, string>;
 
   constructor() {
     super("songbook");
@@ -72,6 +81,11 @@ class SongbookDatabase extends Dexie {
         item.nextRetryAt = undefined;
         delete item.ownerEmail;
       });
+    });
+    this.version(5).stores({
+      snapshots: "id,savedAt",
+      queue: "id,status,createdAt,nextRetryAt,clientRequestId,ownerSubject",
+      recommendations: "key"
     });
   }
 }

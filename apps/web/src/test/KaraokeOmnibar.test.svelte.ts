@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from "@testing-library/svelte";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DamSongCandidate, TjSongCandidate } from "@songbook/shared";
 import KaraokeOmnibar from "../lib/components/KaraokeOmnibar.svelte";
@@ -95,6 +95,7 @@ describe("KaraokeOmnibar", () => {
 
   it("adds a candidate once and reports the saved song", async () => {
     const onSongSaved = vi.fn();
+    const onOpenExisting = vi.fn();
     vi.mocked(addTjSong).mockResolvedValue({
       outcome: "created",
       song: { id: "song-1", title: "Pretender" },
@@ -110,7 +111,7 @@ describe("KaraokeOmnibar", () => {
         songs: [],
         requireCredential: vi.fn().mockResolvedValue("auth.lost.plus:42"),
         onManualAdd: vi.fn(),
-        onOpenExisting: vi.fn(),
+        onOpenExisting,
         onSongSaved
       }
     });
@@ -119,6 +120,37 @@ describe("KaraokeOmnibar", () => {
     await waitFor(() => expect(addTjSong).toHaveBeenCalledTimes(1));
     expect(addTjSong).toHaveBeenCalledWith(candidate, expect.any(String), "auth.lost.plus:42");
     expect(onSongSaved).toHaveBeenCalledWith(expect.objectContaining({ id: "song-1" }));
+    // Adding is quiet: the song's sheet does not open.
+    expect(onOpenExisting).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("opens a sheet with the artist for a song not yet saved, and adds from it", async () => {
+    const onOpenExisting = vi.fn();
+    vi.mocked(addTjSong).mockResolvedValue({
+      outcome: "created",
+      song: { id: "song-1", title: "Pretender" },
+      existing: null,
+      duplicateKind: null,
+      canRestore: false,
+      canOpen: true
+    } as never);
+    renderOmnibar({ props: { onOpenExisting } } as never);
+    (await screen.findByText("Pretender")).click();
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("Official髭男dism");
+    expect(addTjSong).not.toHaveBeenCalled();
+    (await screen.findByRole("button", { name: "Songbook에 추가" })).click();
+    await waitFor(() => expect(addTjSong).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(onOpenExisting).not.toHaveBeenCalled();
+  });
+
+  it("leaves Enter on the add button to the button, not the row", async () => {
+    renderOmnibar();
+    await screen.findByText("Pretender");
+    await fireEvent.keyDown(screen.getByRole("button", { name: "바로 추가" }), { key: "Enter" });
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("searches DAM and links a DAM number to a saved song with the same name", async () => {

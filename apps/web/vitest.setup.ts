@@ -32,3 +32,18 @@ Object.defineProperty(window, "cancelAnimationFrame", {
   value: (handle: number) => window.clearTimeout(handle),
   configurable: true
 });
+
+// jsdom has no matchMedia; sheets read prefers-reduced-motion through it.
+Object.defineProperty(window, "matchMedia", {
+  value: (query: string) => ({
+    matches: false,
+    media: query,
+    addEventListener() {},
+    removeEventListener() {},
+    addListener() {},
+    removeListener() {},
+    onchange: null,
+    dispatchEvent: () => false
+  }),
+  configurable: true
+});

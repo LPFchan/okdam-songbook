@@ -18,6 +18,8 @@
   const { number, title, titleReadingKo, artist, artistReadingKo, query = "", onOpen, actions, meta }: Props = $props();
 
   function handleKeydown(event: KeyboardEvent) {
+    // Keys pressed on a nested action button belong to that button.
+    if (event.target !== event.currentTarget) return;
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       onOpen?.();
