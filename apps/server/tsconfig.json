@@ -1,11 +1,7 @@
 {
   "extends": "../../tsconfig.node.json",
   "compilerOptions": {
-    "types": ["node", "vitest/globals"],
-    "paths": {
-      "@songbook/server-core": ["../../packages/server-core/src/index.ts"],
-      "@songbook/server-core/*": ["../../packages/server-core/src/*"]
-    }
+    "types": ["node", "vitest/globals"]
   },
   "include": ["src", "test"]
 }
