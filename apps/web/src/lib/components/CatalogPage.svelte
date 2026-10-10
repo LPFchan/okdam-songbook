@@ -843,6 +843,7 @@
   <Recommendations
     system={karaoke.system}
     performerIds={query.trim() ? [] : filters.performerIds ?? []}
+    visible={Boolean(auth.user) || auth.status === "unknown"}
     enabled={Boolean(auth.user && onlineStatus.online)}
     {songs}
     {requireCredential}

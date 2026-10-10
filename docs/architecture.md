@@ -25,7 +25,8 @@ flowchart LR
   role-aware management sheets. `/admin` is a compatibility alias served by
   the SPA fallback.
 - `vite-plugin-pwa` generates the service worker and manifest.
-- Dexie stores public snapshots and the offline performance queue. Protected
+- Dexie stores public snapshots, the offline performance queue, and a day of
+  loaded recommendations per performer filter. Protected
   auth/session responses and credentials must not enter those caches.
 
 ## Worker

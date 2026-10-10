@@ -46,9 +46,12 @@ history.
   one pill that cancels it.
 - With a performer filter and no search text, a 추천 section below the list
   searches the current TJ/DAM system for the artists of that performer's
-  saved songs, most saved songs first, five more each time the list scrolls to
-  its end, and offers the songs not yet in the Songbook with inline add
-  actions.
+  saved songs, most saved songs first. Pages of five artists load one at a
+  time, a second apart, starting well before the reader reaches the end;
+  failed artists and requests are retried, and artists with nothing new are
+  left out. Loaded recommendations stay for a day per performer filter, across
+  app switches and relaunches. Tapping a song opens a sheet with its artist and
+  an add action; adding from the list or sheet stays on the list.
 - Manage and history tools open contextually from the catalog toolbar; manual
   add remains a TJ-search fallback. `/admin` is a compatibility alias to the
   same composition, not a separate security boundary.
