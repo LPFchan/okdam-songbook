@@ -58,6 +58,8 @@
     if (!visible || (subject && subject !== answersOwner)) {
       answers.clear();
       answersOwner = subject;
+      results = [];
+      completedQuery = "";
     }
     const known = searchable && visible ? remembered(key) : undefined;
     if (known || !enabled || !searchable) {

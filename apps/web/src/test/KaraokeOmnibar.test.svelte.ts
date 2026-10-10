@@ -126,8 +126,8 @@ describe("KaraokeOmnibar", () => {
   it("forgets remembered results when another account signs in", async () => {
     const view = renderOmnibar({ props: { query: "Switch" } } as never);
     await screen.findByText("Pretender");
-    view.unmount();
-    renderOmnibar({ props: { query: "Switch", subject: "auth.lost.plus:7" } } as never);
+    await view.rerender({ subject: "auth.lost.plus:7" });
+    expect(screen.queryByText("Pretender")).not.toBeInTheDocument();
     await screen.findByText("Pretender");
     expect(searchTjSongs).toHaveBeenCalledTimes(2);
   });
