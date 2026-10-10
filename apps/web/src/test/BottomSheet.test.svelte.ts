@@ -40,6 +40,41 @@ describe("BottomSheet motion", () => {
     expect(later === initial && initial.includes(String(window.innerHeight))).toBe(false);
   });
 
+  it("unmounts as soon as the close animation ends", { timeout: 15000 }, async () => {
+    const onClose = vi.fn();
+    render(BottomSheet, { props: { title: "Test", onClose, children: body } });
+    const sheet = document.querySelector(".bottom-sheet") as HTMLElement;
+    await new Promise((r) => setTimeout(r, 1500)); // entrance settle
+    Object.defineProperty(sheet, "offsetHeight", { value: 600, configurable: true });
+    (document.querySelector("button[aria-label='닫기']") as HTMLElement).click();
+    // Well before the 1.4s fallback timer, which used to keep an invisible
+    // backdrop over the list.
+    await new Promise((r) => setTimeout(r, 900));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("slides out when closed mid spring-back", { timeout: 15000 }, async () => {
+    render(BottomSheet, { props: { title: "Test", onClose: vi.fn(), children: body } });
+    const sheet = document.querySelector(".bottom-sheet") as HTMLElement;
+    await new Promise((r) => setTimeout(r, 1500)); // entrance settle
+    Object.defineProperty(sheet, "offsetHeight", { value: 600, configurable: true });
+    sheet.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 1, clientX: 200, clientY: 500, bubbles: true }));
+    for (let i = 1; i <= 6; i++) {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 200, clientY: 500 + i * 10, bubbles: true }));
+      await new Promise((r) => setTimeout(r, 30));
+    }
+    for (let i = 0; i < 4; i++) {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 1, clientX: 200, clientY: 560, bubbles: true }));
+      await new Promise((r) => setTimeout(r, 60));
+    }
+    window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 1, clientX: 200, clientY: 560, bubbles: true }));
+    (document.querySelector("button[aria-label='닫기']") as HTMLElement).click();
+    await new Promise((r) => setTimeout(r, 120));
+    const offset = Number(/translateY\(([-\d.]+)px\)/.exec(sheet.style.transform)?.[1] ?? 0);
+    // A leftover spring-back offset would hold the sheet near the 60px release.
+    expect(offset).toBeGreaterThan(150);
+  });
+
   it("springs back after a small downward drag", { timeout: 15000 }, async () => {
     render(BottomSheet, {
       props: { title: "Test", onClose: vi.fn(), children: body }
