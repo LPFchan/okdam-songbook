@@ -193,6 +193,23 @@ describe("songbook domain services", () => {
     expect(recreated.tjNumber).toBe(created.tjNumber);
   });
 
+  it("hard deletes a song that has performance records", async () => {
+    const service = createSongbookService(database, { roleResolver: roleResolver() });
+    const created = await service.createSong(allowedPeer, songInput());
+    await service.createPerformance(allowedPeer, { songId: created.id, keySelection: null, memo: "", performedAt: "2026-08-13T10:00:00.000Z", clientRequestId: crypto.randomUUID() });
+    await service.deleteSong(allowed, { id: created.id, expectedVersion: 1, clientRequestId: crypto.randomUUID() });
+    expect(await service.catalog()).toHaveLength(0);
+    expect(await database.sqlite.prepare("SELECT id FROM performances WHERE song_id=?").all(created.id)).toEqual([]);
+  });
+
+  it("keeps performance records when a stale delete is rejected", async () => {
+    const service = createSongbookService(database, { roleResolver: roleResolver() });
+    const created = await service.createSong(allowedPeer, songInput());
+    await service.createPerformance(allowedPeer, { songId: created.id, keySelection: null, memo: "", performedAt: "2026-08-13T10:00:00.000Z", clientRequestId: crypto.randomUUID() });
+    await expect(service.deleteSong(allowed, { id: created.id, expectedVersion: 2, clientRequestId: crypto.randomUUID() })).rejects.toThrow();
+    expect(await database.sqlite.prepare("SELECT id FROM performances WHERE song_id=?").all(created.id)).toHaveLength(1);
+  });
+
   it("creates, counts, and cancels performance records", async () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
     const created = await service.createSong(allowedPeer, songInput());

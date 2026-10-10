@@ -33,7 +33,7 @@ Recorded by agent: codex-orchestrator
   policy and arrive with no identity headers.
 - State: D1 holds songs, performances, private favorites, audit events,
   idempotency keys, and the TJ mirror. Schema is `apps/worker/migrations/
-  0001_init.sql` plus `0002_dam_number.sql`, recorded as applied in D1's `d1_migrations` table
+  0001_init.sql`, `0002_dam_number.sql` and `0003_delete_song_plays.sql`, recorded as applied in D1's `d1_migrations` table
   (`migrations_dir` is declared in `wrangler.toml`). Every song and
   performance row was verified identical to the OCI SQLite on 2026-09-19.
 - Verified live on 2026-09-19 after the audit deploy: `/` and `/admin` 200
