@@ -29,6 +29,8 @@ describe("DAM numbers", () => {
       song("2030-03", "I wish you were here", "TMG")
     ]);
     expect(ranked.map((candidate) => candidate.damNumber)).toEqual(["6540-80", "1465-67", "4332-95", "2030-03"]);
+    const reading = { ...song("1063-30", "残酷な天使のテーゼ", "高橋洋子"), titleYomi: "ざんこくなてんしのてーぜ" };
+    expect(rankDamCandidates("ザンコク", [song("4332-95", "ultra soul", "B'z"), reading])[0]).toBe(reading);
   });
 
   it("accepts page sizes up to DAM's 100-song limit", () => {

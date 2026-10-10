@@ -156,8 +156,10 @@ export function parseDamKeywordResponse(json: unknown): { candidates: DamSongCan
   return { candidates, hasMore: parsed.data.data.hasNext === "1" };
 }
 
+/** Case, width, punctuation and katakana versus hiragana are ignored. */
 function folded(value: string): string {
-  return value.normalize("NFKC").toLocaleLowerCase().replace(/[\s\p{P}\p{S}]+/gu, "");
+  return value.normalize("NFKC").toLocaleLowerCase().replace(/[\s\p{P}\p{S}]+/gu, "")
+    .replace(/[\u30a1-\u30f6]/gu, (kana) => String.fromCharCode(kana.charCodeAt(0) - 0x60));
 }
 
 /**
