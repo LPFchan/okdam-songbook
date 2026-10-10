@@ -14,19 +14,26 @@ export const initSql = readdirSync(migrationsDir).filter((file) => file.endsWith
  * without a Workers runtime. The database is reached only through the D1
  * binding shape, so anything the D1 executor cannot express fails here the way
  * it would on Cloudflare. Foreign keys are switched on because D1 enforces
- * them and better-sqlite3 does not by default.
+ * them and better-sqlite3 does not by default. run() reports changes the way
+ * D1 does, counting rows a trigger changed.
  */
 export function fakeD1(schemaSql: string = initSql): D1DatabaseLike & { raw: Database.Database } {
   const db = new Database(":memory:");
   db.pragma("foreign_keys = ON");
   db.exec(schemaSql);
+  const totalChanges = () => Number((db.prepare("SELECT total_changes() AS n").get() as { n: number }).n);
   const statement = (sql: string): D1PreparedStatementLike => {
     let bound: unknown[] = [];
     const self: D1PreparedStatementLike = {
       bind(...values: unknown[]) { bound = values; return self; },
       async first<T>() { return (db.prepare(sql).get(...(bound as never[])) ?? null) as T | null; },
       async all<T>() { return { results: db.prepare(sql).all(...(bound as never[])) as T[] }; },
-      async run() { const r = db.prepare(sql).run(...(bound as never[])); return { meta: { changes: Number(r.changes) } }; }
+      async run() {
+        // D1 counts rows changed by triggers too, unlike better-sqlite3.
+        const before = totalChanges();
+        db.prepare(sql).run(...(bound as never[]));
+        return { meta: { changes: totalChanges() - before } };
+      }
     };
     return self;
   };
