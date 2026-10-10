@@ -22,8 +22,8 @@ flowchart LR
 - Svelte + TypeScript + Vite PWA in `apps/web`, built to `apps/web/dist`.
 - `CatalogPage.svelte` is the catalog-first primary surface: search, quick
   filters, account/session state, theme, sync details, and contextual entry to
-  role-aware management sheets. `/admin` is a compatibility alias served by
-  the SPA fallback.
+  role-aware management sheets. It is the app's only route; paths without a
+  static file (such as `/privacy/`) fall back to it.
 - `vite-plugin-pwa` generates the service worker and manifest.
 - Dexie stores public snapshots, the offline performance queue, and a day of
   loaded recommendations per performer filter. Protected

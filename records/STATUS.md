@@ -51,8 +51,8 @@ Recorded by agent: codex-orchestrator
   against that static file. See "OCI leftovers" below.
 - Current product shape: one catalog-first main surface whose search input
   returns saved songs first and debounced TJ candidates second. Manage/history
-  remain contextual utilities; `/admin` is a compatibility alias served by
-  the SPA fallback.
+  remain contextual utilities. `/admin` was removed on 2026-10-10
+  (DEC-20261010-001); it falls back to the main surface like any other path.
 
 ## Production Deployment
 
@@ -82,7 +82,7 @@ Recorded by agent: codex-orchestrator
    `infra` / `CF_MASTER_TOKEN`). Expect `No targets deployed` — that is the
    route-less shape.
 4. Verify through the public hostname (see `docs/deployment.md` for the
-   commands): `/healthz`, `/api/catalog`, `/admin` with frame headers,
+   commands): `/healthz`, `/api/catalog`, `/` with frame headers,
    `/api/me` 401, `/mcp` initialize with an `okdam-mcp` token, bogus bearer
    401.
 
@@ -120,8 +120,6 @@ Recorded by agent: codex-orchestrator
   contextual management sheets (`BottomSheet.svelte` with spring-driven drag).
 - `apps/web/src/lib/components/TjOmnibar.svelte` owns the debounced TJ
   continuation, local duplicate resolution, and inline immediate add state.
-- `/admin` supplies add/manage/history content to the main surface as a
-  compatibility alias rather than a separate page composition.
 - The song form generates schema-checked Korean-reading candidates for the
   title and artist, leaves them editable, and requires a separate save action.
 - `오늘 불렀어요!` attributes one performance to the signed-in account. The

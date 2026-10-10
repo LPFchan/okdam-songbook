@@ -53,8 +53,7 @@ history.
   app switches and relaunches. Tapping a song opens a sheet with its artist and
   an add action; adding from the list or sheet stays on the list.
 - Manage and history tools open contextually from the catalog toolbar; manual
-  add remains a TJ-search fallback. `/admin` is a compatibility alias to the
-  same composition, not a separate security boundary.
+  add remains a TJ-search fallback. There is no separate admin route.
 
 ## Core Capabilities
 
