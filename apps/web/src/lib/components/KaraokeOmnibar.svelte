@@ -106,7 +106,7 @@
         <div>
           <h2>{source.label}에서 더 찾기</h2>
         </div>
-        <button type="button" class="secondary-button" onclick={onManualAdd}>직접 입력</button>
+        <button type="button" class="secondary-button" disabled={!enabled} onclick={onManualAdd}>직접 입력</button>
       </header>
       {#if loading}<p class="omnibar-tj-status">{source.label} 검색 중…</p>{/if}
       {#if error}<p class="omnibar-tj-status error">{error}</p>{/if}
