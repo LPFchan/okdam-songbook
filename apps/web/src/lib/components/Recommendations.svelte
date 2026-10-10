@@ -30,7 +30,20 @@
   let bottomNear = $state(false);
 
   const requestKey = $derived(`${system}:${[...performerIds].sort().join(",")}`);
-  const feed = $derived(performerIds.length ? recommendationFeed(system, performerIds) : null);
+  // Bumped on each return to the app, so a feed older than a day is replaced.
+  let resumed = $state(0);
+  const feed = $derived.by(() => {
+    void resumed;
+    return performerIds.length ? recommendationFeed(system, performerIds) : null;
+  });
+
+  $effect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") resumed += 1;
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  });
 
   $effect(() => {
     void requestKey;

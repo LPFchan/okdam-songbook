@@ -139,6 +139,17 @@ describe("Recommendations", () => {
     expect(fetchRecommendations).not.toHaveBeenCalled();
   });
 
+  it("starts over on return to the app once the feed is a day old", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.mocked(fetchRecommendations).mockResolvedValue({ groups: [group("Daily", [candidate("7", "Daily Song", "Daily")])], hasMore: false });
+    render(Recommendations, { props: props(["yeowool"]) });
+    await waitFor(() => expect(screen.getByText("Daily Song")).toBeTruthy());
+    vi.setSystemTime(Date.now() + 25 * 60 * 60 * 1_000);
+    document.dispatchEvent(new Event("visibilitychange"));
+    await waitFor(() => expect(fetchRecommendations).toHaveBeenCalledTimes(2));
+    vi.useRealTimers();
+  });
+
   it("shows the empty state when nobody has new songs", async () => {
     vi.mocked(fetchRecommendations).mockResolvedValue({ groups: [group("A", [])], hasMore: false });
     render(Recommendations, { props: props(["eunhu"]) });
