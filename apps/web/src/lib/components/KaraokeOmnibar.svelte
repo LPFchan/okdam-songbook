@@ -2,9 +2,18 @@
   import type { Candidate } from "../karaokeSources";
 
   // Finished searches by system and query, so a return to the app or a
-  // catalog refresh shows the same list instead of searching again.
-  const answers = new Map<string, Candidate[]>();
+  // catalog refresh shows the same list instead of searching again. Dropped
+  // after an hour, and all at once whenever the section is hidden (signed out).
+  const answers = new Map<string, { at: number; candidates: Candidate[] }>();
   const ANSWER_LIMIT = 50;
+  const ANSWER_MS = 60 * 60 * 1_000;
+
+  function remembered(key: string): Candidate[] | undefined {
+    const answer = answers.get(key);
+    if (answer && Date.now() - answer.at < ANSWER_MS) return answer.candidates;
+    answers.delete(key);
+    return undefined;
+  }
 </script>
 
 <script lang="ts">
@@ -43,7 +52,8 @@
   $effect(() => {
     const q = trimmedQuery;
     const key = `${system}:${q}`;
-    const known = searchable && visible ? answers.get(key) : undefined;
+    if (!visible) answers.clear();
+    const known = searchable && visible ? remembered(key) : undefined;
     if (known || !enabled || !searchable) {
       loading = false;
       results = known ?? [];
@@ -59,10 +69,10 @@
       void requireCredential()
         .then(() => search(q))
         .then((candidates) => {
-          answers.delete(key);
-          answers.set(key, candidates);
-          if (answers.size > ANSWER_LIMIT) answers.delete(answers.keys().next().value!);
           if (cancelled) return;
+          answers.delete(key);
+          answers.set(key, { at: Date.now(), candidates });
+          if (answers.size > ANSWER_LIMIT) answers.delete(answers.keys().next().value!);
           results = candidates;
           completedQuery = q;
         })

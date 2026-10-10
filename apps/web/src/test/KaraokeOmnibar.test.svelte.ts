@@ -109,6 +109,16 @@ describe("KaraokeOmnibar", () => {
     expect(searchTjSongs).toHaveBeenCalledTimes(1);
   });
 
+  it("forgets remembered results once the section is hidden", async () => {
+    const view = renderOmnibar({ props: { query: "Signout" } } as never);
+    await screen.findByText("Pretender");
+    await view.rerender({ visible: false, enabled: false });
+    view.unmount();
+    renderOmnibar({ props: { query: "Signout" } } as never);
+    await screen.findByText("Pretender");
+    expect(searchTjSongs).toHaveBeenCalledTimes(2);
+  });
+
   it("adds a candidate once and reports the saved song", async () => {
     const onSongSaved = vi.fn();
     const onOpenExisting = vi.fn();
