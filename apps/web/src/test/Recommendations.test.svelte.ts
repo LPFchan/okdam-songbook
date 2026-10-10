@@ -93,6 +93,20 @@ describe("Recommendations", () => {
     expect(screen.queryByText("다시 시도")).toBeNull();
   }, 10_000);
 
+  it("asks again at once when 다시 시도 is pressed after retries run out", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.mocked(fetchRecommendations)
+      .mockRejectedValueOnce(new Error("1")).mockRejectedValueOnce(new Error("2")).mockRejectedValueOnce(new Error("3"))
+      .mockRejectedValueOnce(new Error("4")).mockRejectedValueOnce(new Error("5"))
+      .mockResolvedValueOnce({ groups: [group("Back", [candidate("6", "Back Song", "Back")])], hasMore: false });
+    render(Recommendations, { props: props(["marie"]) });
+    for (let i = 0; i < 6 && !screen.queryByText("다시 시도"); i += 1) await vi.advanceTimersByTimeAsync(20_000);
+    expect(fetchRecommendations).toHaveBeenCalledTimes(5);
+    vi.useRealTimers();
+    screen.getByText("다시 시도").click();
+    await waitFor(() => expect(screen.getByText("Back Song")).toBeTruthy());
+  });
+
   it("keeps what it loaded while the session is re-checked", async () => {
     vi.mocked(fetchRecommendations).mockResolvedValue({ groups: [group("Kept", [candidate("4", "Kept Song", "Kept")])], hasMore: false });
     const view = render(Recommendations, { props: props(["yeowool"]) });

@@ -69,6 +69,8 @@ export class RecommendationFeed {
       await this.restored;
       while (this.hasMore && !this.failed && wanted()) {
         const wait = await this.loadPage(requireCredential);
+        // Out of retries: stop now so 다시 시도 starts a fresh loop at once.
+        if (this.failed) break;
         this.loading = Boolean(wait);
         await sleep(wait || CADENCE_MS);
       }

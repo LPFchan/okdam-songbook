@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from "@testing-library/svelte";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DamSongCandidate, TjSongCandidate } from "@songbook/shared";
 import KaraokeOmnibar from "../lib/components/KaraokeOmnibar.svelte";
@@ -144,6 +144,13 @@ describe("KaraokeOmnibar", () => {
     await waitFor(() => expect(addTjSong).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(onOpenExisting).not.toHaveBeenCalled();
+  });
+
+  it("leaves Enter on the add button to the button, not the row", async () => {
+    renderOmnibar();
+    await screen.findByText("Pretender");
+    await fireEvent.keyDown(screen.getByRole("button", { name: "바로 추가" }), { key: "Enter" });
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("searches DAM and links a DAM number to a saved song with the same name", async () => {
