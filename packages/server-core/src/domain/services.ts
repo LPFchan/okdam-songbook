@@ -266,7 +266,8 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
   // blank country, which retries any an earlier pass missed. The songs are
   // asked about at once: Workers stop background work 30 seconds after the
   // response, too soon for ten answers in a row. The answer is written only
-  // if the country is still blank by then, so one set by hand meanwhile wins.
+  // if the country is still blank by then, so one set by hand meanwhile wins,
+  // and only for the title and artist it was given.
   // Adds in quick succession would each take the same blank songs, so a
   // song already being asked about is left to the pass that has it.
   const classifying = new Set<string>();
@@ -279,6 +280,7 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
         const country = await classify(song).catch(() => classify(song));
         const current = await songs.get(song.id);
         if (!current || current.country || isDeletedSong(current)) return;
+        if (current.title !== song.title || current.artist !== song.artist) return;
         await applyUpdate(COUNTRY_CLASSIFIER_ACTOR, { id: song.id, expectedVersion: current.version, country, clientRequestId: idFactory() });
       } catch (error) {
         warn({ event: "country_fill_failed", songId: song.id, message: error instanceof Error ? error.message : String(error) });
@@ -290,7 +292,7 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
 
   const afterAdd = <T extends { outcome: string }>(result: T): T => {
     const classifier = options.countryClassifier;
-    if (result.outcome === "created" && classifier) {
+    if ((result.outcome === "created" || result.outcome === "linked") && classifier) {
       defer(fillBlankCountries(classifier).catch((error: unknown) => warn({ event: "country_fill_failed", message: error instanceof Error ? error.message : String(error) })));
     }
     return result;
