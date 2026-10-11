@@ -401,6 +401,7 @@
     const clientRequestId = crypto.randomUUID();
     const performedAt = new Date().toISOString();
     const ownerSubject = auth.user.subject;
+    dropInflightReloads();
     songs = songs.map((item) =>
       item.id === song.id
         ? { ...item, performanceCount: item.performanceCount + 1, lastPerformedAt: performedAt, lastPerformedByName: auth.user?.displayName ?? "" }
@@ -418,6 +419,7 @@
       await performSong(song, clientRequestId, performedAt, current.subject);
     } catch (error) {
       if (error instanceof AuthRequiredError) {
+        dropInflightReloads();
         songs = songs.map((item) =>
           item.id === song.id
             ? { ...item, performanceCount: Math.max(0, (item.performanceCount ?? 0) - 1) }
@@ -447,6 +449,7 @@
     }
     lastPerformed = null;
     if (undoTimer !== undefined) clearTimeout(undoTimer);
+    dropInflightReloads();
     songs = songs.map((item) =>
       item.id === target.songId
         ? { ...item, performanceCount: Math.max(0, (item.performanceCount ?? 0) - 1), lastPerformedAt: "", lastPerformedByName: "" }
@@ -550,9 +553,12 @@
 
   // Reloads can overlap, as when several added songs each wait for their
   // country; an answer older than the newest one already applied is dropped,
-  // and so is one that was in flight when a local save or delete landed.
+  // and so is one that was in flight when a local change to the list landed.
   let catalogRequest = 0;
   let catalogApplied = 0;
+  function dropInflightReloads() {
+    catalogApplied = ++catalogRequest;
+  }
   async function refreshCatalog(): Promise<boolean> {
     const request = ++catalogRequest;
     const data = await fetchPublicData();
@@ -582,7 +588,7 @@
   }
 
   function onSongSaved(saved: Song) {
-    catalogApplied = ++catalogRequest;
+    dropInflightReloads();
     songs = songs.some((song) => song.id === saved.id)
       ? songs.map((song) => (song.id === saved.id ? saved : song))
       : [saved, ...songs];
@@ -591,7 +597,7 @@
   }
 
   function onSongDeleted(deletedId: string) {
-    catalogApplied = ++catalogRequest;
+    dropInflightReloads();
     songs = songs.filter((song) => song.id !== deletedId);
     if (selected?.id === deletedId) selected = null;
     if (editingSong?.id === deletedId) closeManagement();
