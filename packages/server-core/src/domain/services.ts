@@ -263,18 +263,20 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
   // A song added from TJ or DAM is saved with no country, and the classifier
   // fills it in after the add has answered, so the add never waits on a model.
   // Each pass takes every blank country, which retries any an earlier pass
-  // missed. Someone who set the country by hand in the meantime keeps theirs:
-  // their edit moves the version and this update no longer applies.
+  // missed. The songs are asked about at once: Workers stop background work
+  // 30 seconds after the response, too soon for ten answers in a row. Someone
+  // who set the country by hand in the meantime keeps theirs: their edit moves
+  // the version and this update no longer applies.
   const fillBlankCountries = async (classifier: CountryClassifier) => {
     const blank = (await songs.list()).filter((song) => !song.country && !isDeletedSong(song)).slice(0, COUNTRY_FILL_BATCH);
-    for (const song of blank) {
+    await Promise.all(blank.map(async (song) => {
       try {
         const country = await classifier.classify({ title: song.title, artist: song.artist });
         await applyUpdate(COUNTRY_CLASSIFIER_ACTOR, { id: song.id, expectedVersion: song.version, country, clientRequestId: idFactory() });
       } catch (error) {
         warn({ event: "country_fill_failed", songId: song.id, message: error instanceof Error ? error.message : String(error) });
       }
-    }
+    }));
   };
 
   const afterAdd = <T extends { outcome: string }>(result: T): T => {

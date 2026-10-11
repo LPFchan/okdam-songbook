@@ -41,6 +41,9 @@
 
   type QueueItem = Awaited<ReturnType<typeof queueItems>>[number];
 
+  // The server's background fill has about 30 seconds to finish.
+  const COUNTRY_FILL_POLL_MS = [3_000, 5_000, 10_000, 15_000];
+
   let songs = $state<Song[]>([]);
   let catalogVersion = $state(0);
   let query = $state("");
@@ -51,6 +54,7 @@
   let favoriteOnly = $state(false);
   let pendingFavoriteSongIds = $state<string[]>([]);
   let selected = $state<Song | null>(null);
+  let destroyed = false;
   let chipsExpanded = $state(false);
   // chipsHeight owns the chips-expanded class on this element, so the wrap
   // never flips before the bar's height pin is in place.
@@ -95,20 +99,14 @@
       void goto(next, { replaceState: true, noScroll: true, keepFocus: true });
     }
 
-    let cancelled = false;
     async function load() {
       const cached = await readCachedPublicData();
-      if (cached && !cancelled) {
+      if (cached && !destroyed) {
         songs = cached.songs;
         catalogVersion += 1;
       }
       try {
-        const data = await fetchPublicData();
-        if (!cancelled) {
-          songs = data.songs;
-          catalogVersion += 1;
-          await saveCachedPublicData(data);
-        }
+        await refreshCatalog();
       } catch (error) {
         if (!cached) snackbar.show(error instanceof Error ? error.message : "데이터를 불러오지 못했어요.");
       }
@@ -205,7 +203,7 @@
     if (onlineStatus.online) void drainQueue();
 
     return () => {
-      cancelled = true;
+      destroyed = true;
       stopOnline();
       unsubscribe();
       window.removeEventListener("online", onOnline);
@@ -550,11 +548,33 @@
     void goto(next, { replaceState: true, noScroll: true, keepFocus: true });
   }
 
+  async function refreshCatalog() {
+    const data = await fetchPublicData();
+    if (destroyed) return;
+    songs = data.songs;
+    if (selected) selected = songs.find((song) => song.id === selected?.id) ?? selected;
+    catalogVersion += 1;
+    await saveCachedPublicData(data);
+  }
+
+  // A song added from TJ or DAM comes back without a country, and the server
+  // fills it in moments later. Reload the catalog until it shows up, so the
+  // list shows the country and an edit sends the filled song's version.
+  async function awaitCountryFill(songId: string) {
+    for (const delay of COUNTRY_FILL_POLL_MS) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      if (destroyed) return;
+      try { await refreshCatalog(); } catch { return; }
+      if (songs.find((song) => song.id === songId)?.country !== "") return;
+    }
+  }
+
   function onSongSaved(saved: Song) {
     songs = songs.some((song) => song.id === saved.id)
       ? songs.map((song) => (song.id === saved.id ? saved : song))
       : [saved, ...songs];
     catalogVersion += 1;
+    if (!saved.country) void awaitCountryFill(saved.id);
   }
 
   function onSongDeleted(deletedId: string) {
