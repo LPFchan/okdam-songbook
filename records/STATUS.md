@@ -72,7 +72,7 @@ Recorded by agent: codex-orchestrator
   immediately and `transaction()` is a pass-through. A mutation that throws
   releases its idempotency claim by hand so a retry reruns rather than
   reporting "still processing".
-- AI readings: `AI_ENDPOINT` and `AI_MODEL` in `[vars]`,
+- AI readings and country filling: `AI_ENDPOINT` and `AI_MODEL` in `[vars]`,
   `CLOUDFLARE_AI_API_TOKEN` as a Worker secret. All three or none.
 - Node.js compatibility is on by default at this compatibility date; no flag.
 
@@ -146,8 +146,8 @@ Recorded by agent: codex-orchestrator
   records stale refresh attempts/failures, and serves the previous snapshot
   when a refresh fails.
 - Same-origin authenticated actions provide duplicate-safe immediate add
-  through the domain service. TJ adds reuse a known artist's country when
-  possible, then infer it from the title and artist writing systems. Manual
+  through the domain service. TJ and DAM adds leave the country blank for
+  the AI model to fill after the response (Workers `waitUntil`). Manual
   add/edit remains available.
 
 ### Application shape

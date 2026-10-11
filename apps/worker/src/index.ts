@@ -1,3 +1,4 @@
+import { waitUntil } from "cloudflare:workers";
 import { Hono } from "hono";
 import {
   createDamAdapter,
@@ -5,7 +6,7 @@ import {
   createTjSearchMirror,
   openD1Database
 } from "@songbook/server-core";
-import { createConfiguredServer, isServerPath, readingGeneratorFromEnvironment } from "@songbook/server";
+import { countryClassifierFromEnvironment, createConfiguredServer, isServerPath, readingGeneratorFromEnvironment } from "@songbook/server";
 
 export interface Env {
   SONGBOOK_DB: D1Database;
@@ -57,6 +58,7 @@ export function createWorkerApp(env: Env): Hono {
   if (!origin) throw new Error("ORIGIN is not configured");
 
   const database = openD1Database(env.SONGBOOK_DB);
+  const ai = { AI_ENDPOINT: env.AI_ENDPOINT, CLOUDFLARE_AI_API_TOKEN: env.CLOUDFLARE_AI_API_TOKEN, AI_MODEL: env.AI_MODEL };
   const server = createConfiguredServer({
     database,
     origin,
@@ -65,7 +67,10 @@ export function createWorkerApp(env: Env): Hono {
       onWarn: (warning) => console.warn(JSON.stringify({ event: "tj_adapter_warning", ...warning }))
     }),
     dam: createDamAdapter(),
-    readingGenerator: readingGeneratorFromEnvironment({ AI_ENDPOINT: env.AI_ENDPOINT, CLOUDFLARE_AI_API_TOKEN: env.CLOUDFLARE_AI_API_TOKEN, AI_MODEL: env.AI_MODEL })
+    readingGenerator: readingGeneratorFromEnvironment(ai),
+    countryClassifier: countryClassifierFromEnvironment(ai),
+    defer: waitUntil,
+    onWarn: (warning) => console.warn(JSON.stringify(warning))
     // assetsRoot intentionally omitted: the Worker serves statics itself.
   });
 

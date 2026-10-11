@@ -84,8 +84,10 @@ history.
   session and the server rejects an owner-subject mismatch before writing.
   Pre-subject queue rows are quarantined instead of assigned by email.
 - Local-first omnibar search, bounded debounced TJ accompaniment search, and
-  authenticated one-action candidate add with country inferred from existing
-  artist matches and the title/artist writing systems, plus manual fallback.
+  authenticated one-action candidate add, plus manual fallback. A TJ or DAM
+  add is saved with no country; after it answers, the configured AI model
+  fills in every blank country in the background (up to ten per add). A
+  country set by hand before the model answers is kept.
 - Server-authoritative duplicate checks, replay-safe writes, TJ provenance, and
   hard deletion by allowed users.
 - Browser sessions use the shared HTTP-only `lp_auth` cookie scoped to

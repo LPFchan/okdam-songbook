@@ -42,6 +42,9 @@
 
   type QueueItem = Awaited<ReturnType<typeof queueItems>>[number];
 
+  // The server's background fill has about 30 seconds to finish.
+  const COUNTRY_FILL_POLL_MS = [3_000, 5_000, 10_000, 15_000];
+
   let songs = $state<Song[]>([]);
   let catalogVersion = $state(0);
   let query = $state("");
@@ -52,6 +55,7 @@
   let favoriteOnly = $state(false);
   let pendingFavoriteSongIds = $state<string[]>([]);
   let selected = $state<Song | null>(null);
+  let destroyed = false;
   let chipsExpanded = $state(false);
   // chipsHeight owns the chips-expanded class on this element, so the wrap
   // never flips before the bar's height pin is in place.
@@ -97,20 +101,14 @@
       void goto(next, { replaceState: true, noScroll: true, keepFocus: true });
     }
 
-    let cancelled = false;
     async function load() {
       const cached = await readCachedPublicData();
-      if (cached && !cancelled) {
+      if (cached && !destroyed) {
         songs = cached.songs;
         catalogVersion += 1;
       }
       try {
-        const data = await fetchPublicData();
-        if (!cancelled) {
-          songs = data.songs;
-          catalogVersion += 1;
-          await saveCachedPublicData(data);
-        }
+        await refreshCatalog();
       } catch (error) {
         if (!cached) snackbar.show(error instanceof Error ? error.message : "데이터를 불러오지 못했어요.");
       }
@@ -207,7 +205,7 @@
     if (onlineStatus.online) void drainQueue();
 
     return () => {
-      cancelled = true;
+      destroyed = true;
       stopOnline();
       stopToday();
       unsubscribe();
@@ -406,6 +404,7 @@
     const clientRequestId = crypto.randomUUID();
     const performedAt = new Date().toISOString();
     const ownerSubject = auth.user.subject;
+    dropInflightReloads();
     songs = songs.map((item) =>
       item.id === song.id
         ? { ...item, performanceCount: item.performanceCount + 1, lastPerformedAt: performedAt, lastPerformedByName: auth.user?.displayName ?? "" }
@@ -423,6 +422,7 @@
       await performSong(song, clientRequestId, performedAt, current.subject);
     } catch (error) {
       if (error instanceof AuthRequiredError) {
+        dropInflightReloads();
         songs = songs.map((item) =>
           item.id === song.id
             ? { ...item, performanceCount: Math.max(0, (item.performanceCount ?? 0) - 1) }
@@ -452,6 +452,7 @@
     }
     lastPerformed = null;
     if (undoTimer !== undefined) clearTimeout(undoTimer);
+    dropInflightReloads();
     songs = songs.map((item) =>
       item.id === target.songId
         ? { ...item, performanceCount: Math.max(0, (item.performanceCount ?? 0) - 1), lastPerformedAt: "", lastPerformedByName: "" }
@@ -553,14 +554,53 @@
     void goto(next, { replaceState: true, noScroll: true, keepFocus: true });
   }
 
+  // Reloads can overlap, as when several added songs each wait for their
+  // country; an answer older than the newest one already applied is dropped,
+  // and so is one that was in flight when a local change to the list landed.
+  let catalogRequest = 0;
+  let catalogApplied = 0;
+  function dropInflightReloads() {
+    catalogApplied = ++catalogRequest;
+  }
+  async function refreshCatalog(): Promise<boolean> {
+    const request = ++catalogRequest;
+    const data = await fetchPublicData();
+    if (destroyed || request < catalogApplied) return false;
+    catalogApplied = request;
+    songs = data.songs;
+    if (selected) selected = songs.find((song) => song.id === selected?.id) ?? selected;
+    catalogVersion += 1;
+    await saveCachedPublicData(data);
+    return true;
+  }
+
+  // A song added from TJ or DAM comes back without a country, and the server
+  // fills it in moments later. Reload the catalog until it shows up, so the
+  // list shows the country and an edit sends the filled song's version.
+  async function awaitCountryFill(songId: string) {
+    for (const delay of COUNTRY_FILL_POLL_MS) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      if (destroyed) return;
+      // A reload dropped for a local save is asked again, so the last poll
+      // still counts.
+      try {
+        if (!(await refreshCatalog()) && !destroyed) await refreshCatalog();
+      } catch { continue; }
+      if (songs.find((song) => song.id === songId)?.country !== "") return;
+    }
+  }
+
   function onSongSaved(saved: Song) {
+    dropInflightReloads();
     songs = songs.some((song) => song.id === saved.id)
       ? songs.map((song) => (song.id === saved.id ? saved : song))
       : [saved, ...songs];
     catalogVersion += 1;
+    if (!saved.country) void awaitCountryFill(saved.id);
   }
 
   function onSongDeleted(deletedId: string) {
+    dropInflightReloads();
     songs = songs.filter((song) => song.id !== deletedId);
     if (selected?.id === deletedId) selected = null;
     if (editingSong?.id === deletedId) closeManagement();

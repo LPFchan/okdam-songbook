@@ -92,7 +92,7 @@ describe("songbook domain services", () => {
     expect(duplicate).toMatchObject({ outcome: "duplicate", existing: { id: created.song?.id }, song: null, canOpen: true });
 
     const tj = await service.createTjSong(allowed, { tjNumber: "88888", title: "TJ source", artist: "TJ artist", lyricist: "", composer: "", sourceUrl: "https://tj.example/song" }, crypto.randomUUID());
-    expect(tj).toMatchObject({ outcome: "created", song: { country: "미국", sourceType: "tjmedia", sourceReference: "https://tj.example/song" } });
+    expect(tj).toMatchObject({ outcome: "created", song: { country: "", sourceType: "tjmedia", sourceReference: "https://tj.example/song" } });
 
     const deleted = await service.createSong(allowed, songInput({ title: "Deleted", artist: "Artist", tjNumber: "99999" }));
     await database.sqlite.prepare("UPDATE songs SET deleted_at=? WHERE id=?").run("2026-08-13T00:00:00.000Z", deleted.id);
@@ -121,34 +121,119 @@ describe("songbook domain services", () => {
     expect(result.song?.performerIds).toEqual(["marie"]);
   });
 
-  it("detects the country when adding a TJ song", async () => {
-    const service = createSongbookService(database, { roleResolver: roleResolver() });
-    await service.createSong(allowed, songInput({
-      tjNumber: "11111",
-      title: "Dreaming",
-      artist: "FreeTEMPO",
-      country: "일본"
-    }));
+  it("fills a blank country in the background after a TJ add", async () => {
+    const tasks: Promise<unknown>[] = [];
+    const classified: string[] = [];
+    const service = createSongbookService(database, {
+      roleResolver: roleResolver(),
+      countryClassifier: { classify: async (song) => { classified.push(song.title); return "일본"; } },
+      defer: (task) => tasks.push(task)
+    });
+    const handSet = await service.createSong(allowed, songInput({ tjNumber: "11111", title: "Hand set", country: "미국" }));
 
-    const knownArtist = await service.createTjSong(allowed, {
+    const added = await service.createTjSong(allowed, {
       tjNumber: "22222",
-      title: "New Latin Title",
-      artist: "FreeTEMPO",
+      title: "Sugarless GiRL",
+      artist: "CAPSULE",
       lyricist: "",
       composer: "",
-      sourceUrl: "https://tj.example/known-artist"
+      sourceUrl: "https://tj.example/capsule"
     }, crypto.randomUUID());
-    const korean = await service.createTjSong(allowed, {
-      tjNumber: "33333",
-      title: "좋은 날",
-      artist: "아이유",
-      lyricist: "",
-      composer: "",
-      sourceUrl: "https://tj.example/korean"
-    }, crypto.randomUUID());
+    expect(added.song?.country).toBe("");
+    await Promise.all(tasks);
 
-    expect(knownArtist.song?.country).toBe("일본");
-    expect(korean.song?.country).toBe("한국");
+    expect((await service.getSong(added.song!.id))?.country).toBe("일본");
+    expect((await service.getSong(handSet.id))?.country).toBe("미국");
+    expect(classified).toEqual(["Sugarless GiRL"]);
+  });
+
+  it("still fills the country when another field was edited while the classifier answered", async () => {
+    const tasks: Promise<unknown>[] = [];
+    let answer: (country: "일본") => void = () => {};
+    const service = createSongbookService(database, {
+      roleResolver: roleResolver(),
+      countryClassifier: { classify: () => new Promise((resolve) => { answer = resolve; }) },
+      defer: (task) => tasks.push(task)
+    });
+    const added = await service.createTjSong(allowed, {
+      tjNumber: "55555", title: "CONTROL", artist: "CAPSULE", lyricist: "", composer: "", sourceUrl: "https://tj.example/control"
+    }, crypto.randomUUID());
+    await service.updateSong(allowed, { id: added.song!.id, expectedVersion: added.song!.version, memo: "edited", clientRequestId: crypto.randomUUID() });
+
+    answer("일본");
+    await Promise.all(tasks);
+    expect(await service.getSong(added.song!.id)).toMatchObject({ country: "일본", memo: "edited" });
+  });
+
+  it("does not ask about a song another pass is already asking about", async () => {
+    const tasks: Promise<unknown>[] = [];
+    const asked: string[] = [];
+    const answers: Array<() => void> = [];
+    const service = createSongbookService(database, {
+      roleResolver: roleResolver(),
+      countryClassifier: { classify: (song) => { asked.push(song.title); return new Promise((resolve) => answers.push(() => resolve("일본"))); } },
+      defer: (task) => tasks.push(task)
+    });
+    const candidate = (tjNumber: string, title: string) => ({ tjNumber, title, artist: "CAPSULE", lyricist: "", composer: "", sourceUrl: `https://tj.example/${tjNumber}` });
+    await service.createTjSong(allowed, candidate("66661", "jelly"), crypto.randomUUID());
+    await service.createTjSong(allowed, candidate("66662", "Starry Sky"), crypto.randomUUID());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    answers.forEach((answer) => answer());
+    await Promise.all(tasks);
+    expect(asked.sort()).toEqual(["Starry Sky", "jelly"]);
+  });
+
+  it("drops an answer about a title or artist that has since changed", async () => {
+    const tasks: Promise<unknown>[] = [];
+    let answer: (country: "일본") => void = () => {};
+    const service = createSongbookService(database, {
+      roleResolver: roleResolver(),
+      countryClassifier: { classify: () => new Promise((resolve) => { answer = resolve; }) },
+      defer: (task) => tasks.push(task)
+    });
+    const added = await service.createTjSong(allowed, {
+      tjNumber: "77771", title: "Bad Guy", artist: "CAPSULE", lyricist: "", composer: "", sourceUrl: "https://tj.example/bad-guy"
+    }, crypto.randomUUID());
+    await service.updateSong(allowed, { id: added.song!.id, expectedVersion: added.song!.version, artist: "Billie Eilish", clientRequestId: crypto.randomUUID() });
+
+    answer("일본");
+    await Promise.all(tasks);
+    expect((await service.getSong(added.song!.id))?.country).toBe("");
+  });
+
+  it("asks once more when the classifier fails", async () => {
+    const tasks: Promise<unknown>[] = [];
+    let calls = 0;
+    const service = createSongbookService(database, {
+      roleResolver: roleResolver(),
+      countryClassifier: { classify: async () => { calls += 1; if (calls === 1) throw new Error("timeout"); return "일본"; } },
+      defer: (task) => tasks.push(task)
+    });
+    const added = await service.createTjSong(allowed, {
+      tjNumber: "44444", title: "idol fancy", artist: "CAPSULE", lyricist: "", composer: "", sourceUrl: "https://tj.example/idol-fancy"
+    }, crypto.randomUUID());
+    await Promise.all(tasks);
+    expect((await service.getSong(added.song!.id))?.country).toBe("일본");
+    expect(calls).toBe(2);
+  });
+
+  it("keeps a country set by hand while the classifier was still answering", async () => {
+    const tasks: Promise<unknown>[] = [];
+    let answer: (country: "미국") => void = () => {};
+    const service = createSongbookService(database, {
+      roleResolver: roleResolver(),
+      countryClassifier: { classify: () => new Promise((resolve) => { answer = resolve; }) },
+      defer: (task) => tasks.push(task)
+    });
+    const added = await service.createTjSong(allowed, {
+      tjNumber: "33333", title: "グライダー", artist: "CAPSULE", lyricist: "", composer: "", sourceUrl: "https://tj.example/glider"
+    }, crypto.randomUUID());
+    await service.updateSong(allowed, { id: added.song!.id, expectedVersion: added.song!.version, country: "일본", clientRequestId: crypto.randomUUID() });
+
+    answer("미국");
+    await Promise.all(tasks);
+    expect((await service.getSong(added.song!.id))?.country).toBe("일본");
   });
 
   it("makes mutations replay-safe and audits the successful operation once", async () => {

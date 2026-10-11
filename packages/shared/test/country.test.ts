@@ -1,22 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { detectSongCountry } from "../src/country";
+import { isSongCountry } from "../src/country";
 
-describe("song country detection", () => {
-  it.each([
-    ["フォニイ", "ツミキ", "일본"],
-    ["春雷", "米津玄師", "일본"],
-    ["좋은 날", "아이유", "한국"],
-    ["Bad Guy", "Billie Eilish", "미국"],
-    ["Звезда", "Молчат Дома", "그 외"]
-  ])("detects %s by its title and artist scripts", (title, artist, country) => {
-    expect(detectSongCountry(title, artist)).toBe(country);
+describe("song countries", () => {
+  it("accepts only the four country chips", () => {
+    expect(["일본", "미국", "한국", "그 외"].every(isSongCountry)).toBe(true);
+    expect(isSongCountry("USA")).toBe(false);
+    expect(isSongCountry("")).toBe(false);
   });
-
-  it("reuses the country of an existing artist before falling back to script", () => {
-    expect(detectSongCountry("Dreaming", "FreeTEMPO", [{
-      artist: "FreeTEMPO",
-      country: "일본"
-    }])).toBe("일본");
-  });
-
 });
