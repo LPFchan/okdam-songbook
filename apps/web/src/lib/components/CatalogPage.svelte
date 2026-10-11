@@ -553,15 +553,16 @@
   // and so is one that was in flight when a local save or delete landed.
   let catalogRequest = 0;
   let catalogApplied = 0;
-  async function refreshCatalog() {
+  async function refreshCatalog(): Promise<boolean> {
     const request = ++catalogRequest;
     const data = await fetchPublicData();
-    if (destroyed || request < catalogApplied) return;
+    if (destroyed || request < catalogApplied) return false;
     catalogApplied = request;
     songs = data.songs;
     if (selected) selected = songs.find((song) => song.id === selected?.id) ?? selected;
     catalogVersion += 1;
     await saveCachedPublicData(data);
+    return true;
   }
 
   // A song added from TJ or DAM comes back without a country, and the server
@@ -571,7 +572,11 @@
     for (const delay of COUNTRY_FILL_POLL_MS) {
       await new Promise((resolve) => setTimeout(resolve, delay));
       if (destroyed) return;
-      try { await refreshCatalog(); } catch { continue; }
+      // A reload dropped for a local save is asked again, so the last poll
+      // still counts.
+      try {
+        if (!(await refreshCatalog()) && !destroyed) await refreshCatalog();
+      } catch { continue; }
       if (songs.find((song) => song.id === songId)?.country !== "") return;
     }
   }
