@@ -265,18 +265,25 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
   // A failed answer is asked for once more, and each pass also takes every
   // blank country, which retries any an earlier pass missed. The songs are
   // asked about at once: Workers stop background work 30 seconds after the
-  // response, too soon for ten answers in a row. Someone who set the country
-  // by hand in the meantime keeps theirs: their edit moves the version and
-  // this update no longer applies.
+  // response, too soon for ten answers in a row. The answer is written only
+  // if the country is still blank by then, so one set by hand meanwhile wins.
+  // Adds in quick succession would each take the same blank songs, so a
+  // song already being asked about is left to the pass that has it.
+  const classifying = new Set<string>();
   const fillBlankCountries = async (classifier: CountryClassifier) => {
-    const blank = (await songs.list()).filter((song) => !song.country && !isDeletedSong(song)).slice(0, COUNTRY_FILL_BATCH);
+    const blank = (await songs.list()).filter((song) => !song.country && !isDeletedSong(song) && !classifying.has(song.id)).slice(0, COUNTRY_FILL_BATCH);
     const classify = (song: Song) => classifier.classify({ title: song.title, artist: song.artist });
+    for (const song of blank) classifying.add(song.id);
     await Promise.all(blank.map(async (song) => {
       try {
         const country = await classify(song).catch(() => classify(song));
-        await applyUpdate(COUNTRY_CLASSIFIER_ACTOR, { id: song.id, expectedVersion: song.version, country, clientRequestId: idFactory() });
+        const current = await songs.get(song.id);
+        if (!current || current.country || isDeletedSong(current)) return;
+        await applyUpdate(COUNTRY_CLASSIFIER_ACTOR, { id: song.id, expectedVersion: current.version, country, clientRequestId: idFactory() });
       } catch (error) {
         warn({ event: "country_fill_failed", songId: song.id, message: error instanceof Error ? error.message : String(error) });
+      } finally {
+        classifying.delete(song.id);
       }
     }));
   };

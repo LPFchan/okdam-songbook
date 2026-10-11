@@ -147,6 +147,43 @@ describe("songbook domain services", () => {
     expect(classified).toEqual(["Sugarless GiRL"]);
   });
 
+  it("still fills the country when another field was edited while the classifier answered", async () => {
+    const tasks: Promise<unknown>[] = [];
+    let answer: (country: "일본") => void = () => {};
+    const service = createSongbookService(database, {
+      roleResolver: roleResolver(),
+      countryClassifier: { classify: () => new Promise((resolve) => { answer = resolve; }) },
+      defer: (task) => tasks.push(task)
+    });
+    const added = await service.createTjSong(allowed, {
+      tjNumber: "55555", title: "CONTROL", artist: "CAPSULE", lyricist: "", composer: "", sourceUrl: "https://tj.example/control"
+    }, crypto.randomUUID());
+    await service.updateSong(allowed, { id: added.song!.id, expectedVersion: added.song!.version, memo: "edited", clientRequestId: crypto.randomUUID() });
+
+    answer("일본");
+    await Promise.all(tasks);
+    expect(await service.getSong(added.song!.id)).toMatchObject({ country: "일본", memo: "edited" });
+  });
+
+  it("does not ask about a song another pass is already asking about", async () => {
+    const tasks: Promise<unknown>[] = [];
+    const asked: string[] = [];
+    const answers: Array<() => void> = [];
+    const service = createSongbookService(database, {
+      roleResolver: roleResolver(),
+      countryClassifier: { classify: (song) => { asked.push(song.title); return new Promise((resolve) => answers.push(() => resolve("일본"))); } },
+      defer: (task) => tasks.push(task)
+    });
+    const candidate = (tjNumber: string, title: string) => ({ tjNumber, title, artist: "CAPSULE", lyricist: "", composer: "", sourceUrl: `https://tj.example/${tjNumber}` });
+    await service.createTjSong(allowed, candidate("66661", "jelly"), crypto.randomUUID());
+    await service.createTjSong(allowed, candidate("66662", "Starry Sky"), crypto.randomUUID());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    answers.forEach((answer) => answer());
+    await Promise.all(tasks);
+    expect(asked.sort()).toEqual(["Starry Sky", "jelly"]);
+  });
+
   it("asks once more when the classifier fails", async () => {
     const tasks: Promise<unknown>[] = [];
     let calls = 0;

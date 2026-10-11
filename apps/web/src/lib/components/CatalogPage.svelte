@@ -564,7 +564,7 @@
     for (const delay of COUNTRY_FILL_POLL_MS) {
       await new Promise((resolve) => setTimeout(resolve, delay));
       if (destroyed) return;
-      try { await refreshCatalog(); } catch { return; }
+      try { await refreshCatalog(); } catch { continue; }
       if (songs.find((song) => song.id === songId)?.country !== "") return;
     }
   }
