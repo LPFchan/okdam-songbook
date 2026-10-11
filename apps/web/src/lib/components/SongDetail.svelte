@@ -3,6 +3,8 @@
   import { can, formatPerformerNames, primaryKey, sortPerformerIds, performers } from "@songbook/shared";
   import { CalendarCheck, Edit3 } from "@lucide/svelte";
   import type { AuthUser } from "../auth.svelte";
+  import { relativeDay } from "../relativeDay";
+  import { today } from "../today.svelte";
 
   interface Props {
     song: Song;
@@ -81,7 +83,7 @@
     <span class="detail-label">최근 기록</span>
     <p>
       {#if song.lastPerformedAt}
-        {#if song.lastPerformedByName}{song.lastPerformedByName}{subjectParticle(song.lastPerformedByName)} 최근 부름 · {:else}마지막 {/if}{new Date(song.lastPerformedAt).toLocaleString()} · 총 {song.performanceCount}회
+        {#if song.lastPerformedByName}{song.lastPerformedByName}{subjectParticle(song.lastPerformedByName)} {/if}<time datetime={song.lastPerformedAt} title={new Date(song.lastPerformedAt).toLocaleString()}>{relativeDay(song.lastPerformedAt, today.now)}</time> 부름 · 총 {song.performanceCount}회
       {:else}
         마지막 없음 · 총 {song.performanceCount}회
       {/if}
