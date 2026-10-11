@@ -549,7 +549,8 @@
   }
 
   // Reloads can overlap, as when several added songs each wait for their
-  // country; an answer older than the newest one already applied is dropped.
+  // country; an answer older than the newest one already applied is dropped,
+  // and so is one that was in flight when a local save or delete landed.
   let catalogRequest = 0;
   let catalogApplied = 0;
   async function refreshCatalog() {
@@ -576,6 +577,7 @@
   }
 
   function onSongSaved(saved: Song) {
+    catalogApplied = ++catalogRequest;
     songs = songs.some((song) => song.id === saved.id)
       ? songs.map((song) => (song.id === saved.id ? saved : song))
       : [saved, ...songs];
@@ -584,6 +586,7 @@
   }
 
   function onSongDeleted(deletedId: string) {
+    catalogApplied = ++catalogRequest;
     songs = songs.filter((song) => song.id !== deletedId);
     if (selected?.id === deletedId) selected = null;
     if (editingSong?.id === deletedId) closeManagement();

@@ -99,19 +99,25 @@
 
   // A song added from TJ or DAM gets its country from the server a few seconds
   // later, which moves its version. If that is the only change since the form
-  // opened, take the new version, and the country unless one was picked, so
-  // saving or deleting still goes through.
+  // opened, take the new version so saving or deleting still goes through,
+  // and the country too unless one was picked or the title or artist edited.
   $effect(() => {
     const loaded = loadedSong;
     const current = loaded && songs.find((song) => song.id === loaded.id);
     if (!loaded || !current || loaded.country || !current.country || current.version === loaded.version) return;
     if (!sameExceptCountryFill(loaded, current)) return;
-    draft = { ...draft, version: current.version, country: draft.country || current.country };
+    const sameNames = draft.title === loaded.title && draft.artist === loaded.artist;
+    draft = { ...draft, version: current.version, country: draft.country || (sameNames ? current.country : "") };
     loadedSong = current;
   });
 
   function sameExceptCountryFill(before: Song, after: Song): boolean {
-    const strip = ({ country: _country, version: _version, updatedAt: _updatedAt, ...rest }: Song) => JSON.stringify(rest);
+    // The fill stamps its own editor, and performance counts change whenever
+    // anyone sings the song; none of these are part of what an edit saves.
+    const strip = ({
+      country: _country, version: _version, updatedAt: _updatedAt, updatedByName: _updatedBy,
+      performanceCount: _count, lastPerformedAt: _at, lastPerformedByName: _by, ...rest
+    }: Song) => JSON.stringify(rest);
     return strip(before) === strip(after);
   }
 
