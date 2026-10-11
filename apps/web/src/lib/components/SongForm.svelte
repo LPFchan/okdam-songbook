@@ -41,6 +41,8 @@
   let draft = $state<Partial<Song>>(emptyDraft());
   let draftOwnerSubject = $state<string | null>(auth.user?.subject ?? null);
   let editingId = $state<string | null>(null);
+  // The song being edited as it was when the form loaded it.
+  let loadedSong: Song | null = null;
   let deleteConfirm = $state(false);
   let deletePending = $state(false);
   let readingPending = $state(false);
@@ -90,9 +92,28 @@
       draft = { ...editSong };
       draftOwnerSubject = auth.user?.subject ?? null;
       editingId = editSong.id;
+      loadedSong = editSong;
       loadKeyFromSong(editSong);
     }
   });
+
+  // A song added from TJ or DAM gets its country from the server a few seconds
+  // later, which moves its version. If that is the only change since the form
+  // opened, take the new version, and the country unless one was picked, so
+  // saving or deleting still goes through.
+  $effect(() => {
+    const loaded = loadedSong;
+    const current = loaded && songs.find((song) => song.id === loaded.id);
+    if (!loaded || !current || loaded.country || !current.country || current.version === loaded.version) return;
+    if (!sameExceptCountryFill(loaded, current)) return;
+    draft = { ...draft, version: current.version, country: draft.country || current.country };
+    loadedSong = current;
+  });
+
+  function sameExceptCountryFill(before: Song, after: Song): boolean {
+    const strip = ({ country: _country, version: _version, updatedAt: _updatedAt, ...rest }: Song) => JSON.stringify(rest);
+    return strip(before) === strip(after);
+  }
 
   // Drafts belong to the account that opened them. If another tab changes the
   // shared cookie, the next credential refresh updates auth.user and this
@@ -203,6 +224,7 @@
     draft = emptyDraft();
     draftOwnerSubject = ownerSubject;
     editingId = null;
+    loadedSong = null;
     deleteConfirm = false;
     keyMode = "none";
     keyOffset = 0;
@@ -212,6 +234,7 @@
     draft = { ...song };
     draftOwnerSubject = auth.user?.subject ?? null;
     editingId = song.id;
+    loadedSong = song;
     loadKeyFromSong(song);
     onRequestTab("add");
   }
