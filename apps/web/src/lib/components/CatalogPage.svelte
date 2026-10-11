@@ -31,6 +31,7 @@
   import type { OfflineQueueItem } from "../db";
   import { auth, AuthRequiredError } from "../auth.svelte";
   import { onlineStatus } from "../online.svelte";
+  import { today } from "../today.svelte";
   import { snackbar } from "../snackbar.svelte";
   import { whileSubjectCurrent } from "../subjectBound";
   import { createSpring, GENTLE } from "../spring";
@@ -86,6 +87,7 @@
     narrowQuery.addEventListener("change", onNarrowChange);
 
     const stopOnline = onlineStatus.start();
+    const stopToday = today.start();
     void auth.initialize();
 
     // Normalize ?tab=settings away (the old Settings tab no longer exists).
@@ -207,6 +209,7 @@
     return () => {
       cancelled = true;
       stopOnline();
+      stopToday();
       unsubscribe();
       window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisibility);
