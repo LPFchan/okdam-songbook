@@ -147,6 +147,22 @@ describe("songbook domain services", () => {
     expect(classified).toEqual(["Sugarless GiRL"]);
   });
 
+  it("asks once more when the classifier fails", async () => {
+    const tasks: Promise<unknown>[] = [];
+    let calls = 0;
+    const service = createSongbookService(database, {
+      roleResolver: roleResolver(),
+      countryClassifier: { classify: async () => { calls += 1; if (calls === 1) throw new Error("timeout"); return "일본"; } },
+      defer: (task) => tasks.push(task)
+    });
+    const added = await service.createTjSong(allowed, {
+      tjNumber: "44444", title: "idol fancy", artist: "CAPSULE", lyricist: "", composer: "", sourceUrl: "https://tj.example/idol-fancy"
+    }, crypto.randomUUID());
+    await Promise.all(tasks);
+    expect((await service.getSong(added.song!.id))?.country).toBe("일본");
+    expect(calls).toBe(2);
+  });
+
   it("keeps a country set by hand while the classifier was still answering", async () => {
     const tasks: Promise<unknown>[] = [];
     let answer: (country: "미국") => void = () => {};
