@@ -3,6 +3,7 @@
   import { formatPerformerNames, primaryKey } from "@songbook/shared";
   import { Heart, Users } from "@lucide/svelte";
   import SongRow from "./SongRow.svelte";
+  import { relativeDay } from "../relativeDay";
 
   interface Props {
     song: Song;
@@ -53,6 +54,6 @@
     {/if}
     {#if song.country}<span>{song.country}</span>{/if}
     {#if keyLabel}<span>{keyLabel}</span>{/if}
-    {#if song.lastPerformedAt}<span>최근 부름</span>{/if}
+    {#if song.lastPerformedAt}<span>{relativeDay(song.lastPerformedAt)} 부름</span>{/if}
   {/snippet}
 </SongRow>
