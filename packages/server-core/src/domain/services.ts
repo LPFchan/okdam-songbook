@@ -1,5 +1,5 @@
-import type { DamAddResult, DamSongCandidate, FavoriteSetResult, Performance, Song, TjAddResult, TjSongCandidate } from "@songbook/shared";
-import { can, detectSongCountry, filterSongs, normalizePerformerIds, searchSongs, sortSongs, type PermissionAction, type SongFilters, type SortKey } from "@songbook/shared";
+import type { DamAddResult, DamSongCandidate, FavoriteSetResult, Performance, Song, SongCountry, TjAddResult, TjSongCandidate } from "@songbook/shared";
+import { can, filterSongs, normalizePerformerIds, searchSongs, sortSongs, type PermissionAction, type SongFilters, type SortKey } from "@songbook/shared";
 import type { SongbookDatabaseBase } from "../db/sql.js";
 import { createAuditRepository, createFavoriteRepository, createPerformanceRepository, createSongRepository, type AuditRepository, type FavoriteRepository, type PerformanceRepository, type SongRepository } from "../db/repositories.js";
 import { createIdempotencyRepository, IdempotencyMismatchError, type IdempotencyRepository } from "../db/idempotency.js";
@@ -16,6 +16,15 @@ export interface ServiceOptions {
   favoriteRepository?: FavoriteRepository;
   auditRepository?: AuditRepository;
   idempotencyRepository?: IdempotencyRepository;
+  /** Fills in the country of songs added from TJ or DAM, after the add returns. */
+  countryClassifier?: CountryClassifier;
+  /** Keeps background work alive after the response is sent, e.g. Workers' waitUntil. */
+  defer?: (task: Promise<unknown>) => void;
+  onWarn?: (warning: Record<string, unknown>) => void;
+}
+
+export interface CountryClassifier {
+  classify(song: { title: string; artist: string }): Promise<SongCountry>;
 }
 
 export interface SongMutation extends Omit<Song, "id" | "damNumber" | "createdAt" | "updatedAt" | "deletedAt" | "version" | "lastPerformedAt" | "lastPerformedByName" | "performanceCount"> {
@@ -118,6 +127,10 @@ function duplicateKind(input: { tjNumber?: string | null; damNumber?: string | n
   return "titleArtist";
 }
 
+const COUNTRY_FILL_BATCH = 10;
+
+const COUNTRY_CLASSIFIER_ACTOR: ResolvedActor = { subject: "songbook:country-classifier", email: "", displayName: "국가 자동 분류", role: "allowed" };
+
 function isDeletedSong(song: Song): boolean {
   return Boolean(song.deletedAt);
 }
@@ -138,6 +151,9 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
   const idempotency = options.idempotencyRepository ?? createIdempotencyRepository(database.sqlite);
   const now = options.now ?? (() => new Date().toISOString());
   const idFactory = options.idFactory ?? (() => crypto.randomUUID());
+
+  const defer = options.defer ?? ((task: Promise<unknown>) => { void task; });
+  const warn = options.onWarn ?? (() => {});
 
   const actorFor = (actor: RequestActor): ResolvedActor => {
     const resolved = roleResolver.resolve(actor);
@@ -244,6 +260,31 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
   const updateSong = (actor: RequestActor, input: SongUpdate): Promise<Song> =>
     withMutation(actor, "song:update", "song.update", input.clientRequestId, input, (resolved) => applyUpdate(resolved, input));
 
+  // A song added from TJ or DAM is saved with no country, and the classifier
+  // fills it in after the add has answered, so the add never waits on a model.
+  // Each pass takes every blank country, which retries any an earlier pass
+  // missed. Someone who set the country by hand in the meantime keeps theirs:
+  // their edit moves the version and this update no longer applies.
+  const fillBlankCountries = async (classifier: CountryClassifier) => {
+    const blank = (await songs.list()).filter((song) => !song.country && !isDeletedSong(song)).slice(0, COUNTRY_FILL_BATCH);
+    for (const song of blank) {
+      try {
+        const country = await classifier.classify({ title: song.title, artist: song.artist });
+        await applyUpdate(COUNTRY_CLASSIFIER_ACTOR, { id: song.id, expectedVersion: song.version, country, clientRequestId: idFactory() });
+      } catch (error) {
+        warn({ event: "country_fill_failed", songId: song.id, message: error instanceof Error ? error.message : String(error) });
+      }
+    }
+  };
+
+  const afterAdd = <T extends { outcome: string }>(result: T): T => {
+    const classifier = options.countryClassifier;
+    if (result.outcome === "created" && classifier) {
+      defer(fillBlankCountries(classifier).catch((error: unknown) => warn({ event: "country_fill_failed", message: error instanceof Error ? error.message : String(error) })));
+    }
+    return result;
+  };
+
   return {
     catalog: async () => filterSongs(await songs.list(), {}),
     getSong: async (id) => {
@@ -270,7 +311,7 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
         titleReadingKo: "",
         artist: candidate.artist,
         artistReadingKo: "",
-        country: detectSongCountry(candidate.title, candidate.artist, await songs.list()),
+        country: "",
         recommendedKey: null,
         performerIds: normalizePerformerIds([resolved.displayName]).ids,
         memo: "",
@@ -281,7 +322,7 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
         clientRequestId
       };
       const outcome = await createSongOutcome(actor, input);
-      return {
+      return afterAdd({
         outcome: outcome.outcome,
         song: outcome.song,
         existing: outcome.existing,
@@ -289,7 +330,7 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
         duplicateKind: outcome.duplicateKind === "damNumber" ? "titleArtist" : outcome.duplicateKind,
         canRestore: outcome.canRestore,
         canOpen: outcome.canOpen
-      };
+      });
     },
     // One idempotency key covers the whole add, so a retry replays the first
     // answer even though linking changed the song it would now look at.
@@ -309,7 +350,7 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
         titleReadingKo: "",
         artist: candidate.artist,
         artistReadingKo: "",
-        country: detectSongCountry(candidate.title, candidate.artist, await songs.list()),
+        country: "",
         recommendedKey: null,
         performerIds: normalizePerformerIds([resolved.displayName]).ids,
         memo: "",
@@ -327,7 +368,7 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
         canRestore: outcome.canRestore,
         canOpen: outcome.canOpen
       };
-    }),
+    }).then(afterAdd),
     updateSong,
     deleteSong: (actor, input) => withMutation(actor, "song:delete", "song.delete", input.clientRequestId, input, async (resolved) => {
       const before = await songs.get(input.id);

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PerformerId, Song } from "@songbook/shared";
-  import { can, normalizeDamNumber, normalizePerformerIds, performerOrder, performers } from "@songbook/shared";
+  import { can, normalizeDamNumber, normalizePerformerIds, performerOrder, performers, songCountries } from "@songbook/shared";
   import { Pencil, Trash2, Wand2 } from "@lucide/svelte";
   import {
     deleteSong,
@@ -33,7 +33,7 @@
     return { title: "", artist: "", tjNumber: "", damNumber: "", country: "일본", performerIds };
   }
 
-  const countryOptions = ["일본", "미국", "한국", "그 외"] as const;
+  const countryOptions = songCountries;
   const primaryCountries: readonly string[] = countryOptions.slice(0, 3);
 
   type KeyMode = "none" | "female" | "male";

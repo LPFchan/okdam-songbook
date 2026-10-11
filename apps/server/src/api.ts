@@ -29,6 +29,7 @@ import {
   toApiError,
   type RequestActor,
   type RoleResolver,
+  type CountryClassifier,
   type DamAdapter,
   type SongbookService,
   type TjAdapter
@@ -60,6 +61,10 @@ export interface ServerAppOptions {
   tj?: TjAdapter;
   dam?: DamAdapter;
   readingGenerator?: ReadingGenerator;
+  countryClassifier?: CountryClassifier;
+  /** Keeps background work alive after the response is sent, e.g. Workers' waitUntil. */
+  defer?: (task: Promise<unknown>) => void;
+  onWarn?: (warning: Record<string, unknown>) => void;
   mcpAuth?: McpAuthAdapter;
   mcpMaxBodyBytes?: number;
   mcpMaxInflightBodies?: number;
@@ -270,7 +275,13 @@ export function createConfiguredServer(options: Omit<ServerAppOptions, "roleReso
 export function createServerApp(options: ServerAppOptions): ServerApp {
   const now = options.now ?? (() => new Date().toISOString());
   const roleResolver = options.roleResolver ?? { resolve: () => null };
-  const service = options.service ?? createSongbookService(options.database, { roleResolver, now });
+  const service = options.service ?? createSongbookService(options.database, {
+    roleResolver,
+    now,
+    countryClassifier: options.countryClassifier,
+    defer: options.defer,
+    onWarn: options.onWarn
+  });
   const sessionResolver: BrowserSessionResolver = options.sessionResolver ?? (async () => null);
   const mcpAuth = options.mcpAuth ?? {
     verifyRequest: async () => ({ ok: false as const, response: mcpBearerChallenge(true) })

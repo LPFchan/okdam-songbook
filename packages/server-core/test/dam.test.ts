@@ -28,7 +28,7 @@ describe("adding songs from DAM", () => {
   it("creates a song that carries only the DAM number", async () => {
     const result = await service.createDamSong(allowed, candidate(), crypto.randomUUID());
     expect(result.outcome).toBe("created");
-    expect(result.song).toMatchObject({ damNumber: "1472-59", tjNumber: "", sourceType: "clubdam", country: "일본" });
+    expect(result.song).toMatchObject({ damNumber: "1472-59", tjNumber: "", sourceType: "clubdam", country: "" });
   });
 
   it("attaches the DAM number to a saved song with the same name", async () => {
