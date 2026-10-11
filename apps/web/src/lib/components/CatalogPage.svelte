@@ -548,9 +548,15 @@
     void goto(next, { replaceState: true, noScroll: true, keepFocus: true });
   }
 
+  // Reloads can overlap, as when several added songs each wait for their
+  // country; an answer older than the newest one already applied is dropped.
+  let catalogRequest = 0;
+  let catalogApplied = 0;
   async function refreshCatalog() {
+    const request = ++catalogRequest;
     const data = await fetchPublicData();
-    if (destroyed) return;
+    if (destroyed || request < catalogApplied) return;
+    catalogApplied = request;
     songs = data.songs;
     if (selected) selected = songs.find((song) => song.id === selected?.id) ?? selected;
     catalogVersion += 1;
