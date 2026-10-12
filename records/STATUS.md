@@ -74,6 +74,7 @@ Recorded by agent: codex-orchestrator
   reporting "still processing".
 - AI readings and country filling: `AI_ENDPOINT` and `AI_MODEL` in `[vars]`,
   `CLOUDFLARE_AI_API_TOKEN` as a Worker secret. All three or none.
+- Linked singer accounts: Worker secret `PERFORMER_ACCOUNTS`, never in git.
 - Node.js compatibility is on by default at this compatibility date; no flag.
 
 ### Deploying changes

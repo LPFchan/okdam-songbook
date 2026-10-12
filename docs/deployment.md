@@ -13,7 +13,7 @@ Workers Assets, behind the `auth-gateway` Worker.
 | Path in | `auth-gateway` service binding `SONGBOOK_BACKEND` → `okdam-songbook` |
 | Database | D1 `okdam-songbook`, APAC, id in `apps/worker/wrangler.toml`; schema `apps/worker/migrations/` |
 | Static files | Workers Assets from `apps/web/dist`, `run_worker_first = true` |
-| Secrets | `CLOUDFLARE_AI_API_TOKEN` (optional; with `AI_ENDPOINT` and `AI_MODEL` from `[vars]`, all three or none) |
+| Secrets | `CLOUDFLARE_AI_API_TOKEN` (optional; with `AI_ENDPOINT` and `AI_MODEL` from `[vars]`, all three or none); `PERFORMER_ACCOUNTS` (optional JSON linking Common Auth account ids to singers, e.g. `{"<id>":"eunhu"}`) |
 | Compatibility | `compatibility_date = 2026-09-18`; Node.js built-ins are on by default at this date, no flag |
 
 ### Why the Worker has no route
@@ -60,7 +60,7 @@ npm run deploy                # expect "No targets deployed": the Worker is rout
 `npm run deploy` is `wrangler deploy` and needs `CLOUDFLARE_API_TOKEN` in the
 environment; on the deploy host it is exported from `~/.zshenv` with the value
 of passage `infra` / `CF_MASTER_TOKEN`. Secrets are set once with
-`npx wrangler secret put CLOUDFLARE_AI_API_TOKEN` and survive deploys.
+`npx wrangler secret put <NAME>` and survive deploys.
 
 ### Verify after every deploy
 

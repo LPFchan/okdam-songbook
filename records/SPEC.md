@@ -111,6 +111,11 @@ history.
   `marie` plus `yeowool` and is not a stored user ID. New-song entry preselects
   the signed-in person's matching performer, including one-tap TJ adds; the
   manual form remains editable before saving.
+- A Common Auth account can be linked to a performer through the
+  `PERFORMER_ACCOUNTS` Worker secret, keyed by account id so the links stay out
+  of git. A linked account acts under that performer's display name, so its
+  edits and performance records are credited to the performer, and new-song
+  entry preselects them.
 
 ## Invariants
 

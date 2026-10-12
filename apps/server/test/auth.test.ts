@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createGatewayMcpAuthAdapter, resolveGatewayIdentity } from "../src/auth.js";
+import { createCommonAuthRoleResolver, createGatewayMcpAuthAdapter, performerAccountsFromEnvironment, resolveGatewayIdentity } from "../src/auth.js";
 
 function gatewayHeaders(overrides: Record<string, string> = {}): Headers {
   return new Headers({
@@ -54,5 +54,21 @@ describe("MCP gateway identity", () => {
     const result = await createGatewayMcpAuthAdapter().verifyRequest(new Request("http://127.0.0.1:3000/mcp"), []);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.response.headers.get("WWW-Authenticate")).toContain('error="invalid_token"');
+  });
+});
+
+describe("linked singer accounts", () => {
+  it("acts under the linked singer's name and leaves other accounts alone", () => {
+    const resolver = createCommonAuthRoleResolver(performerAccountsFromEnvironment({ PERFORMER_ACCOUNTS: '{"42":"eunhu"}' }));
+    expect(resolver.resolve({ subject: "auth.lost.plus:42", email: "a@example.com", displayName: "Login Name" })?.displayName).toBe("은후");
+    expect(resolver.resolve({ subject: "auth.lost.plus:7", email: "b@example.com", displayName: "Login Name" })?.displayName).toBe("Login Name");
+    expect(resolver.resolve({ subject: "legacy-email:42", email: "c@example.com", displayName: "Login Name" })?.displayName).toBe("Login Name");
+  });
+
+  it("treats an unset secret as no links and refuses a malformed one", () => {
+    expect(performerAccountsFromEnvironment({})).toEqual({});
+    expect(() => performerAccountsFromEnvironment({ PERFORMER_ACCOUNTS: "nope" })).toThrow("JSON object");
+    expect(() => performerAccountsFromEnvironment({ PERFORMER_ACCOUNTS: '["eunhu"]' })).toThrow("JSON object");
+    expect(() => performerAccountsFromEnvironment({ PERFORMER_ACCOUNTS: '{"42":"bob"}' })).toThrow("unknown singer");
   });
 });

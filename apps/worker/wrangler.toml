@@ -37,3 +37,7 @@ AI_MODEL = "@cf/google/gemma-4-26b-a4b-it"
 # Secret, set with `wrangler secret put CLOUDFLARE_AI_API_TOKEN`.
 # All three must be set together or the Worker refuses to start; set none and
 # AI reading generation and country filling are simply off.
+
+# Secret, set with `wrangler secret put PERFORMER_ACCOUNTS`: a JSON object
+# linking Common Auth account ids to singers, e.g. {"<account id>":"eunhu"}.
+# Kept out of the repo on purpose. Unset means no account is linked.
