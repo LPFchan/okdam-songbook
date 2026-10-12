@@ -63,7 +63,7 @@ describe("songbook domain services", () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
     const sent = await service.createSong(allowed, songInput({ createdByName: "Login Name", updatedByName: "Login Name" }));
     expect([sent.createdByName, sent.updatedByName]).toEqual([allowed.displayName, allowed.displayName]);
-    const edited = await service.updateSong(allowedPeer, { id: sent.id, expectedVersion: sent.version, memo: "m", updatedByName: "Stale", clientRequestId: crypto.randomUUID() });
+    const edited = await service.updateSong(allowedPeer, { id: sent.id, expectedVersion: sent.version, memo: "m", createdByName: allowed.displayName, updatedByName: "Stale", clientRequestId: crypto.randomUUID() });
     expect([edited.createdByName, edited.updatedByName]).toEqual([allowed.displayName, allowedPeer.displayName]);
     const blank = await service.createSong(allowed, songInput({ tjNumber: "54321", title: "Other" }));
     expect([blank.createdByName, blank.updatedByName]).toEqual(["", ""]);
