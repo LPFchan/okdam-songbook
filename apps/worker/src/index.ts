@@ -6,7 +6,7 @@ import {
   createTjSearchMirror,
   openD1Database
 } from "@songbook/server-core";
-import { countryClassifierFromEnvironment, createConfiguredServer, isServerPath, readingGeneratorFromEnvironment } from "@songbook/server";
+import { countryClassifierFromEnvironment, createConfiguredServer, isServerPath, performerAccountsFromEnvironment, readingGeneratorFromEnvironment } from "@songbook/server";
 
 export interface Env {
   SONGBOOK_DB: D1Database;
@@ -15,6 +15,7 @@ export interface Env {
   AI_ENDPOINT?: string;
   CLOUDFLARE_AI_API_TOKEN?: string;
   AI_MODEL?: string;
+  PERFORMER_ACCOUNTS?: string;
 }
 
 function assetHeaders(pathname: string): Record<string, string> {
@@ -69,6 +70,7 @@ export function createWorkerApp(env: Env): Hono {
     dam: createDamAdapter(),
     readingGenerator: readingGeneratorFromEnvironment(ai),
     countryClassifier: countryClassifierFromEnvironment(ai),
+    performerAccounts: performerAccountsFromEnvironment({ PERFORMER_ACCOUNTS: env.PERFORMER_ACCOUNTS }),
     defer: waitUntil,
     onWarn: (warning) => console.warn(JSON.stringify(warning))
     // assetsRoot intentionally omitted: the Worker serves statics itself.

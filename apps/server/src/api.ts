@@ -38,6 +38,7 @@ import { z } from "zod";
 import {
   createCommonAuthRoleResolver,
   type McpAuthAdapter,
+  type PerformerAccounts,
   createGatewayMcpAuthAdapter,
   resolveGatewayIdentity,
   mcpBearerChallenge
@@ -260,10 +261,10 @@ function currentUser(principal: BrowserPrincipal, roleResolver: RoleResolver): C
   return currentUserSchema.parse({ subject: resolved.subject, email: resolved.email, displayName: resolved.displayName, role: resolved.role });
 }
 
-export function createConfiguredServer(options: Omit<ServerAppOptions, "roleResolver" | "sessionResolver" | "mcpAuth">): ServerApp {
+export function createConfiguredServer({ performerAccounts, ...options }: Omit<ServerAppOptions, "roleResolver" | "sessionResolver" | "mcpAuth"> & { performerAccounts?: PerformerAccounts }): ServerApp {
   return createServerApp({
     ...options,
-    roleResolver: createCommonAuthRoleResolver(),
+    roleResolver: createCommonAuthRoleResolver(performerAccounts),
     sessionResolver: async (request) => {
       const identity = resolveGatewayIdentity(request);
       return identity ? { id: identity.sub, subject: `auth.lost.plus:${identity.sub}`, email: identity.email, displayName: identity.name } : null;

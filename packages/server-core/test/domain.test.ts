@@ -59,6 +59,16 @@ describe("songbook domain services", () => {
     expect((await service.search("포니"))[0]?.id).toBe(created.id);
   });
 
+  it("credits a sent editor name to whoever is acting and keeps a blank one blank", async () => {
+    const service = createSongbookService(database, { roleResolver: roleResolver() });
+    const sent = await service.createSong(allowed, songInput({ createdByName: "Login Name", updatedByName: "Login Name" }));
+    expect([sent.createdByName, sent.updatedByName]).toEqual([allowed.displayName, allowed.displayName]);
+    const edited = await service.updateSong(allowedPeer, { id: sent.id, expectedVersion: sent.version, memo: "m", createdByName: allowed.displayName, updatedByName: "Stale", clientRequestId: crypto.randomUUID() });
+    expect([edited.createdByName, edited.updatedByName]).toEqual([allowed.displayName, allowedPeer.displayName]);
+    const blank = await service.createSong(allowed, songInput({ tjNumber: "54321", title: "Other" }));
+    expect([blank.createdByName, blank.updatedByName]).toEqual(["", ""]);
+  });
+
   it("keeps favorites private to each signed-in account", async () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
     const created = await service.createSong(allowed, songInput());

@@ -98,6 +98,18 @@ function normalizeMutationResult<T>(operation: string, value: T): T {
   return operation.startsWith("song.") ? stripSongMutationFields(value) : value;
 }
 
+/**
+ * A name the caller sent is replaced by the name of whoever is acting, so a
+ * linked account is credited as its singer. A blank or absent name stays as
+ * sent: the browser sends none, and country filling must not claim the edit.
+ * An update stamps only the editor; the creator it sends back is the stored one.
+ */
+function stampNames<T extends { createdByName?: string; updatedByName?: string }>(input: T, resolved: ResolvedActor, fields: ("createdByName" | "updatedByName")[]): T {
+  const stamped = { ...input };
+  for (const field of fields) if (input[field]) stamped[field] = resolved.displayName as T[typeof field];
+  return stamped;
+}
+
 function songFromCreate(input: SongMutation, id: string, timestamp: string): Song {
   return {
     id, tjNumber: input.tjNumber, damNumber: input.damNumber ?? "", title: input.title, titleReadingKo: input.titleReadingKo,
@@ -223,7 +235,7 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
     }
     try {
       const timestamp = now();
-      const created = songFromCreate(input, idFactory(), timestamp);
+      const created = songFromCreate(stampNames(input, resolved, ["createdByName", "updatedByName"]), idFactory(), timestamp);
       await songs.insert({ ...created, createdByEmail: resolved.email, updatedByEmail: resolved.email });
       const after = (await songs.get(created.id))!;
       await appendAudit(resolved, "song", created.id, "create", null, after, input.clientRequestId, null, after.version);
@@ -249,7 +261,7 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
   const applyUpdate = async (resolved: ResolvedActor, input: SongUpdate): Promise<Song> => {
     const before = await songs.get(input.id);
     if (!before || before.deletedAt) throw new DomainError("NOT_FOUND", "곡을 찾을 수 없어.");
-    const next = songFromUpdate(before, input, now());
+    const next = songFromUpdate(before, stampNames(input, resolved, ["updatedByName"]), now());
     await ensureDuplicateFree(next, before.id);
     if (!(await songs.update({ ...next, updatedByEmail: resolved.email }, input.expectedVersion))) throw new DomainError("VERSION_MISMATCH", "곡이 다른 곳에서 바뀌었어.", { currentVersion: (await songs.get(input.id))?.version, requestVersion: input.expectedVersion });
     const after = (await songs.get(input.id))!;
@@ -309,7 +321,7 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
     createSong: (actor, input) => withMutation(actor, "song:create", "song.create", input.clientRequestId, input, async (resolved) => {
       await ensureDuplicateFree(input);
       const timestamp = now();
-      const created = songFromCreate(input, idFactory(), timestamp);
+      const created = songFromCreate(stampNames(input, resolved, ["createdByName", "updatedByName"]), idFactory(), timestamp);
       await songs.insert({ ...created, createdByEmail: resolved.email, updatedByEmail: resolved.email });
       const after = (await songs.get(created.id))!;
       await appendAudit(resolved, "song", created.id, "create", null, after, input.clientRequestId, null, after.version);
