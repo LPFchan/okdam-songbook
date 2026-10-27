@@ -1,8 +1,8 @@
 # Architecture
 
 Songbook is a mobile-first PWA served by one Cloudflare Worker behind the
-Common Auth cloud gateway. The catalog is public; protected browser writes and
-MCP use `auth.lost.plus` identity that the gateway validates and injects, and
+Common Auth cloud gateway. Everything, catalog included, is friends-only: the
+browser app and MCP use `auth.lost.plus` identity that the gateway validates and injects, and
 D1 owns application state.
 
 ```mermaid
@@ -37,7 +37,7 @@ flowchart LR
   application from `apps/server` once per isolate over a D1 executor, mounts
   it, and serves everything else from Workers Assets with an `index.html`
   fallback. `/api`, `/mcp` and `/.well-known` never fall back to the shell.
-- `apps/server` is the Hono application: public catalog with ETag, protected
+- `apps/server` is the Hono application: catalog with ETag, protected
   same-origin browser API, `/healthz`, and `/mcp`. It reads identity only
   from the gateway's `x-lost-plus-*` headers and validates no credential.
   Decoding is the shared `@lpfchan/gateway-identity` package; `auth.ts`

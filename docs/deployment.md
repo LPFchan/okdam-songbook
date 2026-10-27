@@ -25,9 +25,12 @@ false` and no `[[routes]]`, which leaves the gateway's service binding as the
 only way in. **Deploying a Worker replaces its route list with what its
 config says**, so never add a route here; the gateway owns it.
 
-`/` and `GET /api/catalog` are public by gateway policy and arrive with no
-identity headers, so the application cannot fail closed on missing identity
-for every path — route-lessness is the guarantee, not a header check.
+Only the PWA install files (`/manifest.webmanifest`, `/icons`), `/robots.txt`,
+`/privacy` and `/healthz` are public by gateway policy and arrive with no
+identity headers; a browser fetches the manifest without cookies, so it cannot
+sit behind sign-in. Everything else, the shell and `/api/catalog` included, is
+`oauth` with visibility `okdam`, which the hub admits only for friends and
+administrators. Route-lessness is still the guarantee, not a header check.
 
 ### Gateway routes for this host
 
@@ -37,10 +40,14 @@ mismatch falls through to the next route rather than answering 405.
 
 ```json
 { "host": "okdam.lost.plus", "path_prefix": "/mcp", "policy": "mcp", "visibility": "okdam", "token_scope": "okdam-mcp", "binding": "SONGBOOK_BACKEND" },
-{ "host": "okdam.lost.plus", "path_prefix": "/api/catalog", "methods": ["GET", "HEAD"], "policy": "public", "binding": "SONGBOOK_BACKEND" },
 { "host": "okdam.lost.plus", "path_prefix": "/api", "policy": "oauth", "visibility": "okdam", "binding": "SONGBOOK_BACKEND" },
 { "host": "okdam.lost.plus", "path_prefix": "/_auth/logout", "policy": "oauth", "visibility": "okdam", "binding": "SONGBOOK_BACKEND" },
-{ "host": "okdam.lost.plus", "path_prefix": "/", "policy": "public", "binding": "SONGBOOK_BACKEND" }
+{ "host": "okdam.lost.plus", "path_prefix": "/manifest.webmanifest", "methods": ["GET", "HEAD"], "policy": "public", "binding": "SONGBOOK_BACKEND" },
+{ "host": "okdam.lost.plus", "path_prefix": "/icons", "methods": ["GET", "HEAD"], "policy": "public", "binding": "SONGBOOK_BACKEND" },
+{ "host": "okdam.lost.plus", "path_prefix": "/robots.txt", "methods": ["GET", "HEAD"], "policy": "public", "binding": "SONGBOOK_BACKEND" },
+{ "host": "okdam.lost.plus", "path_prefix": "/privacy", "methods": ["GET", "HEAD"], "policy": "public", "binding": "SONGBOOK_BACKEND" },
+{ "host": "okdam.lost.plus", "path_prefix": "/healthz", "methods": ["GET", "HEAD"], "policy": "public", "binding": "SONGBOOK_BACKEND" },
+{ "host": "okdam.lost.plus", "path_prefix": "/", "policy": "oauth", "visibility": "okdam", "binding": "SONGBOOK_BACKEND" }
 ```
 
 - `GET /_auth/logout` is answered by the gateway; the application never

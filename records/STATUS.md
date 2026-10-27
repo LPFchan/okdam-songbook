@@ -23,9 +23,10 @@ Recorded by agent: codex-orchestrator
   `Authorization`/`x-api-key`/cookies, and forwards over the binding with
   `x-lost-plus-{sub,email,name,role,encoding}` injected. Its route table for
   this host (`auth/gateway/config/cloudflare.gateway.json`):
-  `/mcp` mcp (visibility `okdam`, token scope `okdam-mcp`), `/api/catalog`
-  GET/HEAD public, `/api` oauth, `/_auth/logout` oauth (answered by the
-  gateway itself), `/` public.
+  `/mcp` mcp (visibility `okdam`, token scope `okdam-mcp`), `/api` oauth,
+  `/_auth/logout` oauth (answered by the gateway itself), GET/HEAD
+  `/manifest.webmanifest`, `/icons`, `/robots.txt`, `/privacy` and `/healthz`
+  public, `/` oauth (visibility `okdam`, friends-only).
 - What the app trusts: only the injected identity headers, decoded by
   `@lpfchan/gateway-identity` in `apps/server/src/auth.ts`. It validates no
   credential and calls no auth origin. A request on a protected path without a complete, percent-encoded

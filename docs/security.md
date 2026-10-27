@@ -2,8 +2,9 @@
 
 ## Trust boundaries
 
-- Public catalog reads do not require login. `robots.txt`, `noindex`, and
-  unlisted URLs reduce discovery only; they are not authentication.
+- Okdam is friends-only (Auth DEC-20261027-002). The gateway sends the shell
+  and `/api/catalog` through sign-in; only the PWA manifest, icons,
+  `robots.txt`, `/privacy` and `/healthz` are public.
 - `auth.lost.plus` is the identity, session, revocation, and service-admission
   authority. The Common Auth gateway validates every protected request and
   removes browser-supplied identity fields before forwarding.
