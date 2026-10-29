@@ -143,6 +143,14 @@ const COUNTRY_FILL_BATCH = 10;
 
 const COUNTRY_CLASSIFIER_ACTOR: ResolvedActor = { subject: "songbook:country-classifier", email: "", displayName: "국가 자동 분류", role: "allowed" };
 
+// A song added from TJ or DAM gets its country a few seconds later, which
+// moves its version under any form already open on it. The fill writes only
+// the country, so a write based on the version just before it is not a
+// conflict.
+function filledSince(song: Song, expectedVersion: number): boolean {
+  return expectedVersion === song.version - 1 && song.updatedByName === COUNTRY_CLASSIFIER_ACTOR.displayName;
+}
+
 function isDeletedSong(song: Song): boolean {
   return Boolean(song.deletedAt);
 }
@@ -261,9 +269,13 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
   const applyUpdate = async (resolved: ResolvedActor, input: SongUpdate): Promise<Song> => {
     const before = await songs.get(input.id);
     if (!before || before.deletedAt) throw new DomainError("NOT_FOUND", "곡을 찾을 수 없어.");
+    // An edit opened before the fill sends a blank country; keep the filled
+    // one unless the title or artist it answered for was changed.
+    const filled = filledSince(before, input.expectedVersion);
     const next = songFromUpdate(before, stampNames(input, resolved, ["updatedByName"]), now());
+    if (filled && !input.country) next.country = next.title === before.title && next.artist === before.artist ? before.country : "";
     await ensureDuplicateFree(next, before.id);
-    if (!(await songs.update({ ...next, updatedByEmail: resolved.email }, input.expectedVersion))) throw new DomainError("VERSION_MISMATCH", "곡이 다른 곳에서 바뀌었어.", { currentVersion: (await songs.get(input.id))?.version, requestVersion: input.expectedVersion });
+    if (!(await songs.update({ ...next, updatedByEmail: resolved.email }, filled ? before.version : input.expectedVersion))) throw new DomainError("VERSION_MISMATCH", "곡이 다른 곳에서 바뀌었어.", { currentVersion: (await songs.get(input.id))?.version, requestVersion: input.expectedVersion });
     const after = (await songs.get(input.id))!;
     await appendAudit(resolved, "song", input.id, "update", before, after, input.clientRequestId, before.version, after.version);
     return after;
@@ -293,7 +305,7 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
         const current = await songs.get(song.id);
         if (!current || current.country || isDeletedSong(current)) return;
         if (current.title !== song.title || current.artist !== song.artist) return;
-        await applyUpdate(COUNTRY_CLASSIFIER_ACTOR, { id: song.id, expectedVersion: current.version, country, clientRequestId: idFactory() });
+        await applyUpdate(COUNTRY_CLASSIFIER_ACTOR, { id: song.id, expectedVersion: current.version, country, updatedByName: COUNTRY_CLASSIFIER_ACTOR.displayName, clientRequestId: idFactory() });
       } catch (error) {
         warn({ event: "country_fill_failed", songId: song.id, message: error instanceof Error ? error.message : String(error) });
       } finally {
@@ -398,7 +410,7 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
     deleteSong: (actor, input) => withMutation(actor, "song:delete", "song.delete", input.clientRequestId, input, async (resolved) => {
       const before = await songs.get(input.id);
       if (!before || before.deletedAt) throw new DomainError("NOT_FOUND", "곡을 찾을 수 없어.");
-      if (!(await songs.remove(input.id, input.expectedVersion))) throw new DomainError("VERSION_MISMATCH", "곡이 다른 곳에서 바뀌었어.");
+      if (!(await songs.remove(input.id, filledSince(before, input.expectedVersion) ? before.version : input.expectedVersion))) throw new DomainError("VERSION_MISMATCH", "곡이 다른 곳에서 바뀌었어.");
       await appendAudit(resolved, "song", input.id, "delete", before, null, input.clientRequestId, before.version, null);
       return before;
     }),

@@ -576,7 +576,7 @@
 
   // A song added from TJ or DAM comes back without a country, and the server
   // fills it in moments later. Reload the catalog until it shows up, so the
-  // list shows the country and an edit sends the filled song's version.
+  // list shows the country.
   async function awaitCountryFill(songId: string) {
     for (const delay of COUNTRY_FILL_POLL_MS) {
       await new Promise((resolve) => setTimeout(resolve, delay));

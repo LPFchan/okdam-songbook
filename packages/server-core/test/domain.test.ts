@@ -246,6 +246,26 @@ describe("songbook domain services", () => {
     expect((await service.getSong(added.song!.id))?.country).toBe("일본");
   });
 
+  it("saves or deletes from a form opened before the country fill", async () => {
+    const tasks: Promise<unknown>[] = [];
+    const service = createSongbookService(database, {
+      roleResolver: roleResolver(),
+      countryClassifier: { classify: async () => "한국" },
+      defer: (task) => tasks.push(task)
+    });
+    const candidate = (tjNumber: string, title: string) => ({ tjNumber, title, artist: "데프콘", lyricist: "", composer: "", sourceUrl: `https://tj.example/${tjNumber}` });
+    const kept = (await service.createTjSong(allowed, candidate("30950", "힙합유치원"), crypto.randomUUID())).song!;
+    const renamed = (await service.createTjSong(allowed, candidate("30951", "힙합유치원 2"), crypto.randomUUID())).song!;
+    const removed = (await service.createTjSong(allowed, candidate("30952", "힙합유치원 3"), crypto.randomUUID())).song!;
+    await Promise.all(tasks);
+
+    const save = (song: Song, changes: Partial<Song>) => service.updateSong(allowed, { ...song, ...changes, expectedVersion: song.version, clientRequestId: crypto.randomUUID() });
+    expect(await save(kept, { performerIds: ["marie"] })).toMatchObject({ country: "한국", performerIds: ["marie"], version: 3 });
+    expect(await save(renamed, { artist: "Defconn" })).toMatchObject({ country: "", artist: "Defconn" });
+    await service.deleteSong(allowed, { id: removed.id, expectedVersion: removed.version, clientRequestId: crypto.randomUUID() });
+    expect(await service.getSong(removed.id)).toBeNull();
+  });
+
   it("makes mutations replay-safe and audits the successful operation once", async () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
     const clientRequestId = crypto.randomUUID();
