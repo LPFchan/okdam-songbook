@@ -63,7 +63,8 @@ and safe error metadata.
 `create_song` accepts the compact song-create fields or a validated
 `tjCandidate` and returns a structured `created`, `duplicate`, or `deleted`
 outcome. `update_song` and `delete_song` accept `id` or their corresponding
-`songId` alias, plus `expectedVersion` and `clientRequestId`.
+`songId` alias, plus `clientRequestId`. An update sends only the fields it
+changes; there is no version check, so each field keeps its latest write.
 
 MCP cookies are not identity. Missing gateway identity and malformed or invalid
 credentials are rejected before backend dispatch. Client-supplied method/name

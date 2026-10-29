@@ -179,14 +179,12 @@ const updateSongInput = z.object({
   ...z.object(songFieldShapes).partial().shape,
   id: z.string().min(1).max(200).optional(),
   songId: z.string().min(1).max(200).optional(),
-  expectedVersion: z.number().int().nonnegative(),
   clientRequestId: z.string().uuid()
 }).refine((value) => Boolean(value.id || value.songId), { message: "id or songId is required" });
 
 const deleteSongInput = z.object({
   id: z.string().min(1).max(200).optional(),
   songId: z.string().min(1).max(200).optional(),
-  expectedVersion: z.number().int().nonnegative(),
   clientRequestId: z.string().uuid()
 }).refine((value) => Boolean(value.id || value.songId), { message: "id or songId is required" });
 
@@ -434,7 +432,7 @@ function registerTools(
 
   server.registerTool("update_song", {
     title: "Update song",
-    description: "Update one saved song with optimistic version checking.",
+    description: "Update one saved song. Send only the fields to change; others keep their saved values.",
     inputSchema: updateSongInput
   }, (input) => runTrackedTool(lifecycle, async () => {
     try {
@@ -454,7 +452,7 @@ function registerTools(
 
   server.registerTool("delete_song", {
     title: "Delete song",
-    description: "Permanently delete one saved song with optimistic version checking.",
+    description: "Permanently delete one saved song.",
     inputSchema: deleteSongInput
   }, (input) => runTrackedTool(lifecycle, async () => {
     try {
@@ -462,12 +460,10 @@ function registerTools(
       const inputParsed = sharedParse(deleteSongInput, input);
       const parsed = sharedParse(songDeleteRequestSchema, {
         songId: inputParsed.id ?? inputParsed.songId ?? "",
-        expectedVersion: inputParsed.expectedVersion,
         clientRequestId: inputParsed.clientRequestId
       });
       return result(await options.service.deleteSong(principal.actor, {
         id: parsed.songId,
-        expectedVersion: parsed.expectedVersion,
         clientRequestId: parsed.clientRequestId
       }));
     } catch (error) {

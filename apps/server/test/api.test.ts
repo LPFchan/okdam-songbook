@@ -326,7 +326,7 @@ describe("same-origin server surface", () => {
       request(`/api/songs/${song.id}/delete`, {
         method: "DELETE",
         headers,
-        body: JSON.stringify({ songId: song.id, expectedVersion: song.version, clientRequestId: crypto.randomUUID() })
+        body: JSON.stringify({ songId: song.id, clientRequestId: crypto.randomUUID() })
       })
     );
     expect(deleted.status).toBe(200);

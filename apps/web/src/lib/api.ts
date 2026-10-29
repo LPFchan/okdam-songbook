@@ -160,7 +160,7 @@ export async function cancelPerformance(performanceId: string, clientRequestId: 
 export async function upsertSong(song: Partial<Song>, clientRequestId: string, ownerSubject: string): Promise<Song> {
   if (mockMode()) {
     return songSchema.parse({
-      ...sampleSongs[0],
+      ...(sampleSongs.find((item) => item.id === song.id) ?? sampleSongs[0]),
       ...song,
       id: song.id || crypto.randomUUID(),
       version: (song.version ?? 0) + 1
@@ -171,7 +171,7 @@ export async function upsertSong(song: Partial<Song>, clientRequestId: string, o
     return request(`/api/songs/${encodeURIComponent(song.id)}`, {
       method: "PATCH",
       headers: { "X-Songbook-Owner-Subject": ownerSubject },
-      body: JSON.stringify({ ...song, id: song.id, expectedVersion: song.version ?? 0, clientRequestId })
+      body: JSON.stringify({ ...song, id: song.id, clientRequestId })
     }, (data) => songSchema.parse(data));
   }
 
@@ -335,7 +335,7 @@ export async function addDamSong(candidate: DamSongCandidate, clientRequestId: s
   }, (data) => damAddResultSchema.parse(data));
 }
 
-export async function deleteSong(song: Pick<Song, "id" | "version">, clientRequestId: string, ownerSubject: string): Promise<Song> {
+export async function deleteSong(song: Pick<Song, "id">, clientRequestId: string, ownerSubject: string): Promise<Song> {
   if (mockMode()) {
     const index = sampleSongs.findIndex((item) => item.id === song.id);
     if (index < 0) throw new Error("삭제할 곡을 찾지 못했어요.");
@@ -345,7 +345,7 @@ export async function deleteSong(song: Pick<Song, "id" | "version">, clientReque
   return request(`/api/songs/${encodeURIComponent(song.id)}/delete`, {
     method: "DELETE",
     headers: { "X-Songbook-Owner-Subject": ownerSubject },
-    body: JSON.stringify({ songId: song.id, expectedVersion: song.version, clientRequestId })
+    body: JSON.stringify({ songId: song.id, clientRequestId })
   }, (data) => songSchema.parse(data));
 }
 

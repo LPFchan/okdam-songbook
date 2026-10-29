@@ -157,7 +157,7 @@ describe("stateless Songbook MCP", () => {
     const handler = createSongbookMcpHandler({ service: serviceDouble });
     const response = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 10, method: "tools/call", params: { name: "record_performance", arguments: { songId: "song-1", keySelection: { baseMode: "original", offset: 0 }, clientRequestId: "33333333-3333-4333-8333-333333333333" } } }), { authInfo });
     expect((await response.json()).result.structuredContent.data).toEqual({ id: "performance-1" });
-    const update = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 11, method: "tools/call", params: { name: "update_song", arguments: { songId: "song-1", title: "Updated", expectedVersion: 1, clientRequestId: "44444444-4444-4444-8444-444444444444" } } }), { authInfo });
+    const update = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 11, method: "tools/call", params: { name: "update_song", arguments: { songId: "song-1", title: "Updated", clientRequestId: "44444444-4444-4444-8444-444444444444" } } }), { authInfo });
     expect((await update.json()).result.structuredContent.data.id).toBe(song.id);
     expect(serviceDouble.updateSong).toHaveBeenCalledWith(actor, expect.objectContaining({ id: "song-1", title: "Updated" }));
     // A partial update must leave omitted fields undefined so the service keeps the stored values.
@@ -165,9 +165,9 @@ describe("stateless Songbook MCP", () => {
     for (const field of ["tjNumber", "damNumber", "titleReadingKo", "artistReadingKo", "country", "recommendedKey", "performerIds", "memo", "sourceType", "sourceReference"]) {
       expect(updateInput[field], field).toBeUndefined();
     }
-    const deletion = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 12, method: "tools/call", params: { name: "delete_song", arguments: { id: "song-1", expectedVersion: 1, clientRequestId: "55555555-5555-4555-8555-555555555555" } } }), { authInfo });
+    const deletion = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 12, method: "tools/call", params: { name: "delete_song", arguments: { id: "song-1", clientRequestId: "55555555-5555-4555-8555-555555555555" } } }), { authInfo });
     expect((await deletion.json()).result.structuredContent.data.id).toBe(song.id);
-    expect(serviceDouble.deleteSong).toHaveBeenCalledWith(actor, expect.objectContaining({ id: "song-1", expectedVersion: 1 }));
+    expect(serviceDouble.deleteSong).toHaveBeenCalledWith(actor, expect.objectContaining({ id: "song-1" }));
     const manual = await handler.fetch(modernRequest({ jsonrpc: "2.0", id: 13, method: "tools/call", params: { name: "create_song", arguments: { title: "Manual", artist: "Artist", clientRequestId: "66666666-6666-4666-8666-666666666666" } } }), { authInfo });
     expect((await manual.json()).result.structuredContent.data.outcome).toBe("created");
     expect(serviceDouble.createSongOutcome).toHaveBeenCalledWith(actor, expect.objectContaining({ title: "Manual", artist: "Artist" }));

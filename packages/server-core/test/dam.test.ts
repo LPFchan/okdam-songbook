@@ -65,7 +65,7 @@ describe("adding songs from DAM", () => {
   it("refuses to give two songs the same DAM number", async () => {
     await service.createDamSong(allowed, candidate(), crypto.randomUUID());
     const other = await service.createDamSong(allowed, candidate({ damNumber: "3246-30", title: "LOSER", artist: "米津玄師" }), crypto.randomUUID());
-    const update = service.updateSong(allowed, { id: other.song!.id, expectedVersion: 1, damNumber: "1472-59", clientRequestId: crypto.randomUUID() });
+    const update = service.updateSong(allowed, { id: other.song!.id, damNumber: "1472-59", clientRequestId: crypto.randomUUID() });
     await expect(update).rejects.toMatchObject({ code: "DUPLICATE_DAM_NUMBER" });
   });
 });

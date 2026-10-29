@@ -402,7 +402,7 @@ export function createServerApp(options: ServerAppOptions): ServerApp {
   app.delete("/api/songs/:id/delete", (c) => mutate(c, async (actor) => {
     const parsed = songDeleteRequestSchema.safeParse({ ...(await c.req.json()), songId: c.req.param("id") });
     if (!parsed.success) throw parsed.error;
-    return await service.deleteSong(actor, { id: parsed.data.songId, expectedVersion: parsed.data.expectedVersion, clientRequestId: parsed.data.clientRequestId });
+    return await service.deleteSong(actor, { id: parsed.data.songId, clientRequestId: parsed.data.clientRequestId });
   }, true));
 
   app.post("/api/readings/generate", (c) => mutate(c, async () => {

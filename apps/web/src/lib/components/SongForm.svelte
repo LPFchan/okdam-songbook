@@ -41,6 +41,8 @@
   let draft = $state<Partial<Song>>(emptyDraft());
   let draftOwnerSubject = $state<string | null>(auth.user?.subject ?? null);
   let editingId = $state<string | null>(null);
+  // The song being edited as it was when the form loaded it.
+  let loadedSong: Song | null = null;
   let deleteConfirm = $state(false);
   let deletePending = $state(false);
   let readingPending = $state(false);
@@ -90,9 +92,17 @@
       draft = { ...editSong };
       draftOwnerSubject = auth.user?.subject ?? null;
       editingId = editSong.id;
+      loadedSong = editSong;
       loadKeyFromSong(editSong);
     }
   });
+
+  // An edit sends only the fields it changed, so one written elsewhere while
+  // the form was open, like the country the server fills in after a TJ or DAM
+  // add, is kept.
+  function changedFields(before: Song, after: Partial<Song>): Partial<Song> {
+    return Object.fromEntries(Object.entries(after).filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(before[key as keyof Song])));
+  }
 
   // Drafts belong to the account that opened them. If another tab changes the
   // shared cookie, the next credential refresh updates auth.user and this
@@ -130,7 +140,10 @@
     try {
       // Accept "147259" and "1472 59" as well as DAM's own "1472-59".
       const damNumber = draft.damNumber ? (normalizeDamNumber(draft.damNumber) ?? draft.damNumber) : "";
-      const saved = await upsertSong({ ...draft, damNumber }, crypto.randomUUID(), ownerSubject);
+      const edited = { ...draft, damNumber };
+      // Any sent editor name is credited to whoever is acting.
+      const song = editingId && loadedSong ? { ...changedFields(loadedSong, edited), id: editingId, updatedByName: auth.user.displayName } : edited;
+      const saved = await upsertSong(song, crypto.randomUUID(), ownerSubject);
       onSongSaved(saved);
       resetDraft();
       onClose();
@@ -155,7 +168,7 @@
     if (!ownerSubject) return;
     deletePending = true;
     try {
-      await deleteSong({ id: editingId, version: draft.version ?? 0 }, crypto.randomUUID(), ownerSubject);
+      await deleteSong({ id: editingId }, crypto.randomUUID(), ownerSubject);
       const title = draft.title || "곡";
       onSongDeleted(editingId);
       resetDraft();
@@ -203,6 +216,7 @@
     draft = emptyDraft();
     draftOwnerSubject = ownerSubject;
     editingId = null;
+    loadedSong = null;
     deleteConfirm = false;
     keyMode = "none";
     keyOffset = 0;
@@ -212,6 +226,7 @@
     draft = { ...song };
     draftOwnerSubject = auth.user?.subject ?? null;
     editingId = song.id;
+    loadedSong = song;
     loadKeyFromSong(song);
     onRequestTab("add");
   }
