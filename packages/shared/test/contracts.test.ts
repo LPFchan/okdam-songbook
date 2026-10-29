@@ -52,8 +52,8 @@ describe("single-server contracts", () => {
     expect(songCreateRequestSchema.safeParse({ title: "Song", artist: "Artist" }).success).toBe(false);
     expect(songCreateRequestSchema.safeParse({ title: "Song", artist: "Artist", clientRequestId: "retry-1" }).success).toBe(false);
     expect(songCreateRequestSchema.parse({ title: "Song", artist: "Artist", clientRequestId: validId }).clientRequestId).toBe(validId);
-    expect(songUpdateRequestSchema.safeParse({ id: "song-1", expectedVersion: 2, clientRequestId: validId }).success).toBe(true);
-    expect(songUpdateRequestSchema.safeParse({ id: "song-1", expectedVersion: 2, clientRequestId: "retry-1" }).success).toBe(false);
+    expect(songUpdateRequestSchema.safeParse({ id: "song-1", clientRequestId: validId }).success).toBe(true);
+    expect(songUpdateRequestSchema.safeParse({ id: "song-1", clientRequestId: "retry-1" }).success).toBe(false);
     expect(conflictDetailsSchema.parse({ reason: "version-mismatch", currentVersion: 3, requestVersion: 2 }).reason).toBe("version-mismatch");
   });
 

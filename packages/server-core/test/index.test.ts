@@ -54,7 +54,7 @@ describe("D1 storage foundation", () => {
     expect(await favorites.listSongIds("other@example.com")).toEqual([]);
     await favorites.set("one@example.com", "song-1", false, "2026-08-13T02:00:00.000Z");
     expect(await favorites.listSongIds("one@example.com")).toEqual([]);
-    expect(await songs.remove("song-1", 1)).toBe(true);
+    expect(await songs.remove("song-1")).toBe(true);
     expect(await favorites.listSongIds("two@example.com")).toEqual([]);
   });
 
@@ -79,7 +79,7 @@ describe("D1 storage foundation", () => {
   it("hard-deletes a song and frees its TJ number while keeping optimistic versions", async () => {
     const songs = createSongRepository(database.sqlite);
     await songs.insert(song());
-    expect(await songs.remove("song-1", 1)).toBe(true);
+    expect(await songs.remove("song-1")).toBe(true);
     expect(await songs.get("song-1")).toBeNull();
     await expect(songs.insert(song({ id: "song-2" }))).resolves.not.toThrow();
     expect(await songs.update(song({ id: "song-2", title: "Updated", version: 2, updatedAt: "2026-08-13T03:00:00.000Z" }), 2)).toBe(false);

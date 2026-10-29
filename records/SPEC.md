@@ -72,6 +72,9 @@ history.
   that private relationship directly, and the favorite-only filter requires a
   valid session. Favorite state is never included in the anonymous catalog.
 - Song add/edit uses one country chip: `일본`, `미국`, `한국`, or `그 외`.
+- A song edit saves only the fields it changed, with no version check: each
+  field keeps its latest write, so an edit opened before the background
+  country fill still saves and keeps the filled country.
 - Songs keep one optional recommended key (`original`, `male`, or `female`
   plus a semitone offset). Free-form context such as an original work belongs
   in the memo instead of separate metadata fields.

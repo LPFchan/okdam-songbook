@@ -175,13 +175,11 @@ export const songCreateRequestSchema = songSchema.omit({
 
 export const songUpdateRequestSchema = songCreateRequestSchema.partial().extend({
   id: z.string().min(1),
-  expectedVersion: z.number().int().nonnegative(),
   clientRequestId: z.string().uuid()
 });
 
 export const songDeleteRequestSchema = z.object({
   songId: z.string().min(1),
-  expectedVersion: z.number().int().nonnegative(),
   clientRequestId: z.string().uuid()
 });
 

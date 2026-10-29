@@ -49,7 +49,7 @@ describe("songbook domain services", () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
     await expect(service.createSong(allowed, songInput())).resolves.not.toThrow();
     await expect(service.createSong({ email: "revoked@example.com" }, songInput({ tjNumber: "54321" }))).rejects.toThrow(DomainError);
-    await expect(service.deleteSong({ email: "unknown@example.com" }, { id: "missing", expectedVersion: 1, clientRequestId: crypto.randomUUID() })).rejects.toThrow(/로그인 또는 허용된 계정/);
+    await expect(service.deleteSong({ email: "unknown@example.com" }, { id: "missing", clientRequestId: crypto.randomUUID() })).rejects.toThrow(/로그인 또는 허용된 계정/);
   });
 
   it("creates, searches, and returns anonymous public catalog rows", async () => {
@@ -63,7 +63,7 @@ describe("songbook domain services", () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
     const sent = await service.createSong(allowed, songInput({ createdByName: "Login Name", updatedByName: "Login Name" }));
     expect([sent.createdByName, sent.updatedByName]).toEqual([allowed.displayName, allowed.displayName]);
-    const edited = await service.updateSong(allowedPeer, { id: sent.id, expectedVersion: sent.version, memo: "m", createdByName: allowed.displayName, updatedByName: "Stale", clientRequestId: crypto.randomUUID() });
+    const edited = await service.updateSong(allowedPeer, { id: sent.id, memo: "m", createdByName: allowed.displayName, updatedByName: "Stale", clientRequestId: crypto.randomUUID() });
     expect([edited.createdByName, edited.updatedByName]).toEqual([allowed.displayName, allowedPeer.displayName]);
     const blank = await service.createSong(allowed, songInput({ tjNumber: "54321", title: "Other" }));
     expect([blank.createdByName, blank.updatedByName]).toEqual(["", ""]);
@@ -82,13 +82,12 @@ describe("songbook domain services", () => {
     expect(await service.favoriteSongIds(allowed)).toEqual([]);
   });
 
-  it("rejects duplicates and reports version conflicts", async () => {
+  it("rejects duplicates and updates without a version", async () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
     const first = await service.createSong(allowed, songInput());
     expect(Object.hasOwn(first, "clientRequestId")).toBe(false);
     await expect(service.createSong(allowedPeer, songInput({ clientRequestId: crypto.randomUUID() }))).rejects.toThrow(DomainError);
-    await expect(service.updateSong(allowedPeer, { id: first.id, expectedVersion: 99, clientRequestId: crypto.randomUUID(), title: "Changed" })).rejects.toThrow(/다른 곳/);
-    const updated = await service.updateSong(allowedPeer, { id: first.id, expectedVersion: 1, clientRequestId: crypto.randomUUID(), title: "Changed" });
+    const updated = await service.updateSong(allowedPeer, { id: first.id, clientRequestId: crypto.randomUUID(), title: "Changed" });
     expect(updated.title).toBe("Changed");
     expect(Object.hasOwn(updated, "clientRequestId")).toBe(false);
     expect(Object.hasOwn(updated, "expectedVersion")).toBe(false);
@@ -168,7 +167,7 @@ describe("songbook domain services", () => {
     const added = await service.createTjSong(allowed, {
       tjNumber: "55555", title: "CONTROL", artist: "CAPSULE", lyricist: "", composer: "", sourceUrl: "https://tj.example/control"
     }, crypto.randomUUID());
-    await service.updateSong(allowed, { id: added.song!.id, expectedVersion: added.song!.version, memo: "edited", clientRequestId: crypto.randomUUID() });
+    await service.updateSong(allowed, { id: added.song!.id, memo: "edited", clientRequestId: crypto.randomUUID() });
 
     answer("일본");
     await Promise.all(tasks);
@@ -205,7 +204,7 @@ describe("songbook domain services", () => {
     const added = await service.createTjSong(allowed, {
       tjNumber: "77771", title: "Bad Guy", artist: "CAPSULE", lyricist: "", composer: "", sourceUrl: "https://tj.example/bad-guy"
     }, crypto.randomUUID());
-    await service.updateSong(allowed, { id: added.song!.id, expectedVersion: added.song!.version, artist: "Billie Eilish", clientRequestId: crypto.randomUUID() });
+    await service.updateSong(allowed, { id: added.song!.id, artist: "Billie Eilish", clientRequestId: crypto.randomUUID() });
 
     answer("일본");
     await Promise.all(tasks);
@@ -239,11 +238,48 @@ describe("songbook domain services", () => {
     const added = await service.createTjSong(allowed, {
       tjNumber: "33333", title: "グライダー", artist: "CAPSULE", lyricist: "", composer: "", sourceUrl: "https://tj.example/glider"
     }, crypto.randomUUID());
-    await service.updateSong(allowed, { id: added.song!.id, expectedVersion: added.song!.version, country: "일본", clientRequestId: crypto.randomUUID() });
+    await service.updateSong(allowed, { id: added.song!.id, country: "일본", clientRequestId: crypto.randomUUID() });
 
     answer("미국");
     await Promise.all(tasks);
     expect((await service.getSong(added.song!.id))?.country).toBe("일본");
+  });
+
+  it("keeps the filled country when a form opened before the fill saves", async () => {
+    const tasks: Promise<unknown>[] = [];
+    const service = createSongbookService(database, {
+      roleResolver: roleResolver(),
+      countryClassifier: { classify: async () => "한국" },
+      defer: (task) => tasks.push(task)
+    });
+    const added = await service.createTjSong(allowed, {
+      tjNumber: "30950", title: "힙합유치원", artist: "데프콘", lyricist: "", composer: "", sourceUrl: "https://tj.example/30950"
+    }, crypto.randomUUID());
+    await Promise.all(tasks);
+
+    const edited = await service.updateSong(allowed, { id: added.song!.id, performerIds: ["marie"], clientRequestId: crypto.randomUUID() });
+    expect(edited).toMatchObject({ country: "한국", performerIds: ["marie"] });
+  });
+
+  it("does not undo a write that lands between an edit's read and its write", async () => {
+    const inner = createSongRepository(database.sqlite);
+    let interleave = true;
+    const songRepository = {
+      ...inner,
+      update: async (...args: Parameters<typeof inner.update>) => {
+        if (interleave) {
+          interleave = false;
+          const current = (await inner.get(args[0].id))!;
+          await inner.update({ ...current, country: "한국" }, current.version);
+        }
+        return inner.update(...args);
+      }
+    };
+    const service = createSongbookService(database, { roleResolver: roleResolver(), songRepository });
+    const created = await service.createSong(allowed, songInput());
+
+    const edited = await service.updateSong(allowed, { id: created.id, memo: "edited", clientRequestId: crypto.randomUUID() });
+    expect(edited).toMatchObject({ country: "한국", memo: "edited", version: 3 });
   });
 
   it("makes mutations replay-safe and audits the successful operation once", async () => {
@@ -264,7 +300,7 @@ describe("songbook domain services", () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
     const created = await service.createSong(allowed, songInput());
     const clientRequestId = crypto.randomUUID();
-    const input = { id: created.id, expectedVersion: created.version, clientRequestId, title: "Updated" };
+    const input = { id: created.id, clientRequestId, title: "Updated" };
     const updated = await service.updateSong(allowedPeer, input);
     expect(Object.hasOwn(updated, "clientRequestId")).toBe(false);
     expect(Object.hasOwn(updated, "expectedVersion")).toBe(false);
@@ -280,7 +316,7 @@ describe("songbook domain services", () => {
   it("allows an allowlisted user to hard delete and free the TJ number", async () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
     const created = await service.createSong(allowedPeer, songInput());
-    const deleted = await service.deleteSong(allowed, { id: created.id, expectedVersion: 1, clientRequestId: crypto.randomUUID() });
+    const deleted = await service.deleteSong(allowed, { id: created.id, clientRequestId: crypto.randomUUID() });
     expect(deleted.id).toBe(created.id);
     expect(await database.sqlite.prepare("SELECT actor_role FROM audit_events WHERE entity_type='song' AND entity_id=? ORDER BY created_at").all(created.id)).toEqual([{ actor_role: "allowed" }, { actor_role: "allowed" }]);
     expect(await service.catalog()).toHaveLength(0);
@@ -292,17 +328,9 @@ describe("songbook domain services", () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
     const created = await service.createSong(allowedPeer, songInput());
     await service.createPerformance(allowedPeer, { songId: created.id, keySelection: null, memo: "", performedAt: "2026-08-13T10:00:00.000Z", clientRequestId: crypto.randomUUID() });
-    await service.deleteSong(allowed, { id: created.id, expectedVersion: 1, clientRequestId: crypto.randomUUID() });
+    await service.deleteSong(allowed, { id: created.id, clientRequestId: crypto.randomUUID() });
     expect(await service.catalog()).toHaveLength(0);
     expect(await database.sqlite.prepare("SELECT id FROM performances WHERE song_id=?").all(created.id)).toEqual([]);
-  });
-
-  it("keeps performance records when a stale delete is rejected", async () => {
-    const service = createSongbookService(database, { roleResolver: roleResolver() });
-    const created = await service.createSong(allowedPeer, songInput());
-    await service.createPerformance(allowedPeer, { songId: created.id, keySelection: null, memo: "", performedAt: "2026-08-13T10:00:00.000Z", clientRequestId: crypto.randomUUID() });
-    await expect(service.deleteSong(allowed, { id: created.id, expectedVersion: 2, clientRequestId: crypto.randomUUID() })).rejects.toThrow();
-    expect(await database.sqlite.prepare("SELECT id FROM performances WHERE song_id=?").all(created.id)).toHaveLength(1);
   });
 
   it("creates, counts, and cancels performance records", async () => {

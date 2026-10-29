@@ -32,9 +32,13 @@ export interface SongMutation extends Omit<Song, "id" | "damNumber" | "createdAt
   clientRequestId: string;
 }
 
+// An edit carries only the fields it changes and no version: each field
+// takes its latest write, so a change made elsewhere meanwhile, like the
+// country the classifier fills in after a TJ or DAM add, is kept.
 export interface SongUpdate extends Partial<Omit<SongMutation, "clientRequestId">> {
   id: string;
-  expectedVersion: number;
+  // Internal only: write just if the song is still at this version.
+  expectedVersion?: number;
   clientRequestId: string;
 }
 
@@ -75,7 +79,7 @@ export interface SongbookService {
   createTjSong(actor: RequestActor, candidate: TjSongCandidate, clientRequestId: string): Promise<TjAddResult>;
   createDamSong(actor: RequestActor, candidate: DamSongCandidate, clientRequestId: string): Promise<DamAddResult>;
   updateSong(actor: RequestActor, input: SongUpdate): Promise<Song>;
-  deleteSong(actor: RequestActor, input: { id: string; expectedVersion: number; clientRequestId: string }): Promise<Song>;
+  deleteSong(actor: RequestActor, input: { id: string; clientRequestId: string }): Promise<Song>;
   createPerformance(actor: RequestActor, input: PerformanceCreate): Promise<Performance>;
   cancelPerformance(actor: RequestActor, input: PerformanceCancel): Promise<Performance>;
   favoriteSongIds(actor: RequestActor): Promise<string[]>;
@@ -258,15 +262,22 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
   const createSongOutcome = (actor: RequestActor, input: SongMutation): Promise<SongCreateOutcome> =>
     withMutation(actor, "song:create", "song.create", input.clientRequestId, input, (resolved) => createOutcome(resolved, input));
 
+  // The row is written whole, so the edit is merged onto the song as read and
+  // written only if nothing else wrote it in between; otherwise it is read and
+  // merged again, and a field the edit leaves out never undoes another write.
   const applyUpdate = async (resolved: ResolvedActor, input: SongUpdate): Promise<Song> => {
-    const before = await songs.get(input.id);
-    if (!before || before.deletedAt) throw new DomainError("NOT_FOUND", "곡을 찾을 수 없어.");
-    const next = songFromUpdate(before, stampNames(input, resolved, ["updatedByName"]), now());
-    await ensureDuplicateFree(next, before.id);
-    if (!(await songs.update({ ...next, updatedByEmail: resolved.email }, input.expectedVersion))) throw new DomainError("VERSION_MISMATCH", "곡이 다른 곳에서 바뀌었어.", { currentVersion: (await songs.get(input.id))?.version, requestVersion: input.expectedVersion });
-    const after = (await songs.get(input.id))!;
-    await appendAudit(resolved, "song", input.id, "update", before, after, input.clientRequestId, before.version, after.version);
-    return after;
+    for (let attempt = 1; ; attempt += 1) {
+      const before = await songs.get(input.id);
+      if (!before || before.deletedAt) throw new DomainError("NOT_FOUND", "곡을 찾을 수 없어.");
+      const next = songFromUpdate(before, stampNames(input, resolved, ["updatedByName"]), now());
+      await ensureDuplicateFree(next, before.id);
+      if (await songs.update({ ...next, updatedByEmail: resolved.email }, input.expectedVersion ?? before.version)) {
+        const after = (await songs.get(input.id))!;
+        await appendAudit(resolved, "song", input.id, "update", before, after, input.clientRequestId, before.version, after.version);
+        return after;
+      }
+      if (input.expectedVersion !== undefined || attempt === 3) throw new DomainError("VERSION_MISMATCH", "곡이 다른 곳에서 바뀌었어.");
+    }
   };
 
   const updateSong = (actor: RequestActor, input: SongUpdate): Promise<Song> =>
@@ -365,7 +376,7 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
       // reporting a duplicate.
       const sameName = await songs.findDuplicate({ title: candidate.title, artist: candidate.artist });
       if (sameName && !sameName.damNumber && can(resolved.role, "song:update") && !(await songs.getByDamNumber(candidate.damNumber))) {
-        const linked = await applyUpdate(resolved, { id: sameName.id, expectedVersion: sameName.version, damNumber: candidate.damNumber, updatedByName: resolved.displayName, clientRequestId });
+        const linked = await applyUpdate(resolved, { id: sameName.id, damNumber: candidate.damNumber, updatedByName: resolved.displayName, clientRequestId });
         return { outcome: "linked", song: linked, existing: null, duplicateKind: null, canRestore: false, canOpen: true };
       }
       const outcome = await createOutcome(resolved, {
@@ -398,7 +409,7 @@ export function createSongbookService(database: SongbookDatabaseBase, options: S
     deleteSong: (actor, input) => withMutation(actor, "song:delete", "song.delete", input.clientRequestId, input, async (resolved) => {
       const before = await songs.get(input.id);
       if (!before || before.deletedAt) throw new DomainError("NOT_FOUND", "곡을 찾을 수 없어.");
-      if (!(await songs.remove(input.id, input.expectedVersion))) throw new DomainError("VERSION_MISMATCH", "곡이 다른 곳에서 바뀌었어.");
+      if (!(await songs.remove(input.id))) throw new DomainError("NOT_FOUND", "곡을 찾을 수 없어.");
       await appendAudit(resolved, "song", input.id, "delete", before, null, input.clientRequestId, before.version, null);
       return before;
     }),

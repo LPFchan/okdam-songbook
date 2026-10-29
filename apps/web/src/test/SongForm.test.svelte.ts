@@ -111,47 +111,25 @@ describe("SongForm", () => {
     expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ title: "노래" }), expect.any(String), "auth.lost.plus:42");
   });
 
-  it("takes the server's filled-in country while a new song is being edited", async () => {
+  it("sends only the changed fields when saving an edit", async () => {
     auth.user = { subject: "auth.lost.plus:42", email: "allowed@example.com", displayName: "여울", role: "allowed", expiresAt: null };
     auth.status = "authenticated";
     vi.spyOn(auth, "requireValidCredential").mockResolvedValue(auth.user);
     const upsert = vi.spyOn(api, "upsertSong").mockImplementation(async (song) => song as never);
     const added = songSchema.parse({
-      id: "song-1", tjNumber: "", damNumber: "2991-12", title: "Sugarless GiRL", artist: "CAPSULE", country: "",
-      createdAt: "2026-10-12T00:00:00.000Z", updatedAt: "2026-10-12T00:00:00.000Z", version: 1
+      id: "song-1", tjNumber: "30950", title: "힙합유치원", artist: "데프콘", country: "", performerIds: ["yeowool"],
+      createdAt: "2026-10-29T12:19:49.000Z", updatedAt: "2026-10-29T12:19:49.000Z", version: 1
     });
-    const props = $state({ tab: "add" as const, songs: [added], editSong: added, onSongSaved: () => {}, onSongDeleted: () => {}, onRequestTab: () => {}, onClose: () => {} });
-    render(SongForm, { props });
+    render(SongForm, {
+      props: { tab: "add", songs: [added], editSong: added, onSongSaved: () => {}, onSongDeleted: () => {}, onRequestTab: () => {}, onClose: () => {} }
+    });
 
-    await act(() => {
-      props.songs = [{ ...added, country: "일본", version: 2, updatedByName: "국가 자동 분류", performanceCount: 1, lastPerformedAt: "2026-10-12T00:00:04.000Z", updatedAt: "2026-10-12T00:00:05.000Z" }];
-    });
+    await fireEvent.click(screen.getByRole("button", { name: "여울" }));
+    await fireEvent.click(screen.getByRole("button", { name: "마리" }));
     await screen.getByRole("button", { name: "수정 저장" }).click();
 
     await waitFor(() => expect(upsert).toHaveBeenCalledTimes(1));
-    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ id: "song-1", country: "일본", version: 2 }), expect.any(String), "auth.lost.plus:42");
-  });
-
-  it("keeps the country blank when the artist was edited before the fill", async () => {
-    auth.user = { subject: "auth.lost.plus:42", email: "allowed@example.com", displayName: "여울", role: "allowed", expiresAt: null };
-    auth.status = "authenticated";
-    vi.spyOn(auth, "requireValidCredential").mockResolvedValue(auth.user);
-    const upsert = vi.spyOn(api, "upsertSong").mockImplementation(async (song) => song as never);
-    const added = songSchema.parse({
-      id: "song-1", tjNumber: "", damNumber: "2991-12", title: "Sugarless GiRL", artist: "CAPSULE", country: "",
-      createdAt: "2026-10-12T00:00:00.000Z", updatedAt: "2026-10-12T00:00:00.000Z", version: 1
-    });
-    const props = $state({ tab: "add" as const, songs: [added], editSong: added, onSongSaved: () => {}, onSongDeleted: () => {}, onRequestTab: () => {}, onClose: () => {} });
-    render(SongForm, { props });
-
-    await fireEvent.input(screen.getByPlaceholderText("아티스트"), { target: { value: "Someone Else" } });
-    await act(() => {
-      props.songs = [{ ...added, country: "일본", version: 2, updatedByName: "국가 자동 분류", updatedAt: "2026-10-12T00:00:05.000Z" }];
-    });
-    await screen.getByRole("button", { name: "수정 저장" }).click();
-
-    await waitFor(() => expect(upsert).toHaveBeenCalledTimes(1));
-    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({ artist: "Someone Else", country: "", version: 2 }), expect.any(String), "auth.lost.plus:42");
+    expect(upsert).toHaveBeenCalledWith({ id: "song-1", performerIds: ["marie"], updatedByName: "여울" }, expect.any(String), "auth.lost.plus:42");
   });
 
   it("clears a draft when the active subject changes", async () => {

@@ -64,7 +64,7 @@ export interface SongRepository {
   findDuplicate(input: { tjNumber?: string | null; damNumber?: string | null; title: string; artist: string }, excludeId?: string, options?: { includeDeleted?: boolean }): Promise<Song | null>;
   insert(song: Song & { createdByEmail?: string; updatedByEmail?: string; deletedByEmail?: string | null }): Promise<void>;
   update(song: Song & { createdByEmail?: string; updatedByEmail?: string; deletedByEmail?: string | null }, expectedVersion: number): Promise<boolean>;
-  remove(id: string, expectedVersion: number): Promise<boolean>;
+  remove(id: string): Promise<boolean>;
 }
 
 const SONG_SELECT = "SELECT s.*, (SELECT COUNT(*) FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL) AS performance_count, (SELECT MAX(p.performed_at) FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL) AS last_performed_at, (SELECT p.created_by_email FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL ORDER BY p.performed_at DESC, p.created_at DESC, p.id DESC LIMIT 1) AS last_performed_by_email, (SELECT p.created_by_name FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL ORDER BY p.performed_at DESC, p.created_at DESC, p.id DESC LIMIT 1) AS last_performed_by_name FROM songs s";
@@ -98,7 +98,7 @@ export function createSongRepository(sqlite: SqlExecutor, displayNameForEmail: (
     },
     // D1 counts rows a trigger or cascade removed in changes, so the deleted
     // song is counted from RETURNING instead.
-    remove: async (id, expectedVersion) => (await sqlite.prepare("DELETE FROM songs WHERE id=? AND version=? AND deleted_at IS NULL RETURNING id").all(id, expectedVersion)).length === 1
+    remove: async (id) => (await sqlite.prepare("DELETE FROM songs WHERE id=? AND deleted_at IS NULL RETURNING id").all(id)).length === 1
   };
 }
 

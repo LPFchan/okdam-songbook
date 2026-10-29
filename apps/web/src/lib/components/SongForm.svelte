@@ -97,28 +97,11 @@
     }
   });
 
-  // A song added from TJ or DAM gets its country from the server a few seconds
-  // later, which moves its version. If that is the only change since the form
-  // opened, take the new version so saving or deleting still goes through,
-  // and the country too unless one was picked or the title or artist edited.
-  $effect(() => {
-    const loaded = loadedSong;
-    const current = loaded && songs.find((song) => song.id === loaded.id);
-    if (!loaded || !current || loaded.country || !current.country || current.version === loaded.version) return;
-    if (!sameExceptCountryFill(loaded, current)) return;
-    const sameNames = draft.title === loaded.title && draft.artist === loaded.artist;
-    draft = { ...draft, version: current.version, country: draft.country || (sameNames ? current.country : "") };
-    loadedSong = current;
-  });
-
-  function sameExceptCountryFill(before: Song, after: Song): boolean {
-    // The fill stamps its own editor, and performance counts change whenever
-    // anyone sings the song; none of these are part of what an edit saves.
-    const strip = ({
-      country: _country, version: _version, updatedAt: _updatedAt, updatedByName: _updatedBy,
-      performanceCount: _count, lastPerformedAt: _at, lastPerformedByName: _by, ...rest
-    }: Song) => JSON.stringify(rest);
-    return strip(before) === strip(after);
+  // An edit sends only the fields it changed, so one written elsewhere while
+  // the form was open, like the country the server fills in after a TJ or DAM
+  // add, is kept.
+  function changedFields(before: Song, after: Partial<Song>): Partial<Song> {
+    return Object.fromEntries(Object.entries(after).filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(before[key as keyof Song])));
   }
 
   // Drafts belong to the account that opened them. If another tab changes the
@@ -157,7 +140,10 @@
     try {
       // Accept "147259" and "1472 59" as well as DAM's own "1472-59".
       const damNumber = draft.damNumber ? (normalizeDamNumber(draft.damNumber) ?? draft.damNumber) : "";
-      const saved = await upsertSong({ ...draft, damNumber }, crypto.randomUUID(), ownerSubject);
+      const edited = { ...draft, damNumber };
+      // Any sent editor name is credited to whoever is acting.
+      const song = editingId && loadedSong ? { ...changedFields(loadedSong, edited), id: editingId, updatedByName: auth.user.displayName } : edited;
+      const saved = await upsertSong(song, crypto.randomUUID(), ownerSubject);
       onSongSaved(saved);
       resetDraft();
       onClose();
@@ -182,7 +168,7 @@
     if (!ownerSubject) return;
     deletePending = true;
     try {
-      await deleteSong({ id: editingId, version: draft.version ?? 0 }, crypto.randomUUID(), ownerSubject);
+      await deleteSong({ id: editingId }, crypto.randomUUID(), ownerSubject);
       const title = draft.title || "곡";
       onSongDeleted(editingId);
       resetDraft();
