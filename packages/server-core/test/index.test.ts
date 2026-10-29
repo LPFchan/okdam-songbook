@@ -76,15 +76,14 @@ describe("D1 storage foundation", () => {
     expect((await songs.findDuplicate({ tjNumber: "20202", title: "New", artist: "New Artist" }, "song-1"))?.id).toBe("song-2");
   });
 
-  it("hard-deletes a song and frees its TJ number", async () => {
+  it("hard-deletes a song and frees its TJ number while keeping optimistic versions", async () => {
     const songs = createSongRepository(database.sqlite);
     await songs.insert(song());
     expect(await songs.remove("song-1")).toBe(true);
     expect(await songs.get("song-1")).toBeNull();
     await expect(songs.insert(song({ id: "song-2" }))).resolves.not.toThrow();
-    expect(await songs.update(song({ id: "song-3", title: "Updated", updatedAt: "2026-08-13T03:00:00.000Z" }))).toBe(false);
-    expect(await songs.update(song({ id: "song-2", title: "Updated", updatedAt: "2026-08-13T03:00:00.000Z" }))).toBe(true);
-    expect(await songs.get("song-2")).toMatchObject({ title: "Updated", version: 2 });
+    expect(await songs.update(song({ id: "song-2", title: "Updated", version: 2, updatedAt: "2026-08-13T03:00:00.000Z" }), 2)).toBe(false);
+    expect(await songs.update(song({ id: "song-2", title: "Updated", version: 2, updatedAt: "2026-08-13T03:00:00.000Z" }), 1)).toBe(true);
   });
 
   it("claims idempotency keys, returns same-request replays, rejects mismatches, and prunes expiry", async () => {

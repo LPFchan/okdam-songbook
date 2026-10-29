@@ -261,6 +261,27 @@ describe("songbook domain services", () => {
     expect(edited).toMatchObject({ country: "한국", performerIds: ["marie"] });
   });
 
+  it("does not undo a write that lands between an edit's read and its write", async () => {
+    const inner = createSongRepository(database.sqlite);
+    let interleave = true;
+    const songRepository = {
+      ...inner,
+      update: async (...args: Parameters<typeof inner.update>) => {
+        if (interleave) {
+          interleave = false;
+          const current = (await inner.get(args[0].id))!;
+          await inner.update({ ...current, country: "한국" }, current.version);
+        }
+        return inner.update(...args);
+      }
+    };
+    const service = createSongbookService(database, { roleResolver: roleResolver(), songRepository });
+    const created = await service.createSong(allowed, songInput());
+
+    const edited = await service.updateSong(allowed, { id: created.id, memo: "edited", clientRequestId: crypto.randomUUID() });
+    expect(edited).toMatchObject({ country: "한국", memo: "edited", version: 3 });
+  });
+
   it("makes mutations replay-safe and audits the successful operation once", async () => {
     const service = createSongbookService(database, { roleResolver: roleResolver() });
     const clientRequestId = crypto.randomUUID();

@@ -63,13 +63,13 @@ export interface SongRepository {
   getByDamNumber(damNumber: string): Promise<Song | null>;
   findDuplicate(input: { tjNumber?: string | null; damNumber?: string | null; title: string; artist: string }, excludeId?: string, options?: { includeDeleted?: boolean }): Promise<Song | null>;
   insert(song: Song & { createdByEmail?: string; updatedByEmail?: string; deletedByEmail?: string | null }): Promise<void>;
-  update(song: Song & { createdByEmail?: string; updatedByEmail?: string; deletedByEmail?: string | null }): Promise<boolean>;
+  update(song: Song & { createdByEmail?: string; updatedByEmail?: string; deletedByEmail?: string | null }, expectedVersion: number): Promise<boolean>;
   remove(id: string): Promise<boolean>;
 }
 
 const SONG_SELECT = "SELECT s.*, (SELECT COUNT(*) FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL) AS performance_count, (SELECT MAX(p.performed_at) FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL) AS last_performed_at, (SELECT p.created_by_email FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL ORDER BY p.performed_at DESC, p.created_at DESC, p.id DESC LIMIT 1) AS last_performed_by_email, (SELECT p.created_by_name FROM performances p WHERE p.song_id=s.id AND p.cancelled_at IS NULL ORDER BY p.performed_at DESC, p.created_at DESC, p.id DESC LIMIT 1) AS last_performed_by_name FROM songs s";
 const SONG_INSERT_SQL = "INSERT INTO songs (id,tj_number,dam_number,title,title_reading_ko,artist,artist_reading_ko,country,recommended_key_json,performer_ids_json,memo,source_type,source_reference,created_by_email,created_by_name,created_at,updated_by_email,updated_by_name,updated_at,deleted_at,deleted_by_email,version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-const SONG_UPDATE_SQL = "UPDATE songs SET tj_number=?,dam_number=?,title=?,title_reading_ko=?,artist=?,artist_reading_ko=?,country=?,recommended_key_json=?,performer_ids_json=?,memo=?,source_type=?,source_reference=?,updated_by_email=?,updated_by_name=?,updated_at=?,deleted_at=?,deleted_by_email=?,version=version+1 WHERE id=?";
+const SONG_UPDATE_SQL = "UPDATE songs SET tj_number=?,dam_number=?,title=?,title_reading_ko=?,artist=?,artist_reading_ko=?,country=?,recommended_key_json=?,performer_ids_json=?,memo=?,source_type=?,source_reference=?,updated_by_email=?,updated_by_name=?,updated_at=?,deleted_at=?,deleted_by_email=?,version=version+1 WHERE id=? AND version=?";
 
 export function createSongRepository(sqlite: SqlExecutor, displayNameForEmail: (email: string) => string = () => ""): SongRepository {
   const select = SONG_SELECT;
@@ -92,8 +92,8 @@ export function createSongRepository(sqlite: SqlExecutor, displayNameForEmail: (
       return row ? map(row) : null;
     },
     insert: async (song) => { await sqlite.prepare(SONG_INSERT_SQL).run(...songValues(song)); },
-    update: async (song) => {
-      const result = await sqlite.prepare(SONG_UPDATE_SQL).run(song.tjNumber || null, song.damNumber || null, song.title, song.titleReadingKo, song.artist, song.artistReadingKo, song.country, song.recommendedKey ? JSON.stringify(song.recommendedKey) : null, JSON.stringify(song.performerIds), song.memo, song.sourceType, song.sourceReference, song.updatedByEmail || "", song.updatedByName, song.updatedAt, song.deletedAt || null, song.deletedByEmail || null, song.id);
+    update: async (song, expectedVersion) => {
+      const result = await sqlite.prepare(SONG_UPDATE_SQL).run(song.tjNumber || null, song.damNumber || null, song.title, song.titleReadingKo, song.artist, song.artistReadingKo, song.country, song.recommendedKey ? JSON.stringify(song.recommendedKey) : null, JSON.stringify(song.performerIds), song.memo, song.sourceType, song.sourceReference, song.updatedByEmail || "", song.updatedByName, song.updatedAt, song.deletedAt || null, song.deletedByEmail || null, song.id, expectedVersion);
       return result.changes === 1;
     },
     // D1 counts rows a trigger or cascade removed in changes, so the deleted
